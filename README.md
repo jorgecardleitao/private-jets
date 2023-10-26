@@ -37,6 +37,8 @@ markdown file with a description of:
 * how many emissions per year (CO2e/y) a Dane emits
 * The source of each of the claims.
 
+templated based on [`src/template.md`](./src/template.md).
+
 ### FS-2 - Methodology
 
 The methodology used to support this solution is the follow:
@@ -46,9 +48,6 @@ The methodology used to support this solution is the follow:
 This was performed by a human, and consisted in going through different aircraft
 manufacturers' websites and identifying the aircrafts that were advertised as used
 for private flying.
-
-The list of identified aircrafts and each of their sources is available in sheet "types"
-of [this Google sheets](https://docs.google.com/spreadsheets/d/1PYmza1xpbiAYlXscP9e2CciYuAIX5VRLcJnjNMKYRRE/edit#gid=0).
 
 For example, `Dassault Falcon 2000` (`F2TH` in https://www.icao.int) is advertised as a
 private jet on https://www.dassaultfalcon.com/aircraft/overview-of-the-fleet/.
@@ -65,8 +64,8 @@ was also searched in https://www.jetphotos.com to confirm that it was recently
 photographed flying or in take-off, landing.
 
 For example, advance searching for aircraft type `Dassault Falcon 2000` in
-https://www.danishaircraft.dk yields `OY-CKK(3)`, searching for `OY-CKK` in 
-https://globe.adsbexchange.com results in a match.
+https://www.danishaircraft.dk yields `OY-CKK(3)`. To corruburate that this is
+an active aicraft, searching for `OY-CKK` in https://globe.adsbexchange.com results in a match.
 
 This is stored in [`./src/aircrafts.csv`](./src/aircrafts.csv).
 
@@ -80,12 +79,18 @@ to owned by `Kirkbi Invest A/S`.
 
 This is stored in [`./src/aircrafts.csv`](./src/aircrafts.csv).
 
+It also consisted in extracting statements or slogans from these owners from their websites
+to illustrate the incompatibility between owning a private jet and their sustainability goals.
+
+This is stored in [`./src/owners.json`](./src/owners.json).
+
 #### 4. Identify transponder ICAO number from tail number
 
 This is performed automatically by the computer program and consists
 in looking the tail number in the same database used by https://globe.adsbexchange.com.
 
 For example, `OY-CKK` had ICAO number `458d6b` as of 2023-10-23.
+
 Details are available in the source code, [src/number_of_icao.rs](./src/number_of_icao.rs).
 
 #### 5. Identify ICAO number's route in a day
@@ -104,6 +109,8 @@ between two ground situations.
 
 Since some aircrafts only turn on the transponder while in flight, we set that below 1000 feet
 the aircraft is considered on the ground.
+
+Details are available in the source code, [src/legs.rs](./src/legs.rs).
 
 #### 7. Compute emissions of leg
 
