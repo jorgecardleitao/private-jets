@@ -1,0 +1,22 @@
+[package]
+name = "flights"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tinytemplate = "1.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "*"
+serde_json = "*"
+clap = { version = "4.4.6", features = ["derive"] }
+
+# perform requests to the internet
+reqwest = {version="*", features = ["blocking", "gzip"]}
+
+# compute distances between geo-points
+geoutils = "*"
+
+# read airport names
+csv = "*"
