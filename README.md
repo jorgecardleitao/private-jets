@@ -86,7 +86,7 @@ This is performed automatically by the computer program and consists
 in looking the tail number in the same database used by https://globe.adsbexchange.com.
 
 For example, `OY-CKK` had ICAO number `458d6b` as of 2023-10-23.
-Details are available in the source code.
+Details are available in the source code, [src/number_of_icao.rs](./src/number_of_icao.rs).
 
 #### 5. Identify ICAO number's route in a day
 
@@ -94,7 +94,7 @@ This is performed automatically by the computer program and consists in looking 
 the historical route of the ICAO number in https://globe.adsbexchange.com.
 This contains the sequence of `(latitude, longitude)` and other information.
 
-Details are available in the source code.
+Details are available in the source code, [src/legs.rs](./src/legs.rs).
 
 #### 6. Identify legs of a route
 
@@ -111,10 +111,14 @@ This is performed automatically by the computer program and consists in using th
 metholodogy as used by myclimate.org, available [here](https://www.myclimate.org/en/information/about-myclimate/downloads/flight-emission-calculator/), to compute the emissions of a commercial
 flight in first class.
 
+Details are available in the source code, [src/emissions.rs](./src/emissions.rs).
+
 #### 8. Writing output
 
 This is performed automatically by the computer program and consists in a template, available
 in [`src/template.md`](./src/template.md), to produce a complete document.
+
+Details are available in the source code, [src/main.rs](./src/main.rs).
 
 ## Design
 
