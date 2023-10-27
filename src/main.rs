@@ -53,20 +53,20 @@ pub fn flight_date(
     println!("Legs: {}", legs.len());
 
     Ok(legs.into_iter().filter_map(|leg| {
-        let is_leg = matches!(leg.from, Position::Grounded(_, _)) & matches!(leg.to, Position::Grounded(_, _));
+        let is_leg = matches!(leg.from, Position::Grounded(_, _, _)) & matches!(leg.to, Position::Grounded(_, _, _));
         if !is_leg {
             println!("{:?} -> {:?} skipped", leg.from, leg.to);
         }
-        is_leg.then_some((leg.from.pos(), leg.to.pos()))
+        is_leg.then_some((leg.from, leg.to))
     }).map(|(from, to)| {
-        let emissions = emissions(from, to, Class::First);
+        let emissions = emissions(from.pos(), to.pos(), Class::First);
 
         Event {
             tail_number: tail_number.to_string(),
                 owner: owner.clone(),
                 date: date.to_string(),
-                from_airport: closest(from, &airports).name.clone(),
-                to_airport: closest(to, &airports).name.clone(),
+                from_airport: closest(from.pos(), &airports).name.clone(),
+                to_airport: closest(to.pos(), &airports).name.clone(),
                 two_way: false,
                 commercial_emissions_kg: Fact {
                     claim: emissions as usize,

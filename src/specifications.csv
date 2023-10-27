@@ -1,0 +1,5 @@
+type	max_fuel	max_range	cruise_speed	source	date
+CL35	6418	5926	987.84	https://businessaircraft.bombardier.com/en/aircraft/challenger-350#bba-pdp-section-5	2023-10-27
+CL60	9072	7408	987.84	https://businessaircraft.bombardier.com/en/aircraft/challenger-650#bba-pdp-section-5	2023-10-27
+F2TH	7557	7408	1012	https://www.dassaultfalcon.com/businessjets/falcon-2000lxs/	2023-10-27
+FA7X	14488	11019	850	https://en.wikipedia.org/wiki/Dassault_Falcon_7X	2023-10-27

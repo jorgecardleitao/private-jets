@@ -18,19 +18,7 @@ pub struct Aircraft {
 /// # Error
 /// Errors if the file cannot be read
 pub fn load_aircrafts() -> Result<HashMap<String, Aircraft>, Box<dyn Error>> {
-    let data = std::fs::read("src/aircrafts.csv")?;
-
-    let mut rdr = csv::ReaderBuilder::new()
-        .delimiter(b'\t')
-        .from_reader(std::io::Cursor::new(data));
-    let data = rdr
-        .deserialize()
-        .into_iter()
-        .map(|r| {
-            let record: Aircraft = r.unwrap();
-            record
-        })
-        .map(|aircraft| (aircraft.tail_number.clone(), aircraft))
-        .collect();
-    Ok(data)
+    super::csv::load("src/aircrafts.csv", |a: Aircraft| {
+        (a.tail_number.clone(), a)
+    })
 }

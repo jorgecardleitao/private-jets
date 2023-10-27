@@ -1,5 +1,6 @@
 mod aircrafts;
 mod airports;
+mod csv;
 mod emissions;
 mod icao_to_trace;
 mod legs;

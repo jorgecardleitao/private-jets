@@ -4,14 +4,16 @@ use crate::trace_cached;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Position {
-    Grounded(f64, f64),
-    Flying(f64, f64, f64),
+    // time in seconds since midnight, lat, long
+    Grounded(f64, f64, f64),
+    // time in seconds since midnight, lat, long, height
+    Flying(f64, f64, f64, f64),
 }
 
 impl Position {
     pub fn pos(&self) -> (f64, f64) {
         match *self {
-            Position::Flying(long, lat, _) | Position::Grounded(long, lat) => (long, lat),
+            Position::Flying(_, long, lat, _) | Position::Grounded(_, long, lat) => (long, lat),
         }
     }
 }
@@ -36,25 +38,27 @@ pub fn legs(icao: &str, date: &str, cookie: &str) -> Result<Vec<Leg>, Box<dyn Er
     }
 
     let mut positions = trace.iter().map(|entry| {
+        // 0 -> time
         // 1 -> latitude
         // 2 -> longitude
         // 3 -> either Baro. Altitude in feet (f32) or "ground" (str)
+        let time = entry[0].as_f64().unwrap();
         let lat = entry[1].as_f64().unwrap();
         let long = entry[2].as_f64().unwrap();
         entry[3]
             .as_str()
-            .and_then(|x| (x == "ground").then_some(Position::Grounded(lat, long)))
+            .and_then(|x| (x == "ground").then_some(Position::Grounded(time, lat, long)))
             .unwrap_or_else(|| {
                 entry[3]
                     .as_f64()
                     .and_then(|x| {
                         Some(if x < 1000.0 {
-                            Position::Grounded(lat, long)
+                            Position::Grounded(time, lat, long)
                         } else {
-                            Position::Flying(lat, long, x)
+                            Position::Flying(time, lat, long, x)
                         })
                     })
-                    .unwrap_or(Position::Grounded(lat, long))
+                    .unwrap_or(Position::Grounded(time, lat, long))
             })
     });
 
@@ -63,13 +67,13 @@ pub fn legs(icao: &str, date: &str, cookie: &str) -> Result<Vec<Leg>, Box<dyn Er
     let mut legs: Vec<Leg> = vec![];
     positions.for_each(|position| {
         match (prev_position, position) {
-            (Position::Grounded(_, _), Position::Flying(_, _, _)) => {
+            (Position::Grounded(_, _, _), Position::Flying(_, _, _, _)) => {
                 legs.push(Leg {
                     from: prev_position,
                     to: prev_position,
                 });
             }
-            (Position::Flying(_, _, _), Position::Grounded(_, _)) => {
+            (Position::Flying(_, _, _, _), Position::Grounded(_, _, _)) => {
                 if legs.is_empty() {
                     legs.push(Leg {
                         from: first,
@@ -84,7 +88,7 @@ pub fn legs(icao: &str, date: &str, cookie: &str) -> Result<Vec<Leg>, Box<dyn Er
         prev_position = position;
     });
     assert!(!legs.is_empty()); // flying for more than 24h strait
-    if matches!(prev_position, Position::Flying(_, _, _)) {
+    if matches!(prev_position, Position::Flying(_, _, _, _)) {
         legs.last_mut().unwrap().to = prev_position;
     }
 
