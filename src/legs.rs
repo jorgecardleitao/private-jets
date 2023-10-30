@@ -11,6 +11,12 @@ pub enum Position {
 }
 
 impl Position {
+    pub fn time(&self) -> f64 {
+        match *self {
+            Position::Flying(time, _, _, _) | Position::Grounded(time, _, _) => time,
+        }
+    }
+
     pub fn pos(&self) -> (f64, f64) {
         match *self {
             Position::Flying(_, long, lat, _) | Position::Grounded(_, long, lat) => (long, lat),
