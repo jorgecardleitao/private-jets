@@ -33,6 +33,7 @@ pub fn flight_date(
 ) -> Result<Vec<Event>, Box<dyn Error>> {
     let airports = airports_cached()?;
     let to_icao = number_to_icao()?;
+    let specifications = load_specification()?;
     let aircraft = aircrafts
         .get(tail_number)
         .ok_or_else(|| Into::<Box<dyn Error>>::into("Tail number not found"))?;
@@ -60,6 +61,7 @@ pub fn flight_date(
         is_leg.then_some((leg.from, leg.to))
     }).map(|(from, to)| {
         let emissions = emissions(from.pos(), to.pos(), Class::First);
+        let emissions_private = emissions_private_jet(&aircraft.model, from, to, &specifications);
 
         Event {
             tail_number: tail_number.to_string(),
@@ -73,11 +75,7 @@ pub fn flight_date(
                     source: "https://www.myclimate.org/en/information/about-myclimate/downloads/flight-emission-calculator/".to_string(),
                     date: "2023-10-19".to_string()
                 },
-                emissions_kg: Fact {
-                    claim: (emissions * 10.0) as usize,
-                    source: "Private jets emit 5-14x times. 10x was used here https://www.transportenvironment.org/discover/private-jets-can-the-super-rich-supercharge-zero-emission-aviation/".to_string(),
-                    date: "2023-10-05, from 2021-05-27".to_string(),
-                },
+                emissions_kg: emissions_private,
                 source: format!("https://globe.adsbexchange.com/?icao={icao}&showTrace={date}"),
                 source_date: date.to_string(),
         }
