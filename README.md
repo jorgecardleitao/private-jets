@@ -54,14 +54,14 @@ private jet on https://www.dassaultfalcon.com/aircraft/overview-of-the-fleet/.
 
 This is stored in [`./src/types.csv`](./src/types.csv).
 
-#### 2. Identify private jet aircrafts registered in Denmark
+#### 2. Identify private jet aircrafts
 
-This was performed by a human, and consisted in searching for the different aircraft
-types on the website https://www.danishaircraft.dk. For each type, there was a list
-of tail numbers. Each tail number was searched on https://globe.adsbexchange.com for
-the last month to confirm that the aircraft is indeed operating. In many cases the aircraft
-was also searched in https://www.jetphotos.com to confirm that it was recently
-photographed flying or in take-off, landing.
+This is performed automatically by the computer program and consists, and
+consisted in extracting the database of all aicrafts in https://globe.adsbexchange.com.
+
+For example, `OY-CKK` had ICAO number `458D6B` as of 2023-11-06.
+
+Details are available in the source code, [src/number_of_icao.rs](./src/number_of_icao.rs).
 
 For example, advance searching for aircraft type `Dassault Falcon 2000` in
 https://www.danishaircraft.dk yields `OY-CKK(3)`. To corruburate that this is
@@ -69,7 +69,7 @@ an active aicraft, searching for `OY-CKK` in https://globe.adsbexchange.com resu
 
 This is stored in [`./src/aircrafts.csv`](./src/aircrafts.csv).
 
-#### 3. Identify aircraft owner
+#### 3. Identify aircraft owner in denmark
 
 This was performed by a human, and consisted in extracting the ownership of the active
 tail number from website https://www.danishaircraft.dk.

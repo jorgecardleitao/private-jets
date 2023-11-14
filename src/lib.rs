@@ -1,3 +1,4 @@
+mod aircraft_db;
 mod aircrafts;
 mod airports;
 mod csv;

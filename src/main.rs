@@ -29,20 +29,20 @@ pub fn flight_date(
     date: &str,
     cookie: &str,
     owners: &Owners,
-    aircrafts: &Aircrafts,
+    aircraft_owners: &AircraftOwners,
 ) -> Result<Vec<Event>, Box<dyn Error>> {
     let airports = airports_cached()?;
     let to_icao = number_to_icao()?;
-    let aircraft = aircrafts
+    let aircraft_owners = aircraft_owners
         .get(tail_number)
         .ok_or_else(|| Into::<Box<dyn Error>>::into("Tail number not found"))?;
     let company = owners
-        .get(&aircraft.owner)
+        .get(&aircraft_owners.owner)
         .ok_or_else(|| Into::<Box<dyn Error>>::into("Owner not found"))?;
     let owner = Fact {
         claim: company.clone(),
-        source: aircraft.source.clone(),
-        date: aircraft.date.clone(),
+        source: aircraft_owners.source.clone(),
+        date: aircraft_owners.date.clone(),
     };
 
     println!("Owner found: {}", owner.claim.name);
@@ -122,7 +122,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     std::fs::create_dir_all("database")?;
 
     let owners = load_owners()?;
-    let aircrafts = load_aircrafts()?;
+    let aircraft_owners = load_aircraft_owners()?;
 
     let dane_emissions_kg = Fact {
         claim: 5100,
@@ -135,7 +135,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         &cli.date,
         &cli.cookie,
         &owners,
-        &aircrafts,
+        &aircraft_owners,
     )?;
 
     if events.len() == 2 && events[0].from_airport == events[1].to_airport {
