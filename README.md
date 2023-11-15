@@ -54,20 +54,12 @@ private jet on https://www.dassaultfalcon.com/aircraft/overview-of-the-fleet/.
 
 This is stored in [`./src/types.csv`](./src/types.csv).
 
-#### 2. Identify private jet aircrafts
+#### 2. Identify all aircrafts, ICAO number tail number and type
 
 This is performed automatically by the computer program and consists, and
-consisted in extracting the database of all aicrafts in https://globe.adsbexchange.com.
+consists in extracting the database of all aircrafts in https://globe.adsbexchange.com.
 
-For example, `OY-CKK` had ICAO number `458D6B` as of 2023-11-06.
-
-Details are available in the source code, [src/number_of_icao.rs](./src/number_of_icao.rs).
-
-For example, advance searching for aircraft type `Dassault Falcon 2000` in
-https://www.danishaircraft.dk yields `OY-CKK(3)`. To corruburate that this is
-an active aicraft, searching for `OY-CKK` in https://globe.adsbexchange.com results in a match.
-
-This is stored in [`./src/aircrafts.csv`](./src/aircrafts.csv).
+Details are available in the source code, [src/aircraft_db.rs](./src/aircraft_db.rs).
 
 #### 3. Identify aircraft owner in denmark
 
@@ -77,23 +69,14 @@ tail number from website https://www.danishaircraft.dk.
 For example `OY-CKK` results in 3 records, whose most recent, `OY-CKK(3)`, is registered
 to owned by `Kirkbi Invest A/S`.
 
-This is stored in [`./src/aircrafts.csv`](./src/aircrafts.csv).
+This is stored in [`./src/owners.csv`](./src/owners.csv).
 
 It also consisted in extracting statements or slogans from these owners from their websites
 to illustrate the incompatibility between owning a private jet and their sustainability goals.
 
 This is stored in [`./src/owners.json`](./src/owners.json).
 
-#### 4. Identify transponder ICAO number from tail number
-
-This is performed automatically by the computer program and consists
-in looking the tail number in the same database used by https://globe.adsbexchange.com.
-
-For example, `OY-CKK` had ICAO number `458d6b` as of 2023-10-23.
-
-Details are available in the source code, [src/number_of_icao.rs](./src/number_of_icao.rs).
-
-#### 5. Identify ICAO number's route in a day
+#### 4. Identify ICAO number's route in a day
 
 This is performed automatically by the computer program and consists in looking for
 the historical route of the ICAO number in https://globe.adsbexchange.com.
@@ -101,7 +84,7 @@ This contains the sequence of `(latitude, longitude)` and other information.
 
 Details are available in the source code, [src/legs.rs](./src/legs.rs).
 
-#### 6. Identify legs of a route
+#### 5. Identify legs of a route
 
 This is performed automatically by the computer program and consists in identifying
 points during the flight that the aircraft is in mode "ground", and computing the leg
@@ -112,7 +95,7 @@ the aircraft is considered on the ground.
 
 Details are available in the source code, [src/legs.rs](./src/legs.rs).
 
-#### 7. Compute emissions of leg
+#### 8. Compute emissions of leg
 
 This is performed automatically by the computer program and consists in using the same
 metholodogy as used by myclimate.org, available [here](https://www.myclimate.org/en/information/about-myclimate/downloads/flight-emission-calculator/), to compute the emissions of a commercial
@@ -120,7 +103,7 @@ flight in first class.
 
 Details are available in the source code, [src/emissions.rs](./src/emissions.rs).
 
-#### 8. Writing output
+#### 9. Write output
 
 This is performed automatically by the computer program and consists in a template, available
 in [`src/template.md`](./src/template.md), to produce a complete document.

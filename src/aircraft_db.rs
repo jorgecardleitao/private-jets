@@ -75,7 +75,7 @@ fn children(
 /// It returns ~0.5m aircrafts
 /// # Implementation
 /// This function is idempotent but not pure: it caches every https request to disk to not penalize adsbexchange.com
-pub fn aircrafts() -> Result<Aircrafts, Box<dyn Error>> {
+pub fn load_aircrafts() -> Result<Aircrafts, Box<dyn Error>> {
     let prefixes = (b'A'..=b'F').chain(b'0'..b'9');
     let prefixes = prefixes.map(|x| std::str::from_utf8(&[x]).unwrap().to_string());
 
@@ -97,10 +97,6 @@ pub fn aircrafts() -> Result<Aircrafts, Box<dyn Error>> {
                 .into_iter()
                 .map(|(k, v)| (format!("{prefix}{k}"), v))
                 .filter_map(|(icao_number, mut data)| {
-                    if data.len() < 2 {
-                        println!("{icao_number} {data:?}");
-                    }
-
                     let tail_number = std::mem::take(&mut data[0])?;
                     let model = std::mem::take(&mut data[1])?;
                     Some((

@@ -30,9 +30,9 @@ pub fn flight_date(
     cookie: &str,
     owners: &Owners,
     aircraft_owners: &AircraftOwners,
+    aircrafts: &Aircrafts,
 ) -> Result<Vec<Event>, Box<dyn Error>> {
     let airports = airports_cached()?;
-    let to_icao = number_to_icao()?;
     let aircraft_owners = aircraft_owners
         .get(tail_number)
         .ok_or_else(|| Into::<Box<dyn Error>>::into("Tail number not found"))?;
@@ -46,8 +46,11 @@ pub fn flight_date(
     };
 
     println!("Owner found: {}", owner.claim.name);
-    let normalized_tail = tail_number.replace("-", "");
-    let icao = to_icao.get(&normalized_tail).unwrap().to_ascii_lowercase();
+    let icao = aircrafts
+        .get(tail_number)
+        .unwrap()
+        .icao_number
+        .to_ascii_lowercase();
     println!("ICAO found: {}", icao);
     let legs = legs(&icao, date, cookie)?;
     println!("Legs: {}", legs.len());
@@ -123,6 +126,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
     let owners = load_owners()?;
     let aircraft_owners = load_aircraft_owners()?;
+    let aicrafts = load_aircrafts()?;
 
     let dane_emissions_kg = Fact {
         claim: 5100,
@@ -136,6 +140,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         &cli.cookie,
         &owners,
         &aircraft_owners,
+        &aicrafts,
     )?;
 
     if events.len() == 2 && events[0].from_airport == events[1].to_airport {
