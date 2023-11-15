@@ -56,8 +56,8 @@ This is stored in [`./src/types.csv`](./src/types.csv).
 
 #### 2. Identify all aircrafts, ICAO number tail number and type
 
-This is performed automatically by the computer program and consists, and
-consists in extracting the database of all aircrafts in https://globe.adsbexchange.com.
+This is performed automatically by the computer program and consists
+in extracting the database of all aircrafts in https://globe.adsbexchange.com.
 
 Details are available in the source code, [src/aircraft_db.rs](./src/aircraft_db.rs).
 
