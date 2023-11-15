@@ -1,5 +1,6 @@
 mod aircraft_db;
 mod aircraft_owners;
+mod aircraft_types;
 mod airports;
 mod csv;
 mod emissions;
@@ -10,6 +11,7 @@ mod owners;
 
 pub use aircraft_db::*;
 pub use aircraft_owners::*;
+pub use aircraft_types::*;
 pub use airports::*;
 pub use emissions::*;
 pub use icao_to_trace::*;
