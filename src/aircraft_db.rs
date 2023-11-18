@@ -102,7 +102,7 @@ pub fn load_aircrafts() -> Result<Aircrafts, Box<dyn Error>> {
                     Some((
                         tail_number.clone(),
                         Aircraft {
-                            icao_number,
+                            icao_number: icao_number.to_ascii_lowercase(),
                             tail_number,
                             model,
                         },
