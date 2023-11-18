@@ -5,12 +5,7 @@ private jet's flight information targetted to a Danish audience.
 ## How to use
 
 1. Install Rust
-2. Go to https://globe.adsbexchange.com/?icao=459053&showTrace=2023-10-13 and fetch the cookies
-   used to retrieve the file `trace_full_459563.json` (once per day)
-3. run `cargo run -- --tail-number "OY-GFS" --date "2023-10-20" --cookie "adsbx_sid=1697996994839_e9zejgp1o; adsbx_api=1697997662491_tl8d1cpxfvi"` with the cookie
-   replaced by what you fetched in step 2.
-
-We hope to remove step 2 soon.
+2. run `cargo run -- --tail-number "OY-GFS" --date "2023-10-20"`
 
 ## Assumptions
 
