@@ -81,8 +81,6 @@ fn globe_history(icao: &str, date: &str) -> Result<String, Box<dyn std::error::E
 }
 
 fn globe_history_cached(icao: &str, date: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let icao = icao.to_ascii_lowercase();
-
     let file_path = format!("database/{icao}_{date}.json");
     if !std::path::Path::new(&file_path).exists() {
         let data = globe_history(&icao, date)?;
@@ -93,7 +91,8 @@ fn globe_history_cached(icao: &str, date: &str) -> Result<Vec<u8>, Box<dyn std::
 }
 
 /// Returns the trace of the icao number of a given day from https://adsbexchange.com.
-/// date must be a valid ISO8601 date in format `yyyy-mm-dd` and cannot be today.
+/// * `icao` must be lowercased
+/// * `date` must be a valid ISO8601 date in format `yyyy-mm-dd` and cannot be today.
 ///
 /// The returned value is a vector where with the following by index
 /// * `0` is time in seconds since midnight (f64)

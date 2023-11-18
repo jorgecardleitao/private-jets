@@ -28,27 +28,28 @@ pub fn flight_date(
     aircrafts: &Aircrafts,
 ) -> Result<Vec<Event>, Box<dyn Error>> {
     let airports = airports_cached()?;
-    let aircraft_owners = aircraft_owners
+    let aircraft_owner = aircraft_owners
         .get(tail_number)
-        .ok_or_else(|| Into::<Box<dyn Error>>::into("Tail number not found"))?;
+        .ok_or_else(|| Into::<Box<dyn Error>>::into("Owner of tail number not found"))?;
+    println!("Aircraft owner: {}", aircraft_owner.owner);
     let company = owners
-        .get(&aircraft_owners.owner)
+        .get(&aircraft_owner.owner)
         .ok_or_else(|| Into::<Box<dyn Error>>::into("Owner not found"))?;
+    println!("Owner information found");
     let owner = Fact {
         claim: company.clone(),
-        source: aircraft_owners.source.clone(),
-        date: aircraft_owners.date.clone(),
+        source: aircraft_owner.source.clone(),
+        date: aircraft_owner.date.clone(),
     };
 
-    println!("Owner found: {}", owner.claim.name);
-    let icao = aircrafts
+    let aircraft = aircrafts
         .get(tail_number)
-        .unwrap()
-        .icao_number
-        .to_ascii_lowercase();
-    println!("ICAO found: {}", icao);
-    let legs = legs(&icao, date)?;
-    println!("Legs: {}", legs.len());
+        .ok_or_else(|| Into::<Box<dyn Error>>::into("Aircraft ICAO number not found"))?;
+    let icao = &aircraft.icao_number;
+    println!("ICAO number: {}", icao);
+
+    let legs = legs(icao, date)?;
+    println!("Number of legs: {}", legs.len());
 
     Ok(legs.into_iter().filter_map(|leg| {
         let is_leg = matches!(leg.from, Position::Grounded(_, _, _)) & matches!(leg.to, Position::Grounded(_, _, _));
@@ -121,7 +122,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
     let owners = load_owners()?;
     let aircraft_owners = load_aircraft_owners()?;
-    let aicrafts = load_aircrafts()?;
+    let aircrafts = load_aircrafts()?;
 
     let dane_emissions_kg = Fact {
         claim: 5100,
@@ -134,7 +135,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         &cli.date,
         &owners,
         &aircraft_owners,
-        &aicrafts,
+        &aircrafts,
     )?;
 
     if events.len() == 2 && events[0].from_airport == events[1].to_airport {
