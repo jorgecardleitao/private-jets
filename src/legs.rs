@@ -24,24 +24,13 @@ pub struct Leg {
     pub to: Position,
 }
 
-pub fn legs(icao: &str, date: &str, cookie: &str) -> Result<Vec<Leg>, Box<dyn Error>> {
-    let values = trace_cached(icao, date, cookie)?;
-    let trace = values
-        .as_object()
-        .unwrap()
-        .get("trace")
-        .unwrap()
-        .as_array()
-        .unwrap();
+pub fn legs(icao: &str, date: &str) -> Result<Vec<Leg>, Box<dyn Error>> {
+    let trace = trace_cached(icao, date)?;
     if trace.is_empty() {
         return Ok(vec![]);
     }
 
     let mut positions = trace.iter().map(|entry| {
-        // 0 -> time
-        // 1 -> latitude
-        // 2 -> longitude
-        // 3 -> either Baro. Altitude in feet (f32) or "ground" (str)
         let time = entry[0].as_f64().unwrap();
         let lat = entry[1].as_f64().unwrap();
         let long = entry[2].as_f64().unwrap();

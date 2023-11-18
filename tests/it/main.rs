@@ -1,15 +1,11 @@
-use std::{collections::HashMap, error::Error};
+use std::error::Error;
 
 /// Verifies that we compute the correct number of legs.
 /// The expected 2 was confirmed by manual inspection of
 /// https://globe.adsbexchange.com/?icao=45d2ed&lat=54.128&lon=9.185&zoom=5.0&showTrace=2023-10-13
 #[test]
 fn acceptance_legs() -> Result<(), Box<dyn Error>> {
-    let legs = flights::legs(
-        "45d2ed",
-        "2023-10-13",
-        todo!("Need to find a way to not have to provide this cookie"),
-    )?;
+    let legs = flights::legs("45d2ed", "2023-10-13")?;
 
     assert_eq!(legs.len(), 2);
 
@@ -44,22 +40,4 @@ fn acceptance_test_emissions() {
     let expected = 0.398 * 1000.0;
     let emissions = flights::emissions(berlin, brussels, flights::Class::First);
     assert!(abs_difference(emissions, expected) / expected < accepted_error);
-}
-
-/// Verifies that we compute the correct number of legs.
-/// The expected 2 was confirmed by manual inspection of
-/// https://globe.adsbexchange.com/?icao=45d2ed&lat=54.128&lon=9.185&zoom=5.0&showTrace=2023-10-13
-#[test]
-fn test_a() -> Result<(), Box<dyn Error>> {
-    let aicrafts = flights::load_aircrafts()?;
-    let private_types = flights::load_aircraft_types()?;
-
-    let danes = aicrafts
-        .into_iter()
-        .filter(|(_, aircraft)| private_types.contains_key(&aircraft.model))
-        .filter(|(tail_number, _)| tail_number.starts_with("OY-"))
-        .collect::<HashMap<_, _>>();
-    println!("{danes:?}");
-
-    Ok(())
 }

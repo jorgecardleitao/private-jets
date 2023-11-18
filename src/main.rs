@@ -18,16 +18,11 @@ struct Cli {
     /// The date
     #[arg(short, long)]
     date: String,
-
-    /// The cookie retrieved from https://globe.adsbexchange.com/. Something like "adsbx_sid=1697996994839_e9zejgp1o; adsbx_api=1697997662491_tl8d1cpxfvi"
-    #[arg(short, long)]
-    cookie: String,
 }
 
 pub fn flight_date(
     tail_number: &str,
     date: &str,
-    cookie: &str,
     owners: &Owners,
     aircraft_owners: &AircraftOwners,
     aircrafts: &Aircrafts,
@@ -52,7 +47,7 @@ pub fn flight_date(
         .icao_number
         .to_ascii_lowercase();
     println!("ICAO found: {}", icao);
-    let legs = legs(&icao, date, cookie)?;
+    let legs = legs(&icao, date)?;
     println!("Legs: {}", legs.len());
 
     Ok(legs.into_iter().filter_map(|leg| {
@@ -137,7 +132,6 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     let mut events = flight_date(
         &cli.tail_number,
         &cli.date,
-        &cli.cookie,
         &owners,
         &aircraft_owners,
         &aicrafts,

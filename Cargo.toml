@@ -15,6 +15,8 @@ clap = { version = "4.4.6", features = ["derive"] }
 # perform requests to the internet
 reqwest = {version="*", features = ["blocking", "gzip"]}
 
+rand = {version="*", default_features = false, features = ["std", "std_rng", "getrandom"]}
+
 # compute distances between geo-points
 geoutils = "*"
 
