@@ -1,20 +1,22 @@
-mod aircrafts;
+mod aircraft_db;
+mod aircraft_owners;
+mod aircraft_types;
 mod airports;
 mod csv;
 mod emissions;
 mod icao_to_trace;
 mod legs;
 mod model;
-mod number_to_icao;
 mod owners;
 
-pub use aircrafts::*;
+pub use aircraft_db::*;
+pub use aircraft_owners::*;
+pub use aircraft_types::*;
 pub use airports::*;
 pub use emissions::*;
 pub use icao_to_trace::*;
 pub use legs::*;
 pub use model::*;
-pub use number_to_icao::*;
 pub use owners::*;
 
 /// Returns the distance between two geo-points in km
