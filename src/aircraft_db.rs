@@ -3,14 +3,14 @@ use std::collections::HashMap;
 use std::error::Error;
 
 use reqwest;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json;
 
 /// [`HashMap`] between tail number (e.g. "OY-TWM") and an [`Aircraft`]
 pub type Aircrafts = HashMap<String, Aircraft>;
 
 /// An in-memory representation of an aircraft data
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Aircraft {
     /// The ICAO number of the aircraft (e.g. `459CD3`)
     pub icao_number: String,

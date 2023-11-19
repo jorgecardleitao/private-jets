@@ -5,6 +5,8 @@ use reqwest::header;
 use reqwest::{self, StatusCode};
 use time::PrimitiveDateTime;
 
+use super::Position;
+
 fn last_2(icao: &str) -> &str {
     let bytes = icao.as_bytes();
     std::str::from_utf8(&bytes[bytes.len() - 2..]).unwrap()
@@ -125,56 +127,6 @@ pub fn trace_cached(
         .as_array_mut()
         .unwrap();
     Ok(std::mem::take(trace))
-}
-
-/// A position of an aircraft
-#[derive(Debug, Clone, Copy)]
-pub enum Position {
-    /// Aircraft transponder declares the aircraft is grounded
-    Grounded {
-        datetime: PrimitiveDateTime,
-        latitude: f64,
-        longitude: f64,
-    },
-    /// Aircraft transponder declares the aircraft is flying at a given altitude
-    Flying {
-        datetime: PrimitiveDateTime,
-        latitude: f64,
-        longitude: f64,
-        altitude: f64,
-    },
-}
-
-impl Position {
-    pub fn latitude(&self) -> f64 {
-        match *self {
-            Position::Flying { latitude, .. } | Position::Grounded { latitude, .. } => latitude,
-        }
-    }
-
-    pub fn longitude(&self) -> f64 {
-        match *self {
-            Position::Flying { longitude, .. } | Position::Grounded { longitude, .. } => longitude,
-        }
-    }
-
-    pub fn pos(&self) -> (f64, f64) {
-        (self.latitude(), self.longitude())
-    }
-
-    pub fn altitude(&self) -> f64 {
-        match *self {
-            Position::Flying { altitude, .. } => altitude,
-            Position::Grounded { .. } => 0.0,
-        }
-    }
-
-    pub fn datetime(&self) -> PrimitiveDateTime {
-        match *self {
-            Position::Flying { datetime, .. } => datetime,
-            Position::Grounded { datetime, .. } => datetime,
-        }
-    }
 }
 
 /// Returns an iterator of [`Position`] over the trace of `icao` on day `date` assuming that
