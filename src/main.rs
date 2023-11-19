@@ -15,14 +15,14 @@ struct Cli {
     /// The tail number
     #[arg(short, long)]
     tail_number: String,
-    /// The date
+    /// The date in format `yyyy-mm-dd`
     #[arg(short, long)]
     date: String,
 }
 
 pub fn flight_date(
     tail_number: &str,
-    date: &str,
+    date: &time::Date,
     owners: &Owners,
     aircraft_owners: &AircraftOwners,
     aircrafts: &Aircrafts,
@@ -48,11 +48,13 @@ pub fn flight_date(
     let icao = &aircraft.icao_number;
     println!("ICAO number: {}", icao);
 
-    let legs = legs(icao, date)?;
+    let positions = positions(icao, date, 1000.0)?;
+    let legs = legs(positions);
+
     println!("Number of legs: {}", legs.len());
 
     Ok(legs.into_iter().filter_map(|leg| {
-        let is_leg = matches!(leg.from, Position::Grounded(_, _, _)) & matches!(leg.to, Position::Grounded(_, _, _));
+        let is_leg = matches!(leg.from, Position::Grounded{..}) & matches!(leg.to, Position::Grounded{..});
         if !is_leg {
             println!("{:?} -> {:?} skipped", leg.from, leg.to);
         }
@@ -130,9 +132,14 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         date: "2023-10-08".to_string(),
     };
 
+    let date = time::Date::parse(
+        &cli.date,
+        time::macros::format_description!("[year]-[month]-[day]"),
+    )?;
+
     let mut events = flight_date(
         &cli.tail_number,
-        &cli.date,
+        &date,
         &owners,
         &aircraft_owners,
         &aircrafts,

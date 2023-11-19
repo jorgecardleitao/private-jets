@@ -1,14 +1,18 @@
+use std::error::Error;
+
 use rand::Rng;
 use reqwest::header;
 use reqwest::{self, StatusCode};
+use time::PrimitiveDateTime;
 
 fn last_2(icao: &str) -> &str {
     let bytes = icao.as_bytes();
     std::str::from_utf8(&bytes[bytes.len() - 2..]).unwrap()
 }
 
-fn to_url(icao: &str, date: &str) -> String {
-    let date = date.replace("-", "/");
+fn to_url(icao: &str, date: &time::Date) -> String {
+    let format = time::format_description::parse("[year]/[month]/[day]").unwrap();
+    let date = date.format(&format).unwrap();
     let last_2 = last_2(icao);
     format!("https://globe.adsbexchange.com/globe_history/{date}/traces/{last_2}/trace_full_{icao}.json")
 }
@@ -30,8 +34,9 @@ fn adsbx_sid() -> String {
     format!("{time}_{random_chars}")
 }
 
-fn globe_history(icao: &str, date: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let referer = format!("https://globe.adsbexchange.com/?icao={icao}&lat=54.448&lon=10.602&zoom=7.0&showTrace={date}");
+fn globe_history(icao: &str, date: &time::Date) -> Result<String, Box<dyn std::error::Error>> {
+    let referer =
+        format!("https://globe.adsbexchange.com/?icao={icao}&lat=54.448&lon=10.602&zoom=7.0");
     let url = to_url(icao, date);
 
     let mut headers = header::HeaderMap::new();
@@ -80,7 +85,10 @@ fn globe_history(icao: &str, date: &str) -> Result<String, Box<dyn std::error::E
     }
 }
 
-fn globe_history_cached(icao: &str, date: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+fn globe_history_cached(
+    icao: &str,
+    date: &time::Date,
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let file_path = format!("database/{icao}_{date}.json");
     if !std::path::Path::new(&file_path).exists() {
         let data = globe_history(&icao, date)?;
@@ -104,7 +112,7 @@ fn globe_history_cached(icao: &str, date: &str) -> Result<Vec<u8>, Box<dyn std::
 /// by the two arguments
 pub fn trace_cached(
     icao: &str,
-    date: &str,
+    date: &time::Date,
 ) -> Result<Vec<serde_json::Value>, Box<dyn std::error::Error>> {
     let data = globe_history_cached(icao, date)?;
 
@@ -117,4 +125,108 @@ pub fn trace_cached(
         .as_array_mut()
         .unwrap();
     Ok(std::mem::take(trace))
+}
+
+/// A position of an aircraft
+#[derive(Debug, Clone, Copy)]
+pub enum Position {
+    /// Aircraft transponder declares the aircraft is grounded
+    Grounded {
+        datetime: PrimitiveDateTime,
+        latitude: f64,
+        longitude: f64,
+    },
+    /// Aircraft transponder declares the aircraft is flying at a given altitude
+    Flying {
+        datetime: PrimitiveDateTime,
+        latitude: f64,
+        longitude: f64,
+        altitude: f64,
+    },
+}
+
+impl Position {
+    pub fn latitude(&self) -> f64 {
+        match *self {
+            Position::Flying { latitude, .. } | Position::Grounded { latitude, .. } => latitude,
+        }
+    }
+
+    pub fn longitude(&self) -> f64 {
+        match *self {
+            Position::Flying { longitude, .. } | Position::Grounded { longitude, .. } => longitude,
+        }
+    }
+
+    pub fn pos(&self) -> (f64, f64) {
+        (self.latitude(), self.longitude())
+    }
+
+    pub fn altitude(&self) -> f64 {
+        match *self {
+            Position::Flying { altitude, .. } => altitude,
+            Position::Grounded { .. } => 0.0,
+        }
+    }
+
+    pub fn datetime(&self) -> PrimitiveDateTime {
+        match *self {
+            Position::Flying { datetime, .. } => datetime,
+            Position::Grounded { datetime, .. } => datetime,
+        }
+    }
+}
+
+/// Returns an iterator of [`Position`] over the trace of `icao` on day `date` assuming that
+/// a flight below `threshold` feet is grounded.
+pub fn positions(
+    icao: &str,
+    date: &time::Date,
+    threshold: f64,
+) -> Result<impl Iterator<Item = Position>, Box<dyn Error>> {
+    use time::ext::NumericalDuration;
+    let date = date.clone();
+    trace_cached(icao, &date).map(move |trace| {
+        trace.into_iter().map(move |entry| {
+            let time_seconds = entry[0].as_f64().unwrap();
+            let time = time::Time::MIDNIGHT + time_seconds.seconds();
+            let datetime = PrimitiveDateTime::new(date.clone(), time);
+            let latitude = entry[1].as_f64().unwrap();
+            let longitude = entry[2].as_f64().unwrap();
+            entry[3]
+                .as_str()
+                .and_then(|x| {
+                    (x == "ground").then_some(Position::Grounded {
+                        datetime,
+                        latitude,
+                        longitude,
+                    })
+                })
+                .unwrap_or_else(|| {
+                    entry[3]
+                        .as_f64()
+                        .and_then(|altitude| {
+                            Some(if altitude < threshold {
+                                Position::Grounded {
+                                    datetime,
+                                    latitude,
+                                    longitude,
+                                }
+                            } else {
+                                Position::Flying {
+                                    datetime,
+                                    latitude,
+                                    longitude,
+                                    altitude,
+                                }
+                            })
+                        })
+                        .unwrap_or(Position::Grounded {
+                            datetime,
+                            latitude,
+                            longitude,
+                        })
+                })
+        })
+    })
 }
