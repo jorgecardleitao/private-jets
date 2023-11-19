@@ -15,7 +15,11 @@ clap = { version = "4.4.6", features = ["derive"] }
 # perform requests to the internet
 reqwest = {version="*", features = ["blocking", "gzip"]}
 
+# create random string for cookies
 rand = {version="*", default_features = false, features = ["std", "std_rng", "getrandom"]}
+
+#
+time = {version="*", default_features = false, features = ["formatting", "parsing", "macros"]}
 
 # compute distances between geo-points
 geoutils = "*"

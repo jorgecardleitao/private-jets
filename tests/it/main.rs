@@ -1,11 +1,14 @@
 use std::error::Error;
 
+use time::macros::date;
+
 /// Verifies that we compute the correct number of legs.
 /// The expected 2 was confirmed by manual inspection of
 /// https://globe.adsbexchange.com/?icao=45d2ed&lat=54.128&lon=9.185&zoom=5.0&showTrace=2023-10-13
 #[test]
 fn acceptance_legs() -> Result<(), Box<dyn Error>> {
-    let legs = flights::legs("45d2ed", "2023-10-13")?;
+    let positions = flights::positions("45d2ed", &date!(2023 - 10 - 13), 1000.0)?;
+    let legs = flights::legs(positions);
 
     assert_eq!(legs.len(), 2);
 
