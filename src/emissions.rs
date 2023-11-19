@@ -101,7 +101,7 @@ fn distance_to_emissions(distance: f64, class: Class) -> f64 {
     }
 }
 
-/// Returns emissions of a commercial flight flying `from` -> `to`, in kg of eCO2.
+/// Returns emissions of a commercial flight flying `from` -> `to`, in kg of CO2e.
 /// The exact calculation is described here: https://www.myclimate.org/en/information/about-myclimate/downloads/flight-emission-calculator/
 pub fn emissions(from: (f64, f64), to: (f64, f64), class: Class) -> f64 {
     distance_to_emissions(super::distance(from, to), class)
