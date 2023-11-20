@@ -5,7 +5,8 @@ private jet's flight information targetted to a Danish audience.
 ## How to use
 
 1. Install Rust
-2. run `cargo run -- --tail-number "OY-GFS" --date "2023-10-20"`
+2. run `cargo run --example single_day -- --tail-number "OY-GFS" --date "2023-10-20"`
+3. open `OY-GFS_2023-10-20_0.md`
 
 ## Assumptions
 

@@ -3,14 +3,11 @@ name = "flights"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-tinytemplate = "1.1"
 serde = { version = "1.0", features = ["derive"] }
-serde_yaml = "*"
-serde_json = "*"
-clap = { version = "4.4.6", features = ["derive"] }
+
+# process JSON from https
+serde_json = { version = "1.0", default_features = false }
 
 # perform requests to the internet
 reqwest = {version="*", features = ["blocking", "gzip"]}
@@ -18,11 +15,15 @@ reqwest = {version="*", features = ["blocking", "gzip"]}
 # create random string for cookies
 rand = {version="*", default_features = false, features = ["std", "std_rng", "getrandom"]}
 
-#
+# to perform time-based calculations
 time = {version="*", default_features = false, features = ["formatting", "parsing", "macros"]}
 
 # compute distances between geo-points
-geoutils = "*"
+geoutils = {version="*", default_features = false}
 
 # read airport names
-csv = "*"
+csv = {version="*", default_features = false}
+
+[dev-dependencies]
+tinytemplate = "1.1"
+clap = { version = "4.4.6", features = ["derive"] }

@@ -8,6 +8,27 @@ use clap::Parser;
 
 static TEMPLATE_NAME: &'static str = "t";
 
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+pub struct Event {
+    pub tail_number: String,
+    pub owner: Fact<Company>,
+    pub date: String,
+    pub from_airport: String,
+    pub to_airport: String,
+    pub two_way: bool,
+    pub commercial_emissions_kg: Fact<usize>,
+    pub emissions_kg: Fact<usize>,
+    pub source: String,
+    pub source_date: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct Context {
+    pub event: Event,
+    pub dane_emissions_kg: Fact<usize>,
+    pub dane_years: String,
+}
+
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -103,7 +124,7 @@ fn process_leg(
         dane_years,
     };
 
-    let template = std::fs::read_to_string("src/template.md")?;
+    let template = std::fs::read_to_string("examples/single_day_template.md")?;
 
     let mut tt = TinyTemplate::new();
     tt.set_default_formatter(&tinytemplate::format_unescaped);
