@@ -14,3 +14,21 @@ jobs:
           toolchain: stable
       - name: test
         run: cargo test
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Rust
+        run: rustup toolchain install stable --component llvm-tools-preview
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+      - uses: Swatinem/rust-cache@v1
+      - name: Generate code coverage
+        run: cargo llvm-cov --lcov --output-path lcov.info
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
+          files: lcov.info
+          fail_ci_if_error: true
