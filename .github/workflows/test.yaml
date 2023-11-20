@@ -7,17 +7,6 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: Swatinem/rust-cache@v1
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-      - name: test
-        run: cargo test
-
-  coverage:
-    runs-on: ubuntu-latest
-    steps:
       - uses: actions/checkout@v3
       - name: Install Rust
         run: rustup toolchain install stable --component llvm-tools-preview
