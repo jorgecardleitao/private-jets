@@ -1,5 +1,7 @@
 use std::error::Error;
 
+use clap::Parser;
+
 use flights::{
     emissions, load_aircraft_owners, load_aircrafts, load_owners, Aircraft, Class, Company, Fact,
 };
@@ -34,10 +36,25 @@ fn render(context: &Context) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Cli {
+    /// The Azure token
+    #[arg(short, long)]
+    azure_sas_token: Option<String>,
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    let cli = Cli::parse();
+
+    let client = cli
+        .azure_sas_token
+        .map(|token| flights::fs_azure::initialize(&token, "privatejets", "data").unwrap());
+
     let owners = load_owners()?;
     let aircraft_owners = load_aircraft_owners()?;
-    let aircrafts = load_aircrafts()?;
+    let aircrafts = load_aircrafts(client.as_ref()).await?;
 
     let to = time::OffsetDateTime::now_utc().date() - time::Duration::days(1);
     let from = to - time::Duration::days(90);
@@ -70,10 +87,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         increment: time::Duration::days(1),
     };
 
-    let mut positions = vec![];
-    for date in iter {
-        positions.extend(flights::positions(icao, &date, 1000.0)?);
-    }
+    let iter = iter.map(|date| flights::positions(icao, date, 1000.0, client.as_ref()));
+
+    let positions = futures::future::try_join_all(iter).await?;
+    let mut positions = positions.into_iter().flatten().collect::<Vec<_>>();
+    positions.sort_unstable_by_key(|x| x.datetime());
 
     let legs = flights::legs(positions.into_iter());
     let legs = legs

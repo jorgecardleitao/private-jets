@@ -41,14 +41,14 @@ struct Cli {
     date: String,
 }
 
-pub fn flight_date(
+async fn flight_date(
     tail_number: &str,
-    date: &time::Date,
+    date: time::Date,
     owners: &Owners,
     aircraft_owners: &AircraftOwners,
     aircrafts: &Aircrafts,
 ) -> Result<Vec<Event>, Box<dyn Error>> {
-    let airports = airports_cached()?;
+    let airports = airports_cached().await?;
     let aircraft_owner = aircraft_owners
         .get(tail_number)
         .ok_or_else(|| Into::<Box<dyn Error>>::into("Owner of tail number not found"))?;
@@ -69,7 +69,7 @@ pub fn flight_date(
     let icao = &aircraft.icao_number;
     println!("ICAO number: {}", icao);
 
-    let positions = positions(icao, date, 1000.0)?;
+    let positions = positions(icao, date, 1000.0, None).await?;
     let legs = legs(positions);
 
     println!("Number of legs: {}", legs.len());
@@ -138,14 +138,15 @@ fn process_leg(
     Ok(())
 }
 
-pub fn main() -> Result<(), Box<dyn Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
 
     std::fs::create_dir_all("database")?;
 
     let owners = load_owners()?;
     let aircraft_owners = load_aircraft_owners()?;
-    let aircrafts = load_aircrafts()?;
+    let aircrafts = load_aircrafts(None).await?;
 
     let dane_emissions_kg = Fact {
         claim: 5100,
@@ -160,11 +161,12 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
     let mut events = flight_date(
         &cli.tail_number,
-        &date,
+        date,
         &owners,
         &aircraft_owners,
         &aircrafts,
-    )?;
+    )
+    .await?;
 
     if events.len() == 2 && events[0].from_airport == events[1].to_airport {
         let mut event = events.remove(0);
