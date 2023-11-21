@@ -9,25 +9,17 @@ pub struct Airport {
     pub type_: String,
 }
 
-async fn airports() -> Result<String, Box<dyn std::error::Error>> {
+async fn airports() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let url = "https://raw.githubusercontent.com/davidmegginson/ourairports-data/main/airports.csv";
-
-    let client = reqwest::Client::builder()
-        .redirect(reqwest::redirect::Policy::none())
-        .build()
-        .unwrap();
-    Ok(client.get(url).send().await?.text().await?)
+    Ok(reqwest::get(url).await?.bytes().await.map(|x| x.into())?)
 }
 
 /// Returns a list of airports
+/// # Implementation
+/// Data is cached on disk the first time it is executed
 pub async fn airports_cached() -> Result<Vec<Airport>, Box<dyn std::error::Error>> {
-    let file_path = "database/airports.csv";
-    if !std::path::Path::new(&file_path).exists() {
-        let data = airports().await?;
-        std::fs::write(&file_path, data)?;
-    }
-
-    let data = std::fs::read(file_path)?;
+    let data =
+        crate::fs::cached("database/airports.csv", airports(), &crate::fs::LocalDisk).await?;
 
     let mut rdr = csv::Reader::from_reader(Cursor::new(data));
     let data = rdr

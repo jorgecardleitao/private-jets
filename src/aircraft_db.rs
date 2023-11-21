@@ -7,7 +7,7 @@ use reqwest;
 use serde::{Deserialize, Serialize};
 use serde_json;
 
-use crate::fs_azure;
+use crate::{fs, fs_azure};
 
 /// [`HashMap`] between tail number (e.g. "OY-TWM") and an [`Aircraft`]
 pub type Aircrafts = HashMap<String, Aircraft>;
@@ -30,56 +30,33 @@ fn cache_file_path(prefix: &str) -> String {
     format!("{DIRECTORY}/{DATABASE}/{prefix}.json")
 }
 
-fn source(prefix: &str) -> String {
+fn url(prefix: &str) -> String {
     format!("https://globe.adsbexchange.com/{DATABASE}/{prefix}.js")
 }
 
-/// Returns a map between tail number (e.g. "OYTWM": "45D2ED")
-/// Caches to disk the first time it is executed
-async fn aircrafts_prefixed_azure(
-    prefix: &str,
-    client: &fs_azure::ContainerClient,
-) -> Result<Vec<u8>, Box<dyn Error>> {
-    let path = &cache_file_path(prefix);
-
-    let data = if !fs_azure::exists(client, path).await? {
-        let source = &source(prefix);
-        let req = reqwest::get(source).await?;
-        let data = req.bytes().await?;
-        fs_azure::put(client, &path, data.clone()).await?;
-        data.into()
-    } else {
-        fs_azure::get(client, path).await?
-    };
-    Ok(data)
+async fn aircrafts(prefix: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    Ok(reqwest::get(url(prefix))
+        .await?
+        .bytes()
+        .await
+        .map(|x| x.into())?)
 }
 
 /// Returns a map between tail number (e.g. "OYTWM": "45D2ED")
-/// Caches to disk the first time it is executed
-async fn aircrafts_prefixed_fs(prefix: &str) -> Result<Vec<u8>, Box<dyn Error>> {
-    let path = &cache_file_path(prefix);
-    if !std::path::Path::new(path).exists() {
-        let source = &source(prefix);
-        let req = reqwest::get(source).await?;
-        let data = req.text().await?;
-        std::fs::create_dir_all(format!("{DIRECTORY}/{DATABASE}"))?;
-        std::fs::write(path, data)?;
-    }
-
-    Ok(std::fs::read(path)?)
-}
-
-/// Returns  a map between tail number (e.g. "OYTWM": "45D2ED")
-/// Caches to disk the first time it is executed
+/// Caches to disk or remote storage the first time it is executed
 async fn aircrafts_prefixed(
     prefix: String,
     client: Option<&fs_azure::ContainerClient>,
 ) -> Result<(String, HashMap<String, Vec<Option<String>>>), String> {
+    let blob_name = cache_file_path(&prefix);
+    let fetch = aircrafts(&prefix);
+
     let data = match client {
-        Some(client) => aircrafts_prefixed_azure(&prefix, client).await,
-        None => aircrafts_prefixed_fs(&prefix).await,
+        Some(client) => crate::fs::cached(&blob_name, fetch, client).await,
+        None => crate::fs::cached(&blob_name, fetch, &fs::LocalDisk).await,
     }
     .map_err(|e| e.to_string())?;
+
     Ok((
         prefix,
         serde_json::from_slice(&data).map_err(|e| e.to_string())?,
@@ -105,19 +82,22 @@ async fn children<'a: 'async_recursion>(
     .map_err(|e| e.to_string())?;
 
     // recurse over all children
-    let mut _children = vec![];
-    for entry in entries.iter_mut() {
-        _children.extend(children(&mut entry.1, client).await?)
-    }
+    let mut _children = futures::future::try_join_all(
+        entries
+            .iter_mut()
+            .map(|entry| children(&mut entry.1, client)),
+    )
+    .await?;
 
-    entries.extend(_children);
+    entries.extend(_children.into_iter().flatten());
     Ok(entries)
 }
 
 /// Returns [`Aircrafts`] known in [ADS-B exchange](https://globe.adsbexchange.com) as of 2023-11-06.
 /// It returns ~0.5m aircrafts
 /// # Implementation
-/// This function is idempotent but not pure: it caches every https request to disk to not penalize adsbexchange.com
+/// This function is idempotent but not pure: it caches every https request either to disk or remote storage
+/// to not penalize adsbexchange.com
 pub async fn load_aircrafts(
     client: Option<&fs_azure::ContainerClient>,
 ) -> Result<Aircrafts, Box<dyn Error>> {
@@ -127,12 +107,14 @@ pub async fn load_aircrafts(
     let mut entries =
         futures::future::try_join_all(prefixes.map(|x| aircrafts_prefixed(x, client))).await?;
 
-    let mut _children = vec![];
-    for entry in entries.iter_mut() {
-        _children.extend(children(&mut entry.1, client).await?)
-    }
+    let mut _children = futures::future::try_join_all(
+        entries
+            .iter_mut()
+            .map(|entry| children(&mut entry.1, client)),
+    )
+    .await?;
 
-    entries.extend(_children);
+    entries.extend(_children.into_iter().flatten());
 
     Ok(entries
         .into_iter()

@@ -1,10 +1,9 @@
 use azure_storage::prelude::*;
-use azure_storage_blobs::{
-    blob::operations::PutBlockBlobResponse, container::operations::BlobItem, prelude::ClientBuilder,
-};
+pub use azure_storage_blobs::prelude::ContainerClient;
+use azure_storage_blobs::{container::operations::BlobItem, prelude::ClientBuilder};
 use futures::stream::StreamExt;
 
-pub use azure_storage_blobs::prelude::ContainerClient;
+use crate::fs::BlobStorageProvider;
 
 /// Lists all blobs in container
 pub async fn list(client: ContainerClient) -> Result<Vec<String>, azure_storage::Error> {
@@ -26,40 +25,46 @@ pub async fn list(client: ContainerClient) -> Result<Vec<String>, azure_storage:
 }
 
 /// Returns whether the blob exists in container
-pub async fn exists(
-    client: &ContainerClient,
-    blob_name: &str,
-) -> Result<bool, azure_storage::Error> {
+async fn exists(client: &ContainerClient, blob_name: &str) -> Result<bool, azure_storage::Error> {
     client.blob_client(blob_name).exists().await
 }
 
-/// Puts a blob in container
-pub async fn put(
-    client: &ContainerClient,
-    blob_name: &str,
-    content: impl Into<bytes::Bytes>,
-) -> Result<PutBlockBlobResponse, azure_storage::Error> {
-    client
-        .blob_client(blob_name)
-        .put_block_blob(content)
-        .content_type("text/plain")
-        .await
-}
-
-/// Gets a blob from container
-pub async fn get(
-    client: &ContainerClient,
-    blob_name: &str,
-) -> Result<Vec<u8>, azure_storage::Error> {
-    client.blob_client(blob_name).get_content().await
-}
-
-/// Initialize write access to the storage
-pub fn initialize(
+/// Initialize a [`ContainerClient`] using SAS token
+pub fn initialize_sas(
     token: &str,
     account: &str,
     container: &str,
 ) -> azure_core::Result<ContainerClient> {
     StorageCredentials::sas_token(token)
         .map(|credentials| ClientBuilder::new(account, credentials).container_client(container))
+}
+
+/// Initialize an anonymous [`ContainerClient`]
+pub fn initialize_anonymous(account: &str, container: &str) -> ContainerClient {
+    ClientBuilder::new(account, StorageCredentials::anonymous()).container_client(container)
+}
+
+pub struct AzureContainer<'a>(pub &'a ContainerClient);
+
+#[async_trait::async_trait]
+impl BlobStorageProvider for ContainerClient {
+    type Error = azure_core::Error;
+
+    #[must_use]
+    async fn maybe_get(&self, blob_name: &str) -> Result<Option<Vec<u8>>, Self::Error> {
+        if exists(self, blob_name).await? {
+            Ok(Some(self.blob_client(blob_name).get_content().await?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    #[must_use]
+    async fn put(&self, blob_name: &str, contents: Vec<u8>) -> Result<Vec<u8>, Self::Error> {
+        self.blob_client(blob_name)
+            .put_block_blob(contents.clone())
+            .content_type("text/plain")
+            .await?;
+        Ok(contents)
+    }
 }

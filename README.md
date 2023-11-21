@@ -1,5 +1,5 @@
 # Danish private flights
-This repository contains a small application that generates a text based summary of
+This repository contains a CLI application that generates a text based summary of
 private jet's flight information targetted to a Danish audience.
 
 ## How to use
@@ -7,6 +7,13 @@ private jet's flight information targetted to a Danish audience.
 1. Install Rust
 2. run `cargo run --example single_day -- --tail-number "OY-GFS" --date "2023-10-20"`
 3. open `OY-GFS_2023-10-20_0.md`
+
+Step 2. has an optional argument, `--azure-sas-token`, specifying an Azure storage container SAS
+token for account `privatejets`, container `data`.
+When used, caching of data is done on the remote container, as opposed to local disk.
+
+Furthermore, setting `--backend azure` without `azure-sas-token` provides read-access
+to the remote container.
 
 ## Assumptions
 

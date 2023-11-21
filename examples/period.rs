@@ -1,6 +1,7 @@
 use std::error::Error;
 
 use clap::Parser;
+use simple_logger::SimpleLogger;
 
 use flights::{
     emissions, load_aircraft_owners, load_aircrafts, load_owners, Aircraft, Class, Company, Fact,
@@ -31,9 +32,15 @@ fn render(context: &Context) -> Result<(), Box<dyn Error>> {
 
     let rendered = tt.render("t", context)?;
 
-    println!("Story written to {path}");
+    log::info!("Story written to {path}");
     std::fs::write(path, rendered)?;
     Ok(())
+}
+
+#[derive(clap::ValueEnum, Debug, Clone)]
+enum Backend {
+    LocalDisk,
+    Azure,
 }
 
 #[derive(Parser, Debug)]
@@ -42,16 +49,34 @@ struct Cli {
     /// The Azure token
     #[arg(short, long)]
     azure_sas_token: Option<String>,
+    #[arg(short, long, value_enum, default_value_t=Backend::LocalDisk)]
+    backend: Backend,
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    SimpleLogger::new()
+        .with_level(log::LevelFilter::Info)
+        .init()
+        .unwrap();
+
     let cli = Cli::parse();
 
-    let client = cli
-        .azure_sas_token
-        .map(|token| flights::fs_azure::initialize(&token, "privatejets", "data").unwrap());
+    // optionally initialize Azure client
+    let client = match (cli.backend, cli.azure_sas_token) {
+        (Backend::LocalDisk, None) => None,
+        (Backend::Azure, None) => Some(flights::fs_azure::initialize_anonymous(
+            "privatejets",
+            "data",
+        )),
+        (_, Some(token)) => Some(flights::fs_azure::initialize_sas(
+            &token,
+            "privatejets",
+            "data",
+        )?),
+    };
 
+    // load datasets to memory
     let owners = load_owners()?;
     let aircraft_owners = load_aircraft_owners()?;
     let aircrafts = load_aircrafts(client.as_ref()).await?;
@@ -67,11 +92,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let aircraft_owner = aircraft_owners
         .get(tail_number)
         .ok_or_else(|| Into::<Box<dyn Error>>::into("Owner of tail number not found"))?;
-    println!("Aircraft owner: {}", aircraft_owner.owner);
+    log::info!("Aircraft owner: {}", aircraft_owner.owner);
     let company = owners
         .get(&aircraft_owner.owner)
         .ok_or_else(|| Into::<Box<dyn Error>>::into("Owner not found"))?;
-    println!("Owner information found");
+    log::info!("Owner information found");
     let owner = Fact {
         claim: company.clone(),
         source: aircraft_owner.source.clone(),
@@ -79,7 +104,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     };
 
     let icao = &aircraft.icao_number;
-    println!("ICAO number: {}", icao);
+    log::info!("ICAO number: {}", icao);
 
     let iter = flights::DateIter {
         from,
@@ -103,9 +128,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // ignore legs that are too low, as they are likely noise
         .filter(|leg| leg.maximum_altitude > 1000.0)
         .collect::<Vec<_>>();
-    println!("number_of_legs: {}", legs.len());
+    log::info!("number_of_legs: {}", legs.len());
     for leg in &legs {
-        println!(
+        log::info!(
             "{},{},{},{},{},{},{},{},{}",
             leg.from.datetime(),
             leg.from.latitude(),

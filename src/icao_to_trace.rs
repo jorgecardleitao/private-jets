@@ -49,6 +49,7 @@ async fn globe_history(
     icao: &str,
     date: &time::Date,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    log::info!("globe_history({icao},{date})");
     let referer =
         format!("https://globe.adsbexchange.com/?icao={icao}&lat=54.448&lon=10.602&zoom=7.0");
     let url = to_url(icao, date);
@@ -100,36 +101,6 @@ async fn globe_history(
     }
 }
 
-async fn globe_history_cached_fs(
-    icao: &str,
-    date: &time::Date,
-) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let file_path = cache_file_path(icao, date);
-    if !std::path::Path::new(&file_path).exists() {
-        let contents = globe_history(&icao, date).await?;
-        std::fs::create_dir_all(format!("{DIRECTORY}/{DATABASE}/{date}"))?;
-        std::fs::write(&file_path, &contents)?;
-        Ok(contents)
-    } else {
-        Ok(std::fs::read(file_path)?)
-    }
-}
-
-async fn globe_history_cached_azure(
-    client: &fs_azure::ContainerClient,
-    icao: &str,
-    date: &time::Date,
-) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let blob_name = cache_file_path(icao, date);
-    if !fs_azure::exists(client, &blob_name).await? {
-        let data = globe_history(&icao, date).await?;
-        fs_azure::put(client, &blob_name, data.clone()).await?;
-        Ok(data)
-    } else {
-        Ok(fs_azure::get(client, &blob_name).await?)
-    }
-}
-
 /// Returns  a map between tail number (e.g. "OYTWM": "45D2ED")
 /// Caches to disk the first time it is executed
 async fn globe_history_cached(
@@ -137,9 +108,12 @@ async fn globe_history_cached(
     date: &time::Date,
     client: Option<&fs_azure::ContainerClient>,
 ) -> Result<Vec<u8>, Box<dyn Error>> {
+    let blob_name = cache_file_path(icao, date);
+    let fetch = globe_history(&icao, date);
+
     match client {
-        Some(client) => globe_history_cached_azure(client, icao, date).await,
-        None => globe_history_cached_fs(icao, date).await,
+        Some(client) => crate::fs::cached(&blob_name, fetch, client).await,
+        None => crate::fs::cached(&blob_name, fetch, &crate::fs::LocalDisk).await,
     }
 }
 
