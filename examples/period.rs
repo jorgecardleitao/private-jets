@@ -39,7 +39,7 @@ fn render(context: &Context) -> Result<(), Box<dyn Error>> {
 
 #[derive(clap::ValueEnum, Debug, Clone)]
 enum Backend {
-    LocalDisk,
+    Disk,
     Azure,
 }
 
@@ -49,7 +49,7 @@ struct Cli {
     /// The Azure token
     #[arg(short, long)]
     azure_sas_token: Option<String>,
-    #[arg(short, long, value_enum, default_value_t=Backend::LocalDisk)]
+    #[arg(short, long, value_enum, default_value_t=Backend::Azure)]
     backend: Backend,
 }
 
@@ -64,7 +64,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // optionally initialize Azure client
     let client = match (cli.backend, cli.azure_sas_token) {
-        (Backend::LocalDisk, None) => None,
+        (Backend::Disk, None) => None,
         (Backend::Azure, None) => Some(flights::fs_azure::initialize_anonymous(
             "privatejets",
             "data",

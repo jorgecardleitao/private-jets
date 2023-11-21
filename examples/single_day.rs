@@ -1,10 +1,10 @@
 use std::error::Error;
 
+use clap::Parser;
+use simple_logger::SimpleLogger;
 use tinytemplate::TinyTemplate;
 
 use flights::*;
-
-use clap::Parser;
 
 static TEMPLATE_NAME: &'static str = "t";
 
@@ -31,7 +31,7 @@ pub struct Context {
 
 #[derive(clap::ValueEnum, Debug, Clone)]
 enum Backend {
-    LocalDisk,
+    Disk,
     Azure,
 }
 
@@ -48,7 +48,7 @@ struct Cli {
     /// The Azure token
     #[arg(short, long)]
     azure_sas_token: Option<String>,
-    #[arg(short, long, value_enum, default_value_t=Backend::LocalDisk)]
+    #[arg(short, long, value_enum, default_value_t=Backend::Azure)]
     backend: Backend,
 }
 
@@ -159,11 +159,16 @@ fn process_leg(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    SimpleLogger::new()
+        .with_level(log::LevelFilter::Info)
+        .init()
+        .unwrap();
+
     let cli = Cli::parse();
 
     // optionally initialize Azure client
     let client = match (cli.backend, cli.azure_sas_token) {
-        (Backend::LocalDisk, None) => None,
+        (Backend::Disk, None) => None,
         (Backend::Azure, None) => Some(flights::fs_azure::initialize_anonymous(
             "privatejets",
             "data",

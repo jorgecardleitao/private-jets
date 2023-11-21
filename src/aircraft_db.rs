@@ -34,7 +34,7 @@ fn url(prefix: &str) -> String {
     format!("https://globe.adsbexchange.com/{DATABASE}/{prefix}.js")
 }
 
-async fn aircrafts(prefix: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+async fn aircrafts(prefix: &str) -> Result<Vec<u8>, reqwest::Error> {
     Ok(reqwest::get(url(prefix))
         .await?
         .bytes()
@@ -52,10 +52,13 @@ async fn aircrafts_prefixed(
     let fetch = aircrafts(&prefix);
 
     let data = match client {
-        Some(client) => crate::fs::cached(&blob_name, fetch, client).await,
-        None => crate::fs::cached(&blob_name, fetch, &fs::LocalDisk).await,
-    }
-    .map_err(|e| e.to_string())?;
+        Some(client) => crate::fs::cached(&blob_name, fetch, client)
+            .await
+            .map_err(|e| e.to_string())?,
+        None => crate::fs::cached(&blob_name, fetch, &fs::LocalDisk)
+            .await
+            .map_err(|e| e.to_string())?,
+    };
 
     Ok((
         prefix,

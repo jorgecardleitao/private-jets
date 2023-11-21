@@ -1,9 +1,28 @@
+use azure_core::{error::HttpError, StatusCode};
 use azure_storage::prelude::*;
 pub use azure_storage_blobs::prelude::ContainerClient;
 use azure_storage_blobs::{container::operations::BlobItem, prelude::ClientBuilder};
 use futures::stream::StreamExt;
 
 use crate::fs::BlobStorageProvider;
+
+#[derive(Debug)]
+pub enum Error {
+    /// Unspecified error interacting with Azure blob storage
+    Error(azure_core::Error),
+    /// Unauthorized error when interacting with Azure blob storage
+    Unauthorized(azure_core::Error),
+}
+
+impl std::error::Error for Error {}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::Unauthorized(e) | Error::Error(e) => e.fmt(f),
+        }
+    }
+}
 
 /// Lists all blobs in container
 pub async fn list(client: ContainerClient) -> Result<Vec<String>, azure_storage::Error> {
@@ -44,16 +63,27 @@ pub fn initialize_anonymous(account: &str, container: &str) -> ContainerClient {
     ClientBuilder::new(account, StorageCredentials::anonymous()).container_client(container)
 }
 
+fn get_code(e: &azure_core::Error) -> Option<StatusCode> {
+    let a = e.get_ref()?;
+    let a = a.downcast_ref::<HttpError>()?;
+    Some(a.status())
+}
+
 pub struct AzureContainer<'a>(pub &'a ContainerClient);
 
 #[async_trait::async_trait]
 impl BlobStorageProvider for ContainerClient {
-    type Error = azure_core::Error;
+    type Error = Error;
 
     #[must_use]
     async fn maybe_get(&self, blob_name: &str) -> Result<Option<Vec<u8>>, Self::Error> {
-        if exists(self, blob_name).await? {
-            Ok(Some(self.blob_client(blob_name).get_content().await?))
+        if exists(self, blob_name).await.map_err(Error::Error)? {
+            Ok(Some(
+                self.blob_client(blob_name)
+                    .get_content()
+                    .await
+                    .map_err(Error::Error)?,
+            ))
         } else {
             Ok(None)
         }
@@ -64,7 +94,14 @@ impl BlobStorageProvider for ContainerClient {
         self.blob_client(blob_name)
             .put_block_blob(contents.clone())
             .content_type("text/plain")
-            .await?;
+            .await
+            .map_err(|e| {
+                if get_code(&e) == Some(StatusCode::Unauthorized) {
+                    Error::Unauthorized(e)
+                } else {
+                    Error::Error(e)
+                }
+            })?;
         Ok(contents)
     }
 }

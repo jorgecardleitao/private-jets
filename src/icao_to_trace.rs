@@ -45,10 +45,11 @@ fn cache_file_path(icao: &str, date: &time::Date) -> String {
     format!("{DIRECTORY}/{DATABASE}/{date}/trace_full_{icao}.json")
 }
 
-async fn globe_history(
-    icao: &str,
-    date: &time::Date,
-) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+fn to_io_err(error: reqwest::Error) -> std::io::Error {
+    std::io::Error::new(std::io::ErrorKind::Other, error)
+}
+
+async fn globe_history(icao: &str, date: &time::Date) -> Result<Vec<u8>, std::io::Error> {
     log::info!("globe_history({icao},{date})");
     let referer =
         format!("https://globe.adsbexchange.com/?icao={icao}&lat=54.448&lon=10.602&zoom=7.0");
@@ -83,9 +84,14 @@ async fn globe_history(
         .build()
         .unwrap();
 
-    let response = client.get(url).headers(headers).send().await?;
+    let response = client
+        .get(url)
+        .headers(headers)
+        .send()
+        .await
+        .map_err(to_io_err)?;
     if response.status() == StatusCode::OK {
-        Ok(response.bytes().await?.to_vec())
+        Ok(response.bytes().await.map_err(to_io_err)?.to_vec())
     } else if response.status() == StatusCode::NOT_FOUND {
         Ok(format!(
             r#"{{
@@ -97,11 +103,15 @@ async fn globe_history(
         )
         .into_bytes())
     } else {
-        Err("could not retrieve data from globe.adsbexchange.com".into())
+        Err(std::io::Error::new::<String>(
+            std::io::ErrorKind::Other,
+            "could not retrieve data from globe.adsbexchange.com".into(),
+        )
+        .into())
     }
 }
 
-/// Returns  a map between tail number (e.g. "OYTWM": "45D2ED")
+/// Returns a map between tail number (e.g. "OYTWM": "45D2ED")
 /// Caches to disk the first time it is executed
 async fn globe_history_cached(
     icao: &str,
@@ -111,10 +121,26 @@ async fn globe_history_cached(
     let blob_name = cache_file_path(icao, date);
     let fetch = globe_history(&icao, date);
 
-    match client {
-        Some(client) => crate::fs::cached(&blob_name, fetch, client).await,
-        None => crate::fs::cached(&blob_name, fetch, &crate::fs::LocalDisk).await,
-    }
+    Ok(match client {
+        Some(client) => {
+            let result = crate::fs::cached(&blob_name, fetch, client).await;
+            if matches!(
+                result,
+                Err(crate::fs::Error::Backend(fs_azure::Error::Unauthorized(_)))
+            ) {
+                log::warn!("{blob_name} - Unauthorized - fall back to local disk");
+                crate::fs::cached(
+                    &blob_name,
+                    globe_history(&icao, date),
+                    &crate::fs::LocalDisk,
+                )
+                .await?
+            } else {
+                result?
+            }
+        }
+        None => crate::fs::cached(&blob_name, fetch, &crate::fs::LocalDisk).await?,
+    })
 }
 
 /// Returns the trace of the icao number of a given day from https://adsbexchange.com.

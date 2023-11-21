@@ -9,7 +9,7 @@ pub struct Airport {
     pub type_: String,
 }
 
-async fn airports() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+async fn airports() -> Result<Vec<u8>, reqwest::Error> {
     let url = "https://raw.githubusercontent.com/davidmegginson/ourairports-data/main/airports.csv";
     Ok(reqwest::get(url).await?.bytes().await.map(|x| x.into())?)
 }
