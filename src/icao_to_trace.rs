@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::sync::Arc;
 
 use rand::Rng;
 use reqwest::header;
@@ -105,7 +106,7 @@ async fn globe_history(icao: &str, date: &time::Date) -> Result<Vec<u8>, std::io
     } else {
         Err(std::io::Error::new::<String>(
             std::io::ErrorKind::Other,
-            "could not retrieve data from globe.adsbexchange.com".into(),
+            response.text().await.map_err(to_io_err)?,
         )
         .into())
     }
@@ -176,53 +177,61 @@ pub async fn trace_cached(
 /// Returns an iterator of [`Position`] over the trace of `icao` on day `date` assuming that
 /// a flight below `threshold` feet is grounded.
 pub async fn positions(
-    icao: &str,
+    icao_number: &str,
     date: time::Date,
     threshold: f64,
     client: Option<&fs_azure::ContainerClient>,
 ) -> Result<impl Iterator<Item = Position>, Box<dyn Error>> {
     use time::ext::NumericalDuration;
-    trace_cached(icao, &date, client).await.map(move |trace| {
-        trace.into_iter().map(move |entry| {
-            let time_seconds = entry[0].as_f64().unwrap();
-            let time = time::Time::MIDNIGHT + time_seconds.seconds();
-            let datetime = PrimitiveDateTime::new(date.clone(), time);
-            let latitude = entry[1].as_f64().unwrap();
-            let longitude = entry[2].as_f64().unwrap();
-            entry[3]
-                .as_str()
-                .and_then(|x| {
-                    (x == "ground").then_some(Position::Grounded {
-                        datetime,
-                        latitude,
-                        longitude,
-                    })
-                })
-                .unwrap_or_else(|| {
-                    entry[3]
-                        .as_f64()
-                        .and_then(|altitude| {
-                            Some(if altitude < threshold {
-                                Position::Grounded {
-                                    datetime,
-                                    latitude,
-                                    longitude,
-                                }
-                            } else {
-                                Position::Flying {
-                                    datetime,
-                                    latitude,
-                                    longitude,
-                                    altitude,
-                                }
-                            })
-                        })
-                        .unwrap_or(Position::Grounded {
+    let icao: Arc<str> = icao_number.to_string().into();
+    trace_cached(icao_number, &date, client)
+        .await
+        .map(move |trace| {
+            trace.into_iter().map(move |entry| {
+                let icao = icao.clone();
+                let time_seconds = entry[0].as_f64().unwrap();
+                let time = time::Time::MIDNIGHT + time_seconds.seconds();
+                let datetime = PrimitiveDateTime::new(date.clone(), time);
+                let latitude = entry[1].as_f64().unwrap();
+                let longitude = entry[2].as_f64().unwrap();
+                entry[3]
+                    .as_str()
+                    .and_then(|x| {
+                        (x == "ground").then_some(Position::Grounded {
+                            icao: icao.clone(),
                             datetime,
                             latitude,
                             longitude,
                         })
-                })
+                    })
+                    .unwrap_or_else(|| {
+                        entry[3]
+                            .as_f64()
+                            .and_then(|altitude| {
+                                Some(if altitude < threshold {
+                                    Position::Grounded {
+                                        icao: icao.clone(),
+                                        datetime,
+                                        latitude,
+                                        longitude,
+                                    }
+                                } else {
+                                    Position::Flying {
+                                        icao: icao.clone(),
+                                        datetime,
+                                        latitude,
+                                        longitude,
+                                        altitude,
+                                    }
+                                })
+                            })
+                            .unwrap_or(Position::Grounded {
+                                icao,
+                                datetime,
+                                latitude,
+                                longitude,
+                            })
+                    })
+            })
         })
-    })
 }

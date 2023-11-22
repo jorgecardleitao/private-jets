@@ -11,6 +11,8 @@ mod legs;
 mod model;
 mod owners;
 
+use std::sync::Arc;
+
 pub use aircraft_db::*;
 pub use aircraft_owners::*;
 pub use aircraft_types::*;
@@ -22,16 +24,18 @@ pub use model::*;
 pub use owners::*;
 
 /// A position of an aircraft
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum Position {
     /// Aircraft transponder declares the aircraft is grounded
     Grounded {
+        icao: Arc<str>,
         datetime: time::PrimitiveDateTime,
         latitude: f64,
         longitude: f64,
     },
     /// Aircraft transponder declares the aircraft is flying at a given altitude
     Flying {
+        icao: Arc<str>,
         datetime: time::PrimitiveDateTime,
         latitude: f64,
         longitude: f64,
@@ -40,6 +44,12 @@ pub enum Position {
 }
 
 impl Position {
+    pub fn icao(&self) -> &Arc<str> {
+        match self {
+            Position::Flying { icao, .. } | Position::Grounded { icao, .. } => icao,
+        }
+    }
+
     pub fn latitude(&self) -> f64 {
         match *self {
             Position::Flying { latitude, .. } | Position::Grounded { latitude, .. } => latitude,

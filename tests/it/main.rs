@@ -48,16 +48,7 @@ fn acceptance_test_emissions() {
 #[tokio::test]
 async fn legs_() -> Result<(), Box<dyn Error>> {
     let positions = flights::positions("459cd3", date!(2023 - 11 - 17), 1000.0, None).await?;
-    let legs = flights::legs(positions.into_iter());
-    let legs = legs
-        .into_iter()
-        // ignore legs that are too fast, as they are likely noise
-        .filter(|leg| leg.duration() > time::Duration::minutes(5))
-        // ignore legs that are too short, as they are likely noise
-        .filter(|leg| leg.distance() > 3.0)
-        // ignore legs that are too low, as they are likely noise
-        .filter(|leg| leg.maximum_altitude > 1000.0)
-        .collect::<Vec<_>>();
+    let legs = flights::real_legs(positions);
 
     // same as ads-b computes: https://globe.adsbexchange.com/?icao=459cd3&lat=53.265&lon=8.038&zoom=6.5&showTrace=2023-11-17
     assert_eq!(legs.len(), 5);
