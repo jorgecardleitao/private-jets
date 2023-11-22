@@ -1,5 +1,8 @@
 use std::error::Error;
 
+use clap::Parser;
+use simple_logger::SimpleLogger;
+
 use flights::{
     emissions, load_aircraft_owners, load_aircrafts, load_owners, Aircraft, Class, Company, Fact,
 };
@@ -29,15 +32,54 @@ fn render(context: &Context) -> Result<(), Box<dyn Error>> {
 
     let rendered = tt.render("t", context)?;
 
-    println!("Story written to {path}");
+    log::info!("Story written to {path}");
     std::fs::write(path, rendered)?;
     Ok(())
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+#[derive(clap::ValueEnum, Debug, Clone)]
+enum Backend {
+    Disk,
+    Azure,
+}
+
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Cli {
+    /// The Azure token
+    #[arg(short, long)]
+    azure_sas_token: Option<String>,
+    #[arg(short, long, value_enum, default_value_t=Backend::Azure)]
+    backend: Backend,
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    SimpleLogger::new()
+        .with_level(log::LevelFilter::Info)
+        .init()
+        .unwrap();
+
+    let cli = Cli::parse();
+
+    // optionally initialize Azure client
+    let client = match (cli.backend, cli.azure_sas_token) {
+        (Backend::Disk, None) => None,
+        (Backend::Azure, None) => Some(flights::fs_azure::initialize_anonymous(
+            "privatejets",
+            "data",
+        )),
+        (_, Some(token)) => Some(flights::fs_azure::initialize_sas(
+            &token,
+            "privatejets",
+            "data",
+        )?),
+    };
+
+    // load datasets to memory
     let owners = load_owners()?;
     let aircraft_owners = load_aircraft_owners()?;
-    let aircrafts = load_aircrafts()?;
+    let aircrafts = load_aircrafts(client.as_ref()).await?;
 
     let to = time::OffsetDateTime::now_utc().date() - time::Duration::days(1);
     let from = to - time::Duration::days(90);
@@ -50,11 +92,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     let aircraft_owner = aircraft_owners
         .get(tail_number)
         .ok_or_else(|| Into::<Box<dyn Error>>::into("Owner of tail number not found"))?;
-    println!("Aircraft owner: {}", aircraft_owner.owner);
+    log::info!("Aircraft owner: {}", aircraft_owner.owner);
     let company = owners
         .get(&aircraft_owner.owner)
         .ok_or_else(|| Into::<Box<dyn Error>>::into("Owner not found"))?;
-    println!("Owner information found");
+    log::info!("Owner information found");
     let owner = Fact {
         claim: company.clone(),
         source: aircraft_owner.source.clone(),
@@ -62,7 +104,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
 
     let icao = &aircraft.icao_number;
-    println!("ICAO number: {}", icao);
+    log::info!("ICAO number: {}", icao);
 
     let iter = flights::DateIter {
         from,
@@ -70,10 +112,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         increment: time::Duration::days(1),
     };
 
-    let mut positions = vec![];
-    for date in iter {
-        positions.extend(flights::positions(icao, &date, 1000.0)?);
-    }
+    let iter = iter.map(|date| flights::positions(icao, date, 1000.0, client.as_ref()));
+
+    let positions = futures::future::try_join_all(iter).await?;
+    let mut positions = positions.into_iter().flatten().collect::<Vec<_>>();
+    positions.sort_unstable_by_key(|x| x.datetime());
 
     let legs = flights::legs(positions.into_iter());
     let legs = legs
@@ -85,9 +128,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         // ignore legs that are too low, as they are likely noise
         .filter(|leg| leg.maximum_altitude > 1000.0)
         .collect::<Vec<_>>();
-    println!("number_of_legs: {}", legs.len());
+    log::info!("number_of_legs: {}", legs.len());
     for leg in &legs {
-        println!(
+        log::info!(
             "{},{},{},{},{},{},{},{},{}",
             leg.from.datetime(),
             leg.from.latitude(),

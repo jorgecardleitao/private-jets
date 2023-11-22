@@ -1,10 +1,10 @@
 use std::error::Error;
 
+use clap::Parser;
+use simple_logger::SimpleLogger;
 use tinytemplate::TinyTemplate;
 
 use flights::*;
-
-use clap::Parser;
 
 static TEMPLATE_NAME: &'static str = "t";
 
@@ -29,6 +29,12 @@ pub struct Context {
     pub dane_years: String,
 }
 
+#[derive(clap::ValueEnum, Debug, Clone)]
+enum Backend {
+    Disk,
+    Azure,
+}
+
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -37,26 +43,39 @@ struct Cli {
     #[arg(short, long)]
     tail_number: String,
     /// The date in format `yyyy-mm-dd`
+    #[arg(short, long, value_parser = parse_date)]
+    date: time::Date,
+    /// The Azure token
     #[arg(short, long)]
-    date: String,
+    azure_sas_token: Option<String>,
+    #[arg(short, long, value_enum, default_value_t=Backend::Azure)]
+    backend: Backend,
 }
 
-pub fn flight_date(
+fn parse_date(arg: &str) -> Result<time::Date, time::error::Parse> {
+    time::Date::parse(
+        arg,
+        time::macros::format_description!("[year]-[month]-[day]"),
+    )
+}
+
+async fn flight_date(
     tail_number: &str,
-    date: &time::Date,
+    date: time::Date,
     owners: &Owners,
     aircraft_owners: &AircraftOwners,
     aircrafts: &Aircrafts,
+    client: Option<&fs_azure::ContainerClient>,
 ) -> Result<Vec<Event>, Box<dyn Error>> {
-    let airports = airports_cached()?;
+    let airports = airports_cached().await?;
     let aircraft_owner = aircraft_owners
         .get(tail_number)
         .ok_or_else(|| Into::<Box<dyn Error>>::into("Owner of tail number not found"))?;
-    println!("Aircraft owner: {}", aircraft_owner.owner);
+    log::info!("Aircraft owner: {}", aircraft_owner.owner);
     let company = owners
         .get(&aircraft_owner.owner)
         .ok_or_else(|| Into::<Box<dyn Error>>::into("Owner not found"))?;
-    println!("Owner information found");
+    log::info!("Owner information found");
     let owner = Fact {
         claim: company.clone(),
         source: aircraft_owner.source.clone(),
@@ -67,17 +86,17 @@ pub fn flight_date(
         .get(tail_number)
         .ok_or_else(|| Into::<Box<dyn Error>>::into("Aircraft ICAO number not found"))?;
     let icao = &aircraft.icao_number;
-    println!("ICAO number: {}", icao);
+    log::info!("ICAO number: {}", icao);
 
-    let positions = positions(icao, date, 1000.0)?;
+    let positions = positions(icao, date, 1000.0, client).await?;
     let legs = legs(positions);
 
-    println!("Number of legs: {}", legs.len());
+    log::info!("Number of legs: {}", legs.len());
 
     Ok(legs.into_iter().filter_map(|leg| {
         let is_leg = matches!(leg.from, Position::Grounded{..}) & matches!(leg.to, Position::Grounded{..});
         if !is_leg {
-            println!("{:?} -> {:?} skipped", leg.from, leg.to);
+            log::info!("{:?} -> {:?} skipped", leg.from, leg.to);
         }
         is_leg.then_some((leg.from, leg.to))
     }).map(|(from, to)| {
@@ -132,20 +151,38 @@ fn process_leg(
 
     let rendered = tt.render(TEMPLATE_NAME, &context)?;
 
-    println!("Story written to {path}");
+    log::info!("Story written to {path}");
     std::fs::write(path, rendered)?;
 
     Ok(())
 }
 
-pub fn main() -> Result<(), Box<dyn Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    SimpleLogger::new()
+        .with_level(log::LevelFilter::Info)
+        .init()
+        .unwrap();
+
     let cli = Cli::parse();
 
-    std::fs::create_dir_all("database")?;
+    // optionally initialize Azure client
+    let client = match (cli.backend, cli.azure_sas_token) {
+        (Backend::Disk, None) => None,
+        (Backend::Azure, None) => Some(flights::fs_azure::initialize_anonymous(
+            "privatejets",
+            "data",
+        )),
+        (_, Some(token)) => Some(flights::fs_azure::initialize_sas(
+            &token,
+            "privatejets",
+            "data",
+        )?),
+    };
 
     let owners = load_owners()?;
     let aircraft_owners = load_aircraft_owners()?;
-    let aircrafts = load_aircrafts()?;
+    let aircrafts = load_aircrafts(client.as_ref()).await?;
 
     let dane_emissions_kg = Fact {
         claim: 5100,
@@ -153,18 +190,15 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         date: "2023-10-08".to_string(),
     };
 
-    let date = time::Date::parse(
-        &cli.date,
-        time::macros::format_description!("[year]-[month]-[day]"),
-    )?;
-
     let mut events = flight_date(
         &cli.tail_number,
-        &date,
+        cli.date,
         &owners,
         &aircraft_owners,
         &aircrafts,
-    )?;
+        client.as_ref(),
+    )
+    .await?;
 
     if events.len() == 2 && events[0].from_airport == events[1].to_airport {
         let mut event = events.remove(0);

@@ -4,6 +4,8 @@ mod aircraft_types;
 mod airports;
 mod csv;
 mod emissions;
+pub(crate) mod fs;
+pub mod fs_azure;
 mod icao_to_trace;
 mod legs;
 mod model;

@@ -5,9 +5,9 @@ use time::macros::date;
 /// Verifies that we compute the correct number of legs.
 /// The expected 2 was confirmed by manual inspection of
 /// https://globe.adsbexchange.com/?icao=45d2ed&lat=54.128&lon=9.185&zoom=5.0&showTrace=2023-10-13
-#[test]
-fn acceptance_legs() -> Result<(), Box<dyn Error>> {
-    let positions = flights::positions("45d2ed", &date!(2023 - 10 - 13), 1000.0)?;
+#[tokio::test]
+async fn acceptance_legs() -> Result<(), Box<dyn Error>> {
+    let positions = flights::positions("45d2ed", date!(2023 - 10 - 13), 1000.0, None).await?;
     let legs = flights::legs(positions);
 
     assert_eq!(legs.len(), 2);
@@ -45,9 +45,9 @@ fn acceptance_test_emissions() {
     assert!(abs_difference(emissions, expected) / expected < accepted_error);
 }
 
-#[test]
-fn legs_() -> Result<(), Box<dyn Error>> {
-    let positions = flights::positions("459cd3", &date!(2023 - 11 - 17), 1000.0)?;
+#[tokio::test]
+async fn legs_() -> Result<(), Box<dyn Error>> {
+    let positions = flights::positions("459cd3", date!(2023 - 11 - 17), 1000.0, None).await?;
     let legs = flights::legs(positions.into_iter());
     let legs = legs
         .into_iter()

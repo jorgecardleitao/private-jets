@@ -5,6 +5,8 @@ use reqwest::header;
 use reqwest::{self, StatusCode};
 use time::PrimitiveDateTime;
 
+use crate::fs_azure;
+
 use super::Position;
 
 fn last_2(icao: &str) -> &str {
@@ -36,7 +38,19 @@ fn adsbx_sid() -> String {
     format!("{time}_{random_chars}")
 }
 
-fn globe_history(icao: &str, date: &time::Date) -> Result<String, Box<dyn std::error::Error>> {
+static DIRECTORY: &'static str = "database";
+static DATABASE: &'static str = "globe_history";
+
+fn cache_file_path(icao: &str, date: &time::Date) -> String {
+    format!("{DIRECTORY}/{DATABASE}/{date}/trace_full_{icao}.json")
+}
+
+fn to_io_err(error: reqwest::Error) -> std::io::Error {
+    std::io::Error::new(std::io::ErrorKind::Other, error)
+}
+
+async fn globe_history(icao: &str, date: &time::Date) -> Result<Vec<u8>, std::io::Error> {
+    log::info!("globe_history({icao},{date})");
     let referer =
         format!("https://globe.adsbexchange.com/?icao={icao}&lat=54.448&lon=10.602&zoom=7.0");
     let url = to_url(icao, date);
@@ -65,14 +79,19 @@ fn globe_history(icao: &str, date: &time::Date) -> Result<String, Box<dyn std::e
     headers.insert("Sec-Fetch-Site", "same-origin".parse().unwrap());
     headers.insert("TE", "trailers".parse().unwrap());
 
-    let client = reqwest::blocking::Client::builder()
+    let client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .build()
         .unwrap();
 
-    let response = client.get(url).headers(headers).send()?;
+    let response = client
+        .get(url)
+        .headers(headers)
+        .send()
+        .await
+        .map_err(to_io_err)?;
     if response.status() == StatusCode::OK {
-        Ok(response.text()?)
+        Ok(response.bytes().await.map_err(to_io_err)?.to_vec())
     } else if response.status() == StatusCode::NOT_FOUND {
         Ok(format!(
             r#"{{
@@ -81,23 +100,47 @@ fn globe_history(icao: &str, date: &time::Date) -> Result<String, Box<dyn std::e
             "timestamp": 1697155200.000,
             "trace": []
         }}"#
-        ))
+        )
+        .into_bytes())
     } else {
-        Err("could not retrieve data from globe.adsbexchange.com".into())
+        Err(std::io::Error::new::<String>(
+            std::io::ErrorKind::Other,
+            "could not retrieve data from globe.adsbexchange.com".into(),
+        )
+        .into())
     }
 }
 
-fn globe_history_cached(
+/// Returns a map between tail number (e.g. "OYTWM": "45D2ED")
+/// Caches to disk the first time it is executed
+async fn globe_history_cached(
     icao: &str,
     date: &time::Date,
-) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let file_path = format!("database/{icao}_{date}.json");
-    if !std::path::Path::new(&file_path).exists() {
-        let data = globe_history(&icao, date)?;
-        std::fs::write(&file_path, data)?;
-    }
+    client: Option<&fs_azure::ContainerClient>,
+) -> Result<Vec<u8>, Box<dyn Error>> {
+    let blob_name = cache_file_path(icao, date);
+    let fetch = globe_history(&icao, date);
 
-    Ok(std::fs::read(file_path)?)
+    Ok(match client {
+        Some(client) => {
+            let result = crate::fs::cached(&blob_name, fetch, client).await;
+            if matches!(
+                result,
+                Err(crate::fs::Error::Backend(fs_azure::Error::Unauthorized(_)))
+            ) {
+                log::warn!("{blob_name} - Unauthorized - fall back to local disk");
+                crate::fs::cached(
+                    &blob_name,
+                    globe_history(&icao, date),
+                    &crate::fs::LocalDisk,
+                )
+                .await?
+            } else {
+                result?
+            }
+        }
+        None => crate::fs::cached(&blob_name, fetch, &crate::fs::LocalDisk).await?,
+    })
 }
 
 /// Returns the trace of the icao number of a given day from https://adsbexchange.com.
@@ -112,11 +155,12 @@ fn globe_history_cached(
 /// # Implementation
 /// Because these are historical values, this function caches them the first time it is used
 /// by the two arguments
-pub fn trace_cached(
+pub async fn trace_cached(
     icao: &str,
     date: &time::Date,
+    client: Option<&fs_azure::ContainerClient>,
 ) -> Result<Vec<serde_json::Value>, Box<dyn std::error::Error>> {
-    let data = globe_history_cached(icao, date)?;
+    let data = globe_history_cached(icao, date, client).await?;
 
     let mut value = serde_json::from_slice::<serde_json::Value>(&data)?;
     let trace = value
@@ -131,14 +175,14 @@ pub fn trace_cached(
 
 /// Returns an iterator of [`Position`] over the trace of `icao` on day `date` assuming that
 /// a flight below `threshold` feet is grounded.
-pub fn positions(
+pub async fn positions(
     icao: &str,
-    date: &time::Date,
+    date: time::Date,
     threshold: f64,
+    client: Option<&fs_azure::ContainerClient>,
 ) -> Result<impl Iterator<Item = Position>, Box<dyn Error>> {
     use time::ext::NumericalDuration;
-    let date = date.clone();
-    trace_cached(icao, &date).map(move |trace| {
+    trace_cached(icao, &date, client).await.map(move |trace| {
         trace.into_iter().map(move |entry| {
             let time_seconds = entry[0].as_f64().unwrap();
             let time = time::Time::MIDNIGHT + time_seconds.seconds();
