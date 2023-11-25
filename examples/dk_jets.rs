@@ -1,11 +1,12 @@
-use std::{collections::HashMap, error::Error, sync::Arc};
+use std::{collections::HashMap, error::Error};
 
 use clap::Parser;
 use futures::{StreamExt, TryStreamExt};
+use num_format::{Locale, ToFormattedString};
 use simple_logger::SimpleLogger;
 
-use flights::{emissions, load_aircraft_types, load_aircrafts, Class, Fact, Position};
-use time::macros::date;
+use flights::{emissions, load_aircraft_types, load_aircrafts, Aircraft, Class, Fact, Leg};
+use time::{macros::date, Date};
 
 fn render(context: &Context) -> Result<(), Box<dyn Error>> {
     let path = "all_dk_jets.md";
@@ -27,12 +28,12 @@ fn render(context: &Context) -> Result<(), Box<dyn Error>> {
 pub struct Context {
     pub from_date: String,
     pub to_date: String,
-    pub number_of_private_jets: Fact<usize>,
-    pub number_of_legs: Fact<usize>,
-    pub emissions_tons: Fact<usize>,
+    pub number_of_private_jets: Fact<String>,
+    pub number_of_legs: Fact<String>,
+    pub emissions_tons: Fact<String>,
     pub dane_years: Fact<String>,
-    pub number_of_legs_less_300km: usize,
-    pub number_of_legs_more_300km: usize,
+    pub number_of_legs_less_300km: String,
+    pub number_of_legs_more_300km: String,
     pub ratio_commercial_300km: String,
 }
 
@@ -50,6 +51,35 @@ struct Cli {
     azure_sas_token: Option<String>,
     #[arg(short, long, value_enum, default_value_t=Backend::Azure)]
     backend: Backend,
+}
+
+async fn legs(
+    from: Date,
+    to: Date,
+    aircraft: &Aircraft,
+    client: Option<&flights::fs_azure::ContainerClient>,
+) -> Result<Vec<Leg>, Box<dyn Error>> {
+    let dates = flights::DateIter {
+        from,
+        to,
+        increment: time::Duration::days(1),
+    };
+
+    let tasks = dates.map(|date| async move {
+        Result::<_, Box<dyn Error>>::Ok(
+            flights::positions(&aircraft.icao_number, date, 1000.0, client)
+                .await?
+                .collect::<Vec<_>>(),
+        )
+    });
+
+    let positions = futures::stream::iter(tasks)
+        // limit concurrent tasks
+        .buffered(50)
+        .try_collect::<Vec<_>>()
+        .await?;
+
+    Ok(flights::real_legs(positions.into_iter().flatten()))
 }
 
 #[tokio::main]
@@ -88,7 +118,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .collect::<HashMap<_, _>>();
 
     let number_of_private_jets = Fact {
-        claim: private_jets.len(),
+        claim: private_jets.len().to_formatted_string(&Locale::en),
         source: format!(
             "All aircrafts in [adsbexchange.com](https://globe.adsbexchange.com) whose model is a private jet and tail number starts with \"OY-\""
         ),
@@ -101,56 +131,28 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let from_date = from.to_string();
     let to_date = to.to_string();
 
-    let dates = flights::DateIter {
-        from,
-        to,
-        increment: time::Duration::days(1),
-    };
-
-    let iter = dates
-        .map(|date| {
-            let client = client.as_ref();
-            private_jets
-                .iter()
-                .map(move |(_, a)| flights::positions(&a.icao_number, date.clone(), 1000.0, client))
-        })
-        .flatten();
-
-    let positions = futures::stream::iter(iter)
-        // limit to 5 concurrent tasks
-        .buffer_unordered(100)
-        .try_collect::<Vec<_>>()
-        .await?;
-    let positions = positions.into_iter().flatten().collect::<Vec<_>>();
-
-    // group by aircraft
-    let mut positions = positions.into_iter().fold(
-        HashMap::<Arc<str>, Vec<Position>>::default(),
-        |mut acc, v| {
-            acc.entry(v.icao().clone())
-                .and_modify(|positions| positions.push(v.clone()))
-                .or_insert_with(|| vec![v]);
-            acc
-        },
-    );
-    // sort positions by datetime
-    positions.iter_mut().for_each(|(_, positions)| {
-        positions.sort_unstable_by_key(|x| x.datetime());
+    let client = client.as_ref();
+    let legs = private_jets.iter().map(|(_, aircraft)| async {
+        legs(from, to, aircraft, client)
+            .await
+            .map(|legs| (aircraft.icao_number.clone(), legs))
     });
 
-    // compute legs
-    let legs = positions
-        .into_iter()
-        .map(|(icao, positions)| (icao, flights::real_legs(positions.into_iter())))
-        .collect::<HashMap<_, _>>();
+    let legs = futures::future::join_all(legs).await;
+    let legs = legs.into_iter().collect::<Result<HashMap<_, _>, _>>()?;
 
     let number_of_legs = Fact {
-        claim: legs.iter().map(|(_, legs)| legs.len()).sum::<usize>(),
-        source: format!("[adsbexchange.com](https://globe.adsbexchange.com) between {from_date} and {to_date} and all aircraft whose tail number starts with \"OY-\" and model is a private jet"),
-        date: to.to_string()
+        claim: legs
+            .iter()
+            .map(|(_, legs)| legs.len())
+            .sum::<usize>()
+            .to_formatted_string(&Locale::en),
+        source: format!(
+            "[adsbexchange.com](https://globe.adsbexchange.com) between {from_date} and {to_date}"
+        ),
+        date: to.to_string(),
     };
 
-    let commercial_to_private_ratio = 10.0;
     let commercial_emissions_tons = legs
         .iter()
         .map(|(_, legs)| {
@@ -159,8 +161,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .sum::<f64>()
         })
         .sum::<f64>();
+    let commercial_to_private_ratio = 10.0;
+    let emissions_tons_value = commercial_emissions_tons * commercial_to_private_ratio;
     let emissions_tons = Fact {
-        claim: (commercial_emissions_tons * commercial_to_private_ratio) as usize,
+        claim: (emissions_tons_value as usize).to_formatted_string(&Locale::en),
         source: format!("Commercial flights would have emitted {commercial_emissions_tons:.1} tons of CO2e (based on [myclimate.org](https://www.myclimate.org/en/information/about-myclimate/downloads/flight-emission-calculator/) - retrieved on 2023-10-19). Private jets emit 5-14x times. 10x was used based on [transportenvironment.org](https://www.transportenvironment.org/discover/private-jets-can-the-super-rich-supercharge-zero-emission-aviation/)"),
         date: "2023-10-05, from 2021-05-27".to_string(),
     };
@@ -180,12 +184,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
             date: "2023-10-08".to_string(),
         };
 
-    let dane_years = format!(
-        "{:.0}",
-        emissions_tons.claim as f32 / dane_emissions_tons.claim as f32
-    );
+    let dane_years = (emissions_tons_value / dane_emissions_tons.claim) as usize;
     let dane_years = Fact {
-        claim: dane_years,
+        claim: dane_years.to_formatted_string(&Locale::en),
         source: "https://ourworldindata.org/co2/country/denmark Denmark emits 5.1 t CO2/person/year in 2019.".to_string(),
         date: "2023-10-08".to_string(),
     };
@@ -197,8 +198,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         number_of_legs,
         emissions_tons,
         dane_years,
-        number_of_legs_less_300km: short_legs,
-        number_of_legs_more_300km: long_legs,
+        number_of_legs_less_300km: short_legs.to_formatted_string(&Locale::en),
+        number_of_legs_more_300km: long_legs.to_formatted_string(&Locale::en),
         ratio_commercial_300km: format!("{:.0}", commercial_to_private_ratio),
     };
 

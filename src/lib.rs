@@ -94,6 +94,7 @@ fn distance(from: (f64, f64), to: (f64, f64)) -> f64 {
 }
 
 /// An iterator between two [`time::Date`]s in increments
+#[derive(Clone, Copy)]
 pub struct DateIter {
     pub from: time::Date,
     pub to: time::Date,
