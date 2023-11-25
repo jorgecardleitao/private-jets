@@ -4,6 +4,8 @@ use std::sync::Arc;
 use rand::Rng;
 use reqwest::header;
 use reqwest::{self, StatusCode};
+use reqwest_middleware::ClientBuilder;
+use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use time::PrimitiveDateTime;
 
 use crate::fs_azure;
@@ -80,17 +82,18 @@ async fn globe_history(icao: &str, date: &time::Date) -> Result<Vec<u8>, std::io
     headers.insert("Sec-Fetch-Site", "same-origin".parse().unwrap());
     headers.insert("TE", "trailers".parse().unwrap());
 
-    let client = reqwest::Client::builder()
-        .redirect(reqwest::redirect::Policy::none())
-        .build()
-        .unwrap();
+    // Retry up to 3 times with increasing intervals between attempts.
+    let retry_policy = ExponentialBackoff::builder().build_with_max_retries(3);
+    let client = ClientBuilder::new(reqwest::Client::new())
+        .with(RetryTransientMiddleware::new_with_policy(retry_policy))
+        .build();
 
     let response = client
         .get(url)
         .headers(headers)
         .send()
         .await
-        .map_err(to_io_err)?;
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
     if response.status() == StatusCode::OK {
         Ok(response.bytes().await.map_err(to_io_err)?.to_vec())
     } else if response.status() == StatusCode::NOT_FOUND {

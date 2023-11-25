@@ -10,6 +10,8 @@ serde_json = { version = "1.0", default_features = false }
 
 # perform requests to the internet
 reqwest = {version="*", features = ["gzip"]}
+reqwest-retry = "*"
+reqwest-middleware = "*"
 
 # create random string for cookies
 rand = {version="*", default_features = false, features = ["std", "std_rng", "getrandom"]}
