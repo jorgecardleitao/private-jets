@@ -1,8 +1,9 @@
 # Use of Danish private jets
 
 {from_date} to {to_date}, Danish private jets emitted
-{emissions_tons.claim} tons of CO2e[^5], the equivalent of what **{dane_years.claim} Danes**
-emit in a year[^4].
+{emissions_tons.claim} tons of CO2e[^1], the equivalent of what **{dane_years.claim} Danes**
+emit in a year[^2]. All of this was done by only {number_of_private_jets.claim} private jets[^3]
+in {number_of_legs.claim} trips[^4].
 
 Of these,
 * {number_of_legs_less_300km} trips were less than 300 km and could have been replaced by
@@ -17,8 +18,9 @@ Ban private jets now and until they emit what equivalent means of transportation
 
 ## References
 
-[^2]: {number_of_legs.source} - retrieved on {number_of_legs.date}
-[^4]: {dane_years.source} - retrieved on {dane_years.date}
-[^5]: {emissions_tons.source} - retrieved on {emissions_tons.date}
+[^1]: {emissions_tons.source} - retrieved on {emissions_tons.date}
+[^2]: {dane_years.source} - retrieved on {dane_years.date}
+[^3]: {number_of_private_jets.source} on {number_of_private_jets.date}
+[^4]: {number_of_legs.source} - retrieved on {number_of_legs.date}
 
 Copyright Jorge Leitão, released under [CC0](https://creativecommons.org/public-domain/cc0/) - No Rights Reserved.

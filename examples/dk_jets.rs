@@ -27,6 +27,7 @@ fn render(context: &Context) -> Result<(), Box<dyn Error>> {
 pub struct Context {
     pub from_date: String,
     pub to_date: String,
+    pub number_of_private_jets: Fact<usize>,
     pub number_of_legs: Fact<usize>,
     pub emissions_tons: Fact<usize>,
     pub dane_years: Fact<String>,
@@ -78,13 +79,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let aircrafts = load_aircrafts(client.as_ref()).await?;
     let types = load_aircraft_types()?;
 
-    let dk_private_jets = aircrafts
+    let private_jets = aircrafts
         .into_iter()
         // is private jet
         .filter(|(_, a)| types.contains_key(&a.model))
         // is from DK
         .filter(|(a, _)| a.starts_with("OY-"))
         .collect::<HashMap<_, _>>();
+
+    let number_of_private_jets = Fact {
+        claim: private_jets.len(),
+        source: format!(
+            "All aircrafts in [adsbexchange.com](https://globe.adsbexchange.com) whose model is a private jet and tail number starts with \"OY-\""
+        ),
+        date: "2023-11-06".to_string(),
+    };
 
     let to = time::OffsetDateTime::now_utc().date() - time::Duration::days(1);
     let from = date!(2021 - 01 - 01);
@@ -101,7 +110,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let iter = dates
         .map(|date| {
             let client = client.as_ref();
-            dk_private_jets
+            private_jets
                 .iter()
                 .map(move |(_, a)| flights::positions(&a.icao_number, date.clone(), 1000.0, client))
         })
@@ -184,6 +193,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let context = Context {
         from_date,
         to_date,
+        number_of_private_jets,
         number_of_legs,
         emissions_tons,
         dane_years,
