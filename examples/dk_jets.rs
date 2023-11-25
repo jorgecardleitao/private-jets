@@ -1,30 +1,16 @@
-use std::error::Error;
+use std::{collections::HashMap, error::Error, sync::Arc};
 
 use clap::Parser;
+use futures::{StreamExt, TryStreamExt};
 use simple_logger::SimpleLogger;
 
-use flights::{
-    emissions, load_aircraft_owners, load_aircrafts, load_owners, Aircraft, Class, Company, Fact,
-};
-
-#[derive(serde::Serialize)]
-pub struct Context {
-    pub owner: Fact<Company>,
-    pub aircraft: Aircraft,
-    pub from_date: String,
-    pub to_date: String,
-    pub number_of_legs: Fact<usize>,
-    pub emissions_tons: Fact<usize>,
-    pub dane_years: Fact<String>,
-    pub number_of_legs_less_300km: usize,
-    pub number_of_legs_more_300km: usize,
-    pub ratio_commercial_300km: String,
-}
+use flights::{emissions, load_aircraft_types, load_aircrafts, Class, Fact, Position};
+use time::macros::date;
 
 fn render(context: &Context) -> Result<(), Box<dyn Error>> {
-    let path = "story.md";
+    let path = "all_dk_jets.md";
 
-    let template = std::fs::read_to_string("examples/period_template.md")?;
+    let template = std::fs::read_to_string("examples/dk_jets.md")?;
 
     let mut tt = tinytemplate::TinyTemplate::new();
     tt.set_default_formatter(&tinytemplate::format_unescaped);
@@ -35,6 +21,18 @@ fn render(context: &Context) -> Result<(), Box<dyn Error>> {
     log::info!("Story written to {path}");
     std::fs::write(path, rendered)?;
     Ok(())
+}
+
+#[derive(serde::Serialize)]
+pub struct Context {
+    pub from_date: String,
+    pub to_date: String,
+    pub number_of_legs: Fact<usize>,
+    pub emissions_tons: Fact<usize>,
+    pub dane_years: Fact<String>,
+    pub number_of_legs_less_300km: usize,
+    pub number_of_legs_more_300km: usize,
+    pub ratio_commercial_300km: String,
 }
 
 #[derive(clap::ValueEnum, Debug, Clone)]
@@ -77,68 +75,80 @@ async fn main() -> Result<(), Box<dyn Error>> {
     };
 
     // load datasets to memory
-    let owners = load_owners()?;
-    let aircraft_owners = load_aircraft_owners()?;
     let aircrafts = load_aircrafts(client.as_ref()).await?;
+    let types = load_aircraft_types()?;
+
+    let dk_private_jets = aircrafts
+        .into_iter()
+        // is private jet
+        .filter(|(_, a)| types.contains_key(&a.model))
+        // is from DK
+        .filter(|(a, _)| a.starts_with("OY-"))
+        .collect::<HashMap<_, _>>();
 
     let to = time::OffsetDateTime::now_utc().date() - time::Duration::days(1);
-    let from = to - time::Duration::days(365 * 3);
+    let from = date!(2021 - 01 - 01);
 
-    let tail_number = "OY-DBS";
-    let aircraft = aircrafts
-        .get(tail_number)
-        .ok_or_else(|| Into::<Box<dyn Error>>::into("Aircraft ICAO number not found"))?
-        .clone();
-    let aircraft_owner = aircraft_owners
-        .get(tail_number)
-        .ok_or_else(|| Into::<Box<dyn Error>>::into("Owner of tail number not found"))?;
-    log::info!("Aircraft owner: {}", aircraft_owner.owner);
-    let company = owners
-        .get(&aircraft_owner.owner)
-        .ok_or_else(|| Into::<Box<dyn Error>>::into("Owner not found"))?;
-    log::info!("Owner information found");
-    let owner = Fact {
-        claim: company.clone(),
-        source: aircraft_owner.source.clone(),
-        date: aircraft_owner.date.clone(),
-    };
+    let from_date = from.to_string();
+    let to_date = to.to_string();
 
-    let icao = &aircraft.icao_number;
-    log::info!("ICAO number: {}", icao);
-
-    let iter = flights::DateIter {
+    let dates = flights::DateIter {
         from,
         to,
         increment: time::Duration::days(1),
     };
 
-    let iter = iter.map(|date| flights::positions(icao, date, 1000.0, client.as_ref()));
+    let iter = dates
+        .map(|date| {
+            let client = client.as_ref();
+            dk_private_jets
+                .iter()
+                .map(move |(_, a)| flights::positions(&a.icao_number, date.clone(), 1000.0, client))
+        })
+        .flatten();
 
-    let positions = futures::future::try_join_all(iter).await?;
-    let mut positions = positions.into_iter().flatten().collect::<Vec<_>>();
-    positions.sort_unstable_by_key(|x| x.datetime());
+    let positions = futures::stream::iter(iter)
+        // limit to 5 concurrent tasks
+        .buffer_unordered(100)
+        .try_collect::<Vec<_>>()
+        .await?;
+    let positions = positions.into_iter().flatten().collect::<Vec<_>>();
 
-    let legs = flights::real_legs(positions.into_iter());
-    log::info!("number_of_legs: {}", legs.len());
-    for leg in &legs {
-        log::info!(
-            "{},{},{},{},{},{},{},{},{}",
-            leg.from.datetime(),
-            leg.from.latitude(),
-            leg.from.longitude(),
-            leg.from.altitude(),
-            leg.to.datetime(),
-            leg.to.latitude(),
-            leg.to.longitude(),
-            leg.to.altitude(),
-            leg.maximum_altitude
-        );
-    }
+    // group by aircraft
+    let mut positions = positions.into_iter().fold(
+        HashMap::<Arc<str>, Vec<Position>>::default(),
+        |mut acc, v| {
+            acc.entry(v.icao().clone())
+                .and_modify(|positions| positions.push(v.clone()))
+                .or_insert_with(|| vec![v]);
+            acc
+        },
+    );
+    // sort positions by datetime
+    positions.iter_mut().for_each(|(_, positions)| {
+        positions.sort_unstable_by_key(|x| x.datetime());
+    });
+
+    // compute legs
+    let legs = positions
+        .into_iter()
+        .map(|(icao, positions)| (icao, flights::real_legs(positions.into_iter())))
+        .collect::<HashMap<_, _>>();
+
+    let number_of_legs = Fact {
+        claim: legs.iter().map(|(_, legs)| legs.len()).sum::<usize>(),
+        source: format!("[adsbexchange.com](https://globe.adsbexchange.com) between {from_date} and {to_date} and all aircraft whose tail number starts with \"OY-\" and model is a private jet"),
+        date: to.to_string()
+    };
 
     let commercial_to_private_ratio = 10.0;
     let commercial_emissions_tons = legs
         .iter()
-        .map(|leg| emissions(leg.from.pos(), leg.to.pos(), Class::First) / 1000.0)
+        .map(|(_, legs)| {
+            legs.iter()
+                .map(|leg| emissions(leg.from.pos(), leg.to.pos(), Class::First) / 1000.0)
+                .sum::<f64>()
+        })
         .sum::<f64>();
     let emissions_tons = Fact {
         claim: (commercial_emissions_tons * commercial_to_private_ratio) as usize,
@@ -146,8 +156,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
         date: "2023-10-05, from 2021-05-27".to_string(),
     };
 
-    let short_legs = legs.iter().filter(|leg| leg.distance() < 300.0);
-    let long_legs = legs.iter().filter(|leg| leg.distance() >= 300.0);
+    let short_legs = legs
+        .iter()
+        .map(|(_, legs)| legs.iter().filter(|leg| leg.distance() < 300.0).count())
+        .sum::<usize>();
+    let long_legs = legs
+        .iter()
+        .map(|(_, legs)| legs.iter().filter(|leg| leg.distance() >= 300.0).count())
+        .sum::<usize>();
 
     let dane_emissions_tons = Fact {
             claim: 5.1,
@@ -165,25 +181,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
         date: "2023-10-08".to_string(),
     };
 
-    let from_date = from.to_string();
-    let to_date = to.to_string();
-
-    let number_of_legs = Fact {
-        claim: legs.len(),
-        source: format!("[adsbexchange.com](https://globe.adsbexchange.com/?icao={icao}) between {from_date} and {to_date}"),
-        date: to.to_string()
-    };
-
     let context = Context {
-        owner,
-        aircraft,
         from_date,
         to_date,
         number_of_legs,
         emissions_tons,
         dane_years,
-        number_of_legs_less_300km: short_legs.count(),
-        number_of_legs_more_300km: long_legs.count(),
+        number_of_legs_less_300km: short_legs,
+        number_of_legs_more_300km: long_legs,
         ratio_commercial_300km: format!("{:.0}", commercial_to_private_ratio),
     };
 

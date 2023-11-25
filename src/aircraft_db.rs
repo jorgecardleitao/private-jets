@@ -1,6 +1,6 @@
-/// Contains the implementation to extract the database of all aircrafts available in ADS-B exchange
-use std::collections::HashMap;
 use std::error::Error;
+/// Contains the implementation to extract the database of all aircrafts available in ADS-B exchange
+use std::{collections::HashMap, sync::Arc};
 
 use async_recursion::async_recursion;
 use reqwest;
@@ -16,7 +16,7 @@ pub type Aircrafts = HashMap<String, Aircraft>;
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Aircraft {
     /// The ICAO number of the aircraft (e.g. `459CD3`)
-    pub icao_number: String,
+    pub icao_number: Arc<str>,
     /// The tail number of the aircraft (e.g. `OY-GFS`)
     pub tail_number: String,
     /// The ICAO number of the aicraft model (e.g. `F2TH`)
@@ -131,7 +131,7 @@ pub async fn load_aircrafts(
                     Some((
                         tail_number.clone(),
                         Aircraft {
-                            icao_number: icao_number.to_ascii_lowercase(),
+                            icao_number: icao_number.to_ascii_lowercase().into(),
                             tail_number,
                             model,
                         },
