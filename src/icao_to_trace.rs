@@ -177,12 +177,11 @@ pub async fn trace_cached(
     Ok(std::mem::take(trace))
 }
 
-/// Returns an iterator of [`Position`] over the trace of `icao` on day `date` assuming that
-/// a flight below `threshold` feet is grounded.
+/// Returns an iterator of [`Position`] over the trace of `icao` on day `date` according
+/// to the [methodology `M-3`](../methodology.md).
 pub async fn positions(
     icao_number: &str,
     date: time::Date,
-    threshold: f64,
     client: Option<&fs_azure::ContainerClient>,
 ) -> Result<impl Iterator<Item = Position>, Box<dyn Error>> {
     use time::ext::NumericalDuration;
@@ -211,7 +210,8 @@ pub async fn positions(
                         entry[3]
                             .as_f64()
                             .and_then(|altitude| {
-                                Some(if altitude < threshold {
+                                // < 1000 feet => grounded, see M-3
+                                Some(if altitude < 1000.0 {
                                     Position::Grounded {
                                         icao: icao.clone(),
                                         datetime,

@@ -23,7 +23,7 @@ impl Leg {
 }
 
 /// Returns a set of [`Leg`]s from a sequence of [`Position`]s.
-pub fn legs(mut positions: impl Iterator<Item = Position>) -> Vec<Leg> {
+fn all_legs(mut positions: impl Iterator<Item = Position>) -> Vec<Leg> {
     let Some(mut prev_position) = positions.next() else {
         return vec![];
     };
@@ -70,18 +70,14 @@ pub fn legs(mut positions: impl Iterator<Item = Position>) -> Vec<Leg> {
     legs
 }
 
-/// Computes legs that, under the below heuristic, is a real leg:
-/// * Its maximum altitude is higher than 1000 feet
-/// * Its distance is higher than 3km
-/// * Its duration is longer than 5m
-pub fn real_legs(positions: impl Iterator<Item = Position>) -> Vec<Leg> {
-    legs(positions)
+/// Returns a set of [`Leg`]s from a sequence of [`Position`]s according
+/// to the [methodology `M-4`](../methodology.md).
+pub fn legs(positions: impl Iterator<Item = Position>) -> Vec<Leg> {
+    all_legs(positions)
         .into_iter()
         // ignore legs that are too fast, as they are likely noise
         .filter(|leg| leg.duration() > time::Duration::minutes(5))
         // ignore legs that are too short, as they are likely noise
         .filter(|leg| leg.distance() > 3.0)
-        // ignore legs that are too low, as they are likely noise
-        .filter(|leg| leg.maximum_altitude > 1000.0)
         .collect()
 }

@@ -35,9 +35,18 @@ enum Backend {
     Azure,
 }
 
-/// Simple program to greet a person
+const ABOUT: &'static str = r#"Writes a markdown file per leg (named `{tail-number}_{date}_{leg}.md`) on disk with a description of:
+* the owner of said tail number
+* the from and to
+* how many emissions (CO2e) were emitted
+* how many emissions (CO2e) would have been emitted if a commercial flight would
+  have been taken instead.
+* how many emissions per year (CO2e/y) a Dane emits
+* The source of each of the claims
+"#;
+
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
+#[command(author, version, about = ABOUT)]
 struct Cli {
     /// The tail number
     #[arg(short, long)]
@@ -45,9 +54,10 @@ struct Cli {
     /// The date in format `yyyy-mm-dd`
     #[arg(short, long, value_parser = parse_date)]
     date: time::Date,
-    /// The Azure token
+    /// Optional azure token to write any new data to the blob storage
     #[arg(short, long)]
     azure_sas_token: Option<String>,
+    /// The backend to read cached data from.
     #[arg(short, long, value_enum, default_value_t=Backend::Azure)]
     backend: Backend,
 }
@@ -88,7 +98,7 @@ async fn flight_date(
     let icao = &aircraft.icao_number;
     log::info!("ICAO number: {}", icao);
 
-    let positions = positions(icao, date, 1000.0, client).await?;
+    let positions = positions(icao, date, client).await?;
     let legs = legs(positions);
 
     log::info!("Number of legs: {}", legs.len());

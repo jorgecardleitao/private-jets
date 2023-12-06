@@ -67,7 +67,7 @@ async fn legs(
 
     let tasks = dates.map(|date| async move {
         Result::<_, Box<dyn Error>>::Ok(
-            flights::positions(&aircraft.icao_number, date, 1000.0, client)
+            flights::positions(&aircraft.icao_number, date, client)
                 .await?
                 .collect::<Vec<_>>(),
         )
@@ -75,11 +75,12 @@ async fn legs(
 
     let positions = futures::stream::iter(tasks)
         // limit concurrent tasks
-        .buffered(50)
+        .buffered(5)
         .try_collect::<Vec<_>>()
         .await?;
 
-    Ok(flights::real_legs(positions.into_iter().flatten()))
+    log::info!("Computing legs {}", aircraft.icao_number);
+    Ok(flights::legs(positions.into_iter().flatten()))
 }
 
 #[tokio::main]

@@ -7,7 +7,7 @@ use time::macros::date;
 /// https://globe.adsbexchange.com/?icao=45d2ed&lat=54.128&lon=9.185&zoom=5.0&showTrace=2023-10-13
 #[tokio::test]
 async fn acceptance_legs() -> Result<(), Box<dyn Error>> {
-    let positions = flights::positions("45d2ed", date!(2023 - 10 - 13), 1000.0, None).await?;
+    let positions = flights::positions("45d2ed", date!(2023 - 10 - 13), None).await?;
     let legs = flights::legs(positions);
 
     assert_eq!(legs.len(), 2);
@@ -47,8 +47,8 @@ fn acceptance_test_emissions() {
 
 #[tokio::test]
 async fn legs_() -> Result<(), Box<dyn Error>> {
-    let positions = flights::positions("459cd3", date!(2023 - 11 - 17), 1000.0, None).await?;
-    let legs = flights::real_legs(positions);
+    let positions = flights::positions("459cd3", date!(2023 - 11 - 17), None).await?;
+    let legs = flights::legs(positions);
 
     // same as ads-b computes: https://globe.adsbexchange.com/?icao=459cd3&lat=53.265&lon=8.038&zoom=6.5&showTrace=2023-11-17
     assert_eq!(legs.len(), 5);
