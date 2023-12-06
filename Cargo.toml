@@ -25,8 +25,10 @@ geoutils = {version="*", default_features = false}
 # read airport names
 csv = {version="*", default_features = false}
 
-# 
+# async utilities
 async-trait = "*"
+async-recursion = "1.0"
+futures = "0.3"
 
 # logging
 log = "*"
@@ -35,12 +37,11 @@ log = "*"
 azure_storage = "*"
 azure_storage_blobs = "*"
 azure_core = "*"
-futures = "0.3"
 bytes = "1.5"
-async-recursion = "1.0"
 
 [dev-dependencies]
 tinytemplate = "1.1"
 clap = { version = "4.4.6", features = ["derive"] }
 tokio = {version="1.0", features=["rt", "macros", "rt-multi-thread"]}
 simple_logger = "*"
+num-format = "*"
