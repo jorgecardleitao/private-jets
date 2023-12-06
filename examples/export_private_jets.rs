@@ -66,7 +66,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
     let data_csv = wtr.into_inner().unwrap();
     let specification_md = r#"This dataset was created according to
-[this methodology](https://github.com/jorgecardleitao/private-jets/methdology.md).
+[this methodology](https://github.com/jorgecardleitao/private-jets/blob/main/methodology.md).
 
 It contains 3 columns:
 * `icao_number`: The transponder identifier
