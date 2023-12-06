@@ -69,8 +69,6 @@ fn get_code(e: &azure_core::Error) -> Option<StatusCode> {
     Some(a.status())
 }
 
-pub struct AzureContainer<'a>(pub &'a ContainerClient);
-
 #[async_trait::async_trait]
 impl BlobStorageProvider for ContainerClient {
     type Error = Error;

@@ -18,6 +18,7 @@ pub use aircraft_owners::*;
 pub use aircraft_types::*;
 pub use airports::*;
 pub use emissions::*;
+pub use fs::BlobStorageProvider;
 pub use icao_to_trace::*;
 pub use legs::*;
 pub use model::*;
