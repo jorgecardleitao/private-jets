@@ -73,11 +73,15 @@ async fn legs(
     client: Option<&flights::fs_azure::ContainerClient>,
 ) -> Result<Vec<Leg>, Box<dyn Error>> {
     let positions = flights::aircraft_positions(from, to, aircraft, client).await?;
+    let mut positions = positions
+        .into_iter()
+        .map(|(_, p)| p)
+        .flatten()
+        .collect::<Vec<_>>();
+    positions.sort_unstable_by_key(|p| p.datetime());
 
     log::info!("Computing legs {}", aircraft.icao_number);
-    Ok(flights::legs(
-        positions.into_iter().map(|(_, p)| p).flatten(),
-    ))
+    Ok(flights::legs(positions.into_iter()))
 }
 
 #[tokio::main]
