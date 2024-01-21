@@ -105,7 +105,7 @@ impl BlobStorageProvider for ContainerClient {
 }
 
 pub(crate) async fn cached_call<
-    F: Fn() -> G,
+    F: Fn() -> (crate::fs::CacheAction, G),
     G: futures::Future<Output = Result<Vec<u8>, std::io::Error>>,
 >(
     blob_name: &str,
@@ -113,10 +113,12 @@ pub(crate) async fn cached_call<
     client: Option<&ContainerClient>,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let Some(client) = client else {
-        return Ok(crate::fs::cached(&blob_name, fetch(), &crate::fs::LocalDisk).await?);
+        let (action, fetch) = fetch();
+        return Ok(crate::fs::cached(&blob_name, fetch, &crate::fs::LocalDisk, action).await?);
     };
 
-    let result = crate::fs::cached(&blob_name, fetch(), client).await;
+    let (action, f) = fetch();
+    let result = crate::fs::cached(&blob_name, f, client, action).await;
     if matches!(
         result,
         Err(crate::fs::Error::Backend(
@@ -124,7 +126,8 @@ pub(crate) async fn cached_call<
         ))
     ) {
         log::warn!("{blob_name} - Unauthorized - fall back to local disk");
-        Ok(crate::fs::cached(&blob_name, fetch(), &crate::fs::LocalDisk).await?)
+        let (action, fetch) = fetch();
+        Ok(crate::fs::cached(&blob_name, fetch, &crate::fs::LocalDisk, action).await?)
     } else {
         Ok(result?)
     }

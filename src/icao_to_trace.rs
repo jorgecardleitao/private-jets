@@ -11,7 +11,7 @@ use time::Date;
 use time::PrimitiveDateTime;
 
 use super::Position;
-use crate::{fs_azure, Aircraft};
+use crate::{fs, fs_azure, Aircraft};
 
 fn last_2(icao: &str) -> &str {
     let bytes = icao.as_bytes();
@@ -117,14 +117,22 @@ async fn globe_history(icao: &str, date: &time::Date) -> Result<Vec<u8>, std::io
 }
 
 /// Returns a map between tail number (e.g. "OYTWM": "45D2ED")
-/// Caches to disk the first time it is executed
+/// Caches the first time it is executed
+/// Caching is skipped if `date` is either today (UTC) or in the future
+/// as the global history is only available at the end of the day
 async fn globe_history_cached(
     icao: &str,
     date: &time::Date,
     client: Option<&fs_azure::ContainerClient>,
 ) -> Result<Vec<u8>, Box<dyn Error>> {
+    let now = time::OffsetDateTime::now_utc().date();
     let blob_name = cache_file_path(icao, date);
-    let fetch = || globe_history(&icao, date);
+    let fetch = || {
+        let action = (date >= &now)
+            .then_some(fs::CacheAction::ReadFetch)
+            .unwrap_or(fs::CacheAction::ReadFetchWrite);
+        (action, globe_history(&icao, date))
+    };
 
     Ok(fs_azure::cached_call(&blob_name, fetch, client).await?)
 }

@@ -53,6 +53,12 @@ impl<F: std::error::Error + Send, E: std::error::Error + Send> std::fmt::Display
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CacheAction {
+    ReadFetchWrite,
+    ReadFetch,
+}
+
 /// Tries to retrive `blob_name` from `provider`. If it does not exist,
 /// it calls `fetch` and writes the result into `provider`.
 /// Returns the data in `blob_name` from `provider`.
@@ -62,6 +68,7 @@ pub async fn cached<E, P, F>(
     blob_name: &str,
     fetch: F,
     provider: &P,
+    action: CacheAction,
 ) -> Result<Vec<u8>, Error<E, P::Error>>
 where
     E: std::error::Error + Send,
@@ -79,6 +86,10 @@ where
     } else {
         log::info!("{blob_name} - cache miss");
         let contents = fetch.await.map_err(|e| Error::Fetch(e))?;
+        if action == CacheAction::ReadFetch {
+            log::info!("{blob_name} - cache do not write");
+            return Ok(contents);
+        };
         let data = provider
             .put(blob_name, contents)
             .await

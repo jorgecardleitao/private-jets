@@ -1,5 +1,7 @@
 use std::io::Cursor;
 
+use crate::fs;
+
 #[derive(Debug, serde::Deserialize, Clone)]
 pub struct Airport {
     pub name: String,
@@ -18,8 +20,13 @@ async fn airports() -> Result<Vec<u8>, reqwest::Error> {
 /// # Implementation
 /// Data is cached on disk the first time it is executed
 pub async fn airports_cached() -> Result<Vec<Airport>, Box<dyn std::error::Error>> {
-    let data =
-        crate::fs::cached("database/airports.csv", airports(), &crate::fs::LocalDisk).await?;
+    let data = fs::cached(
+        "database/airports.csv",
+        airports(),
+        &fs::LocalDisk,
+        fs::CacheAction::ReadFetchWrite,
+    )
+    .await?;
 
     let mut rdr = csv::Reader::from_reader(Cursor::new(data));
     let data = rdr
