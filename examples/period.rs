@@ -123,17 +123,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let icao = &aircraft.icao_number;
     log::info!("ICAO number: {}", icao);
 
-    let iter = flights::DateIter {
-        from,
-        to,
-        increment: time::Duration::days(1),
-    };
-
-    let iter = iter.map(|date| flights::positions(icao, date, client.as_ref()));
-
-    let positions = futures::future::try_join_all(iter).await?;
-    let mut positions = positions.into_iter().flatten().collect::<Vec<_>>();
-    positions.sort_unstable_by_key(|x| x.datetime());
+    let positions = flights::aircraft_positions(from, to, &aircraft, client.as_ref()).await?;
 
     let legs = flights::legs(positions.into_iter());
     log::info!("number_of_legs: {}", legs.len());

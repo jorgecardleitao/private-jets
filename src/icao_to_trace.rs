@@ -1,16 +1,17 @@
 use std::error::Error;
 use std::sync::Arc;
 
+use futures::{StreamExt, TryStreamExt};
 use rand::Rng;
 use reqwest::header;
 use reqwest::{self, StatusCode};
 use reqwest_middleware::ClientBuilder;
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
+use time::Date;
 use time::PrimitiveDateTime;
 
-use crate::fs_azure;
-
 use super::Position;
+use crate::{fs_azure, Aircraft};
 
 fn last_2(icao: &str) -> &str {
     let bytes = icao.as_bytes();
@@ -237,4 +238,32 @@ pub async fn positions(
                     })
             })
         })
+}
+
+pub async fn aircraft_positions(
+    from: Date,
+    to: Date,
+    aircraft: &Aircraft,
+    client: Option<&super::fs_azure::ContainerClient>,
+) -> Result<Vec<Position>, Box<dyn Error>> {
+    let dates = super::DateIter {
+        from,
+        to,
+        increment: time::Duration::days(1),
+    };
+
+    let tasks = dates.map(|date| async move {
+        Result::<_, Box<dyn Error>>::Ok(
+            positions(&aircraft.icao_number, date, client)
+                .await?
+                .collect::<Vec<_>>(),
+        )
+    });
+
+    futures::stream::iter(tasks)
+        // limit concurrent tasks
+        .buffered(5)
+        .try_collect::<Vec<_>>()
+        .await
+        .map(|p| p.into_iter().flatten().collect::<Vec<_>>())
 }

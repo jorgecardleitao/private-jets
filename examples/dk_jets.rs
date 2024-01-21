@@ -1,7 +1,6 @@
 use std::{collections::HashMap, error::Error};
 
 use clap::Parser;
-use futures::{StreamExt, TryStreamExt};
 use num_format::{Locale, ToFormattedString};
 use simple_logger::SimpleLogger;
 
@@ -73,28 +72,10 @@ async fn legs(
     aircraft: &Aircraft,
     client: Option<&flights::fs_azure::ContainerClient>,
 ) -> Result<Vec<Leg>, Box<dyn Error>> {
-    let dates = flights::DateIter {
-        from,
-        to,
-        increment: time::Duration::days(1),
-    };
-
-    let tasks = dates.map(|date| async move {
-        Result::<_, Box<dyn Error>>::Ok(
-            flights::positions(&aircraft.icao_number, date, client)
-                .await?
-                .collect::<Vec<_>>(),
-        )
-    });
-
-    let positions = futures::stream::iter(tasks)
-        // limit concurrent tasks
-        .buffered(5)
-        .try_collect::<Vec<_>>()
-        .await?;
+    let positions = flights::aircraft_positions(from, to, aircraft, client).await?;
 
     log::info!("Computing legs {}", aircraft.icao_number);
-    Ok(flights::legs(positions.into_iter().flatten()))
+    Ok(flights::legs(positions.into_iter()))
 }
 
 #[tokio::main]
