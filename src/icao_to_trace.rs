@@ -124,28 +124,9 @@ async fn globe_history_cached(
     client: Option<&fs_azure::ContainerClient>,
 ) -> Result<Vec<u8>, Box<dyn Error>> {
     let blob_name = cache_file_path(icao, date);
-    let fetch = globe_history(&icao, date);
+    let fetch = || globe_history(&icao, date);
 
-    Ok(match client {
-        Some(client) => {
-            let result = crate::fs::cached(&blob_name, fetch, client).await;
-            if matches!(
-                result,
-                Err(crate::fs::Error::Backend(fs_azure::Error::Unauthorized(_)))
-            ) {
-                log::warn!("{blob_name} - Unauthorized - fall back to local disk");
-                crate::fs::cached(
-                    &blob_name,
-                    globe_history(&icao, date),
-                    &crate::fs::LocalDisk,
-                )
-                .await?
-            } else {
-                result?
-            }
-        }
-        None => crate::fs::cached(&blob_name, fetch, &crate::fs::LocalDisk).await?,
-    })
+    Ok(fs_azure::cached_call(&blob_name, fetch, client).await?)
 }
 
 /// Returns the trace of the icao number of a given day from https://adsbexchange.com.
@@ -245,7 +226,7 @@ pub async fn aircraft_positions(
     to: Date,
     aircraft: &Aircraft,
     client: Option<&super::fs_azure::ContainerClient>,
-) -> Result<Vec<Position>, Box<dyn Error>> {
+) -> Result<Vec<(Date, Vec<Position>)>, Box<dyn Error>> {
     let dates = super::DateIter {
         from,
         to,
@@ -253,11 +234,12 @@ pub async fn aircraft_positions(
     };
 
     let tasks = dates.map(|date| async move {
-        Result::<_, Box<dyn Error>>::Ok(
+        Result::<_, Box<dyn Error>>::Ok((
+            date.clone(),
             positions(&aircraft.icao_number, date, client)
                 .await?
                 .collect::<Vec<_>>(),
-        )
+        ))
     });
 
     futures::stream::iter(tasks)
@@ -265,5 +247,4 @@ pub async fn aircraft_positions(
         .buffered(5)
         .try_collect::<Vec<_>>()
         .await
-        .map(|p| p.into_iter().flatten().collect::<Vec<_>>())
 }

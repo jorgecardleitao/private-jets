@@ -103,3 +103,29 @@ impl BlobStorageProvider for ContainerClient {
         Ok(contents)
     }
 }
+
+pub(crate) async fn cached_call<
+    F: Fn() -> G,
+    G: futures::Future<Output = Result<Vec<u8>, std::io::Error>>,
+>(
+    blob_name: &str,
+    fetch: F,
+    client: Option<&ContainerClient>,
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let Some(client) = client else {
+        return Ok(crate::fs::cached(&blob_name, fetch(), &crate::fs::LocalDisk).await?);
+    };
+
+    let result = crate::fs::cached(&blob_name, fetch(), client).await;
+    if matches!(
+        result,
+        Err(crate::fs::Error::Backend(
+            crate::fs_azure::Error::Unauthorized(_)
+        ))
+    ) {
+        log::warn!("{blob_name} - Unauthorized - fall back to local disk");
+        Ok(crate::fs::cached(&blob_name, fetch(), &crate::fs::LocalDisk).await?)
+    } else {
+        Ok(result?)
+    }
+}

@@ -75,7 +75,9 @@ async fn legs(
     let positions = flights::aircraft_positions(from, to, aircraft, client).await?;
 
     log::info!("Computing legs {}", aircraft.icao_number);
-    Ok(flights::legs(positions.into_iter()))
+    Ok(flights::legs(
+        positions.into_iter().map(|(_, p)| p).flatten(),
+    ))
 }
 
 #[tokio::main]

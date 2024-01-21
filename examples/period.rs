@@ -125,7 +125,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let positions = flights::aircraft_positions(from, to, &aircraft, client.as_ref()).await?;
 
-    let legs = flights::legs(positions.into_iter());
+    let legs = flights::legs(positions.into_iter().map(|(_, p)| p).flatten());
     log::info!("number_of_legs: {}", legs.len());
     for leg in &legs {
         log::info!(
