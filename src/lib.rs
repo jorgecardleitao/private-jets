@@ -95,6 +95,8 @@ fn distance(from: (f64, f64), to: (f64, f64)) -> f64 {
 }
 
 /// An iterator between two [`time::Date`]s in increments
+/// The result is exclusive, i.e. the iterator has two items when increment is one day
+/// from 2022-01-01 and 2022-01-03
 #[derive(Clone, Copy)]
 pub struct DateIter {
     pub from: time::Date,
@@ -111,6 +113,24 @@ impl Iterator for DateIter {
         }
         let maybe_next = self.from.saturating_add(self.increment);
         self.from = maybe_next;
-        (maybe_next < self.to).then_some(maybe_next)
+        (maybe_next <= self.to).then_some(maybe_next)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[tokio::test]
+    async fn work() {
+        assert_eq!(
+            DateIter {
+                from: time::Date::from_calendar_date(2022, time::Month::January, 1).unwrap(),
+                to: time::Date::from_calendar_date(2022, time::Month::January, 3).unwrap(),
+                increment: time::Duration::days(1)
+            }
+            .count(),
+            2
+        );
     }
 }
