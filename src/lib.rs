@@ -111,9 +111,9 @@ impl Iterator for DateIter {
         if self.from >= self.to {
             return None;
         }
-        let maybe_next = self.from.saturating_add(self.increment);
-        self.from = maybe_next;
-        (maybe_next <= self.to).then_some(maybe_next)
+        let maybe_next = self.from;
+        self.from = self.from.saturating_add(self.increment);
+        Some(maybe_next)
     }
 }
 
@@ -129,8 +129,11 @@ mod test {
                 to: time::Date::from_calendar_date(2022, time::Month::January, 3).unwrap(),
                 increment: time::Duration::days(1)
             }
-            .count(),
-            2
+            .collect::<Vec<_>>(),
+            vec![
+                time::Date::from_calendar_date(2022, time::Month::January, 1).unwrap(),
+                time::Date::from_calendar_date(2022, time::Month::January, 2).unwrap()
+            ]
         );
     }
 }
