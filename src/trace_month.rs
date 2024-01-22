@@ -8,7 +8,7 @@ use futures::{StreamExt, TryStreamExt};
 use time::Date;
 
 use super::Position;
-use crate::{fs, fs_azure, Aircraft};
+use crate::{fs, fs_azure};
 
 fn cache_file_path(icao: &str, date: &time::Date) -> String {
     format!(
@@ -37,19 +37,19 @@ fn get_month(current: &time::Date) -> (time::Date, time::Date) {
 
 async fn month_positions(
     month: &time::Date,
-    aircraft: &Aircraft,
+    icao_number: &str,
     client: Option<&super::fs_azure::ContainerClient>,
 ) -> Result<HashMap<Date, Vec<Position>>, Box<dyn Error>> {
-    log::info!("month_positions({month},{})", aircraft.icao_number);
+    log::info!("month_positions({month},{icao_number})");
     assert_eq!(month.day(), 1);
-    let blob_name = cache_file_path(&aircraft.icao_number, &month);
+    let blob_name = cache_file_path(&icao_number, &month);
 
     let (from, to) = get_month(&month);
     let action = fs::CacheAction::from_date(&to);
 
     // returns positions in the month, cached
     let fetch = async {
-        let positions = aircraft_positions(from, to, aircraft, client)
+        let positions = cached_aircraft_positions(from, to, icao_number, client)
             .await
             .unwrap();
 
@@ -67,10 +67,16 @@ async fn month_positions(
     Ok(serde_json::from_slice(&r)?)
 }
 
-pub async fn cached_aircraft_positions(
+/// Returns a map (date -> positions) for a given icao number.
+/// # Implementation
+/// This function is idempotent but not pure:
+/// * the data is retrieved from `https://globe.adsbexchange.com`
+/// * the call is cached on local disk or Azure Blob (depending on `client` configuration)
+/// * the data is retrieved in batches of months and cached, to reduce IO
+pub async fn aircraft_positions(
     from: Date,
     to: Date,
-    aircraft: &Aircraft,
+    icao_number: &str,
     client: Option<&super::fs_azure::ContainerClient>,
 ) -> Result<HashMap<Date, Vec<Position>>, Box<dyn Error>> {
     let dates = super::DateIter {
@@ -88,7 +94,7 @@ pub async fn cached_aircraft_positions(
 
     let tasks = months
         .into_iter()
-        .map(|month| async move { month_positions(&month, aircraft, client).await });
+        .map(|month| async move { month_positions(&month, icao_number, client).await });
 
     let positions = futures::stream::iter(tasks)
         // limit concurrent tasks

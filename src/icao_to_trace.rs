@@ -12,7 +12,7 @@ use time::Date;
 use time::PrimitiveDateTime;
 
 use super::Position;
-use crate::{fs, fs_azure, Aircraft};
+use crate::{fs, fs_azure};
 
 fn last_2(icao: &str) -> &str {
     let bytes = icao.as_bytes();
@@ -225,10 +225,10 @@ pub async fn positions(
         })
 }
 
-pub async fn aircraft_positions(
+pub(crate) async fn cached_aircraft_positions(
     from: Date,
     to: Date,
-    aircraft: &Aircraft,
+    icao_number: &str,
     client: Option<&super::fs_azure::ContainerClient>,
 ) -> Result<HashMap<Date, Vec<Position>>, Box<dyn Error>> {
     let dates = super::DateIter {
@@ -240,7 +240,7 @@ pub async fn aircraft_positions(
     let tasks = dates.map(|date| async move {
         Result::<_, Box<dyn Error>>::Ok((
             date.clone(),
-            positions(&aircraft.icao_number, date, client)
+            positions(icao_number, date, client)
                 .await?
                 .collect::<Vec<_>>(),
         ))
@@ -253,4 +253,4 @@ pub async fn aircraft_positions(
         .await
 }
 
-pub use crate::trace_month::cached_aircraft_positions;
+pub use crate::trace_month::aircraft_positions;

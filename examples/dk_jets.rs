@@ -4,7 +4,7 @@ use clap::Parser;
 use num_format::{Locale, ToFormattedString};
 use simple_logger::SimpleLogger;
 
-use flights::{emissions, load_aircraft_types, load_aircrafts, Aircraft, Class, Fact, Leg};
+use flights::{emissions, load_aircraft_types, load_aircrafts, Class, Fact, Leg};
 use time::Date;
 
 fn render(context: &Context) -> Result<(), Box<dyn Error>> {
@@ -69,10 +69,10 @@ struct Cli {
 async fn legs(
     from: Date,
     to: Date,
-    aircraft: &Aircraft,
+    icao_number: &str,
     client: Option<&flights::fs_azure::ContainerClient>,
 ) -> Result<Vec<Leg>, Box<dyn Error>> {
-    let positions = flights::cached_aircraft_positions(from, to, aircraft, client).await?;
+    let positions = flights::aircraft_positions(from, to, icao_number, client).await?;
     let mut positions = positions
         .into_iter()
         .map(|(_, p)| p)
@@ -80,7 +80,7 @@ async fn legs(
         .collect::<Vec<_>>();
     positions.sort_unstable_by_key(|p| p.datetime());
 
-    log::info!("Computing legs {}", aircraft.icao_number);
+    log::info!("Computing legs {}", icao_number);
     Ok(flights::legs(positions.into_iter()))
 }
 
@@ -135,7 +135,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let client = client.as_ref();
     let legs = private_jets.iter().map(|(_, aircraft)| async {
-        legs(from, to, aircraft, client)
+        legs(from, to, &aircraft.icao_number, client)
             .await
             .map(|legs| (aircraft.icao_number.clone(), legs))
     });
