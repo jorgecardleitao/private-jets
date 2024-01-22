@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Arc;
 
@@ -42,8 +43,8 @@ fn adsbx_sid() -> String {
     format!("{time}_{random_chars}")
 }
 
-static DIRECTORY: &'static str = "database";
-static DATABASE: &'static str = "globe_history";
+pub(crate) static DIRECTORY: &'static str = "database";
+pub(crate) static DATABASE: &'static str = "globe_history";
 
 fn cache_file_path(icao: &str, date: &time::Date) -> String {
     format!("{DIRECTORY}/{DATABASE}/{date}/trace_full_{icao}.json")
@@ -125,16 +126,11 @@ async fn globe_history_cached(
     date: &time::Date,
     client: Option<&fs_azure::ContainerClient>,
 ) -> Result<Vec<u8>, Box<dyn Error>> {
-    let now = time::OffsetDateTime::now_utc().date();
     let blob_name = cache_file_path(icao, date);
-    let fetch = || {
-        let action = (date >= &now)
-            .then_some(fs::CacheAction::ReadFetch)
-            .unwrap_or(fs::CacheAction::ReadFetchWrite);
-        (action, globe_history(&icao, date))
-    };
+    let action = fs::CacheAction::from_date(&date);
+    let fetch = globe_history(&icao, date);
 
-    Ok(fs_azure::cached_call(&blob_name, fetch, client).await?)
+    Ok(fs_azure::cached_call(&blob_name, fetch, action, client).await?)
 }
 
 /// Returns the trace of the icao number of a given day from https://adsbexchange.com.
@@ -234,7 +230,7 @@ pub async fn aircraft_positions(
     to: Date,
     aircraft: &Aircraft,
     client: Option<&super::fs_azure::ContainerClient>,
-) -> Result<Vec<(Date, Vec<Position>)>, Box<dyn Error>> {
+) -> Result<HashMap<Date, Vec<Position>>, Box<dyn Error>> {
     let dates = super::DateIter {
         from,
         to,
@@ -253,6 +249,8 @@ pub async fn aircraft_positions(
     futures::stream::iter(tasks)
         // limit concurrent tasks
         .buffered(5)
-        .try_collect::<Vec<_>>()
+        .try_collect()
         .await
 }
+
+pub use crate::trace_month::cached_aircraft_positions;

@@ -72,7 +72,7 @@ async fn legs(
     aircraft: &Aircraft,
     client: Option<&flights::fs_azure::ContainerClient>,
 ) -> Result<Vec<Leg>, Box<dyn Error>> {
-    let positions = flights::aircraft_positions(from, to, aircraft, client).await?;
+    let positions = flights::cached_aircraft_positions(from, to, aircraft, client).await?;
     let mut positions = positions
         .into_iter()
         .map(|(_, p)| p)

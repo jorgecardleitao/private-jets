@@ -10,6 +10,7 @@ mod icao_to_trace;
 mod legs;
 mod model;
 mod owners;
+mod trace_month;
 
 use std::sync::Arc;
 

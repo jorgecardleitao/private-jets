@@ -123,7 +123,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let icao = &aircraft.icao_number;
     log::info!("ICAO number: {}", icao);
 
-    let positions = flights::aircraft_positions(from, to, &aircraft, client.as_ref()).await?;
+    let positions =
+        flights::cached_aircraft_positions(from, to, &aircraft, client.as_ref()).await?;
     let mut positions = positions
         .into_iter()
         .map(|(_, p)| p)
