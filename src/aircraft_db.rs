@@ -52,12 +52,17 @@ async fn aircrafts_prefixed(
     let fetch = aircrafts(&prefix);
 
     let data = match client {
-        Some(client) => crate::fs::cached(&blob_name, fetch, client)
+        Some(client) => fs::cached(&blob_name, fetch, client, fs::CacheAction::ReadFetchWrite)
             .await
             .map_err(|e| e.to_string())?,
-        None => crate::fs::cached(&blob_name, fetch, &fs::LocalDisk)
-            .await
-            .map_err(|e| e.to_string())?,
+        None => fs::cached(
+            &blob_name,
+            fetch,
+            &fs::LocalDisk,
+            fs::CacheAction::ReadFetchWrite,
+        )
+        .await
+        .map_err(|e| e.to_string())?,
     };
 
     Ok((

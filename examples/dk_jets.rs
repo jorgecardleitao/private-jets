@@ -1,12 +1,11 @@
 use std::{collections::HashMap, error::Error};
 
 use clap::Parser;
-use futures::{StreamExt, TryStreamExt};
 use num_format::{Locale, ToFormattedString};
 use simple_logger::SimpleLogger;
 
-use flights::{emissions, load_aircraft_types, load_aircrafts, Aircraft, Class, Fact, Leg};
-use time::{macros::date, Date};
+use flights::{emissions, load_aircraft_types, load_aircrafts, Class, Fact, Leg};
+use time::Date;
 
 fn render(context: &Context) -> Result<(), Box<dyn Error>> {
     let path = "all_dk_jets.md";
@@ -43,6 +42,13 @@ enum Backend {
     Azure,
 }
 
+fn parse_date(arg: &str) -> Result<time::Date, time::error::Parse> {
+    time::Date::parse(
+        arg,
+        time::macros::format_description!("[year]-[month]-[day]"),
+    )
+}
+
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
@@ -51,36 +57,31 @@ struct Cli {
     azure_sas_token: Option<String>,
     #[arg(short, long, value_enum, default_value_t=Backend::Azure)]
     backend: Backend,
+
+    /// A date in format `yyyy-mm-dd`
+    #[arg(long, value_parser = parse_date)]
+    from: time::Date,
+    /// Optional end date in format `yyyy-mm-dd` (else it is to today)
+    #[arg(long, value_parser = parse_date)]
+    to: Option<time::Date>,
 }
 
 async fn legs(
     from: Date,
     to: Date,
-    aircraft: &Aircraft,
+    icao_number: &str,
     client: Option<&flights::fs_azure::ContainerClient>,
 ) -> Result<Vec<Leg>, Box<dyn Error>> {
-    let dates = flights::DateIter {
-        from,
-        to,
-        increment: time::Duration::days(1),
-    };
+    let positions = flights::aircraft_positions(from, to, icao_number, client).await?;
+    let mut positions = positions
+        .into_iter()
+        .map(|(_, p)| p)
+        .flatten()
+        .collect::<Vec<_>>();
+    positions.sort_unstable_by_key(|p| p.datetime());
 
-    let tasks = dates.map(|date| async move {
-        Result::<_, Box<dyn Error>>::Ok(
-            flights::positions(&aircraft.icao_number, date, client)
-                .await?
-                .collect::<Vec<_>>(),
-        )
-    });
-
-    let positions = futures::stream::iter(tasks)
-        // limit concurrent tasks
-        .buffered(5)
-        .try_collect::<Vec<_>>()
-        .await?;
-
-    log::info!("Computing legs {}", aircraft.icao_number);
-    Ok(flights::legs(positions.into_iter().flatten()))
+    log::info!("Computing legs {}", icao_number);
+    Ok(flights::legs(positions.into_iter()))
 }
 
 #[tokio::main]
@@ -126,15 +127,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
         date: "2023-11-06".to_string(),
     };
 
-    let to = time::OffsetDateTime::now_utc().date() - time::Duration::days(1);
-    let from = date!(2021 - 01 - 01);
+    let from = cli.from;
+    let to = cli.to.unwrap_or(time::OffsetDateTime::now_utc().date());
 
     let from_date = from.to_string();
     let to_date = to.to_string();
 
     let client = client.as_ref();
     let legs = private_jets.iter().map(|(_, aircraft)| async {
-        legs(from, to, aircraft, client)
+        legs(from, to, &aircraft.icao_number, client)
             .await
             .map(|legs| (aircraft.icao_number.clone(), legs))
     });

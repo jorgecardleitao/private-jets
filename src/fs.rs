@@ -6,6 +6,8 @@ pub trait BlobStorageProvider {
     type Error: std::error::Error + Send;
     async fn maybe_get(&self, blob_name: &str) -> Result<Option<Vec<u8>>, Self::Error>;
     async fn put(&self, blob_name: &str, contents: Vec<u8>) -> Result<Vec<u8>, Self::Error>;
+
+    fn can_put(&self) -> bool;
 }
 
 /// A [`BlobStorageProvider`] for local disk
@@ -32,6 +34,10 @@ impl BlobStorageProvider for LocalDisk {
         std::fs::write(blob_name, &contents)?;
         Ok(contents)
     }
+
+    fn can_put(&self) -> bool {
+        true
+    }
 }
 
 #[derive(Debug)]
@@ -53,6 +59,21 @@ impl<F: std::error::Error + Send, E: std::error::Error + Send> std::fmt::Display
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CacheAction {
+    ReadFetchWrite,
+    ReadFetch,
+}
+
+impl CacheAction {
+    pub fn from_date(date: &time::Date) -> Self {
+        let now = time::OffsetDateTime::now_utc().date();
+        (date >= &now)
+            .then_some(Self::ReadFetch)
+            .unwrap_or(Self::ReadFetchWrite)
+    }
+}
+
 /// Tries to retrive `blob_name` from `provider`. If it does not exist,
 /// it calls `fetch` and writes the result into `provider`.
 /// Returns the data in `blob_name` from `provider`.
@@ -62,6 +83,7 @@ pub async fn cached<E, P, F>(
     blob_name: &str,
     fetch: F,
     provider: &P,
+    action: CacheAction,
 ) -> Result<Vec<u8>, Error<E, P::Error>>
 where
     E: std::error::Error + Send,
@@ -79,6 +101,10 @@ where
     } else {
         log::info!("{blob_name} - cache miss");
         let contents = fetch.await.map_err(|e| Error::Fetch(e))?;
+        if action == CacheAction::ReadFetch || !provider.can_put() {
+            log::info!("{blob_name} - cache do not write");
+            return Ok(contents);
+        };
         let data = provider
             .put(blob_name, contents)
             .await

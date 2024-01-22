@@ -1,16 +1,18 @@
+use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Arc;
 
+use futures::{StreamExt, TryStreamExt};
 use rand::Rng;
 use reqwest::header;
 use reqwest::{self, StatusCode};
 use reqwest_middleware::ClientBuilder;
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
+use time::Date;
 use time::PrimitiveDateTime;
 
-use crate::fs_azure;
-
 use super::Position;
+use crate::{fs, fs_azure};
 
 fn last_2(icao: &str) -> &str {
     let bytes = icao.as_bytes();
@@ -41,8 +43,8 @@ fn adsbx_sid() -> String {
     format!("{time}_{random_chars}")
 }
 
-static DIRECTORY: &'static str = "database";
-static DATABASE: &'static str = "globe_history";
+pub(crate) static DIRECTORY: &'static str = "database";
+pub(crate) static DATABASE: &'static str = "globe_history";
 
 fn cache_file_path(icao: &str, date: &time::Date) -> String {
     format!("{DIRECTORY}/{DATABASE}/{date}/trace_full_{icao}.json")
@@ -116,35 +118,19 @@ async fn globe_history(icao: &str, date: &time::Date) -> Result<Vec<u8>, std::io
 }
 
 /// Returns a map between tail number (e.g. "OYTWM": "45D2ED")
-/// Caches to disk the first time it is executed
+/// Caches the first time it is executed
+/// Caching is skipped if `date` is either today (UTC) or in the future
+/// as the global history is only available at the end of the day
 async fn globe_history_cached(
     icao: &str,
     date: &time::Date,
     client: Option<&fs_azure::ContainerClient>,
 ) -> Result<Vec<u8>, Box<dyn Error>> {
     let blob_name = cache_file_path(icao, date);
+    let action = fs::CacheAction::from_date(&date);
     let fetch = globe_history(&icao, date);
 
-    Ok(match client {
-        Some(client) => {
-            let result = crate::fs::cached(&blob_name, fetch, client).await;
-            if matches!(
-                result,
-                Err(crate::fs::Error::Backend(fs_azure::Error::Unauthorized(_)))
-            ) {
-                log::warn!("{blob_name} - Unauthorized - fall back to local disk");
-                crate::fs::cached(
-                    &blob_name,
-                    globe_history(&icao, date),
-                    &crate::fs::LocalDisk,
-                )
-                .await?
-            } else {
-                result?
-            }
-        }
-        None => crate::fs::cached(&blob_name, fetch, &crate::fs::LocalDisk).await?,
-    })
+    Ok(fs_azure::cached_call(&blob_name, fetch, action, client).await?)
 }
 
 /// Returns the trace of the icao number of a given day from https://adsbexchange.com.
@@ -238,3 +224,33 @@ pub async fn positions(
             })
         })
 }
+
+pub(crate) async fn cached_aircraft_positions(
+    from: Date,
+    to: Date,
+    icao_number: &str,
+    client: Option<&super::fs_azure::ContainerClient>,
+) -> Result<HashMap<Date, Vec<Position>>, Box<dyn Error>> {
+    let dates = super::DateIter {
+        from,
+        to,
+        increment: time::Duration::days(1),
+    };
+
+    let tasks = dates.map(|date| async move {
+        Result::<_, Box<dyn Error>>::Ok((
+            date.clone(),
+            positions(icao_number, date, client)
+                .await?
+                .collect::<Vec<_>>(),
+        ))
+    });
+
+    futures::stream::iter(tasks)
+        // limit concurrent tasks
+        .buffered(5)
+        .try_collect()
+        .await
+}
+
+pub use crate::trace_month::aircraft_positions;

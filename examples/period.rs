@@ -43,14 +43,31 @@ enum Backend {
     Azure,
 }
 
+fn parse_date(arg: &str) -> Result<time::Date, time::error::Parse> {
+    time::Date::parse(
+        arg,
+        time::macros::format_description!("[year]-[month]-[day]"),
+    )
+}
+
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
     /// The Azure token
-    #[arg(short, long)]
+    #[arg(long)]
     azure_sas_token: Option<String>,
-    #[arg(short, long, value_enum, default_value_t=Backend::Azure)]
+    #[arg(long, value_enum, default_value_t=Backend::Azure)]
     backend: Backend,
+
+    /// The tail number
+    #[arg(long)]
+    tail_number: String,
+    /// A date in format `yyyy-mm-dd`
+    #[arg(long, value_parser = parse_date)]
+    from: time::Date,
+    /// Optional end date in format `yyyy-mm-dd` (else it is to today)
+    #[arg(long, value_parser = parse_date)]
+    to: Option<time::Date>,
 }
 
 #[tokio::main]
@@ -81,10 +98,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let aircraft_owners = load_aircraft_owners()?;
     let aircrafts = load_aircrafts(client.as_ref()).await?;
 
-    let to = time::OffsetDateTime::now_utc().date() - time::Duration::days(1);
-    let from = to - time::Duration::days(365 * 3);
+    let from = cli.from;
+    let to = cli.to.unwrap_or(time::OffsetDateTime::now_utc().date());
 
-    let tail_number = "OY-DBS";
+    let tail_number = &cli.tail_number;
     let aircraft = aircrafts
         .get(tail_number)
         .ok_or_else(|| Into::<Box<dyn Error>>::into("Aircraft ICAO number not found"))?
@@ -106,17 +123,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let icao = &aircraft.icao_number;
     log::info!("ICAO number: {}", icao);
 
-    let iter = flights::DateIter {
-        from,
-        to,
-        increment: time::Duration::days(1),
-    };
-
-    let iter = iter.map(|date| flights::positions(icao, date, client.as_ref()));
-
-    let positions = futures::future::try_join_all(iter).await?;
-    let mut positions = positions.into_iter().flatten().collect::<Vec<_>>();
-    positions.sort_unstable_by_key(|x| x.datetime());
+    let positions = flights::aircraft_positions(from, to, icao, client.as_ref()).await?;
+    let mut positions = positions
+        .into_iter()
+        .map(|(_, p)| p)
+        .flatten()
+        .collect::<Vec<_>>();
+    positions.sort_unstable_by_key(|p| p.datetime());
 
     let legs = flights::legs(positions.into_iter());
     log::info!("number_of_legs: {}", legs.len());
