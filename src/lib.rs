@@ -122,8 +122,8 @@ impl Iterator for DateIter {
 mod test {
     use super::*;
 
-    #[tokio::test]
-    async fn work() {
+    #[test]
+    fn work() {
         assert_eq!(
             DateIter {
                 from: time::Date::from_calendar_date(2022, time::Month::January, 1).unwrap(),
