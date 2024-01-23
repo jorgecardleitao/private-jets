@@ -1,9 +1,9 @@
-# Use of {citizens.1} private jets
+# Use of {country.possessive} private jets{location}
 
-Between {from_date} and {to_date}, {citizens.1}'s private jets emitted
-{emissions_tons.claim} tons of CO2e[^1], or what **{citizen_years.claim} {citizens.0}** emit in a year[^2].
+Between {from_date} and {to_date}, {country.possessive} private jets{location} emitted
+{emissions_tons.claim} tons of CO2e[^1], or what **{citizen_years.claim} {country.plural}** emit in a year[^2].
 {number_of_private_jets.claim} private jets alone[^3] jeopardize the efforts of millions
-of {citizens.0} that every day act to reduce their emissions.
+of {country.plural} that every day act to reduce their emissions.
 
 Of these,
 * {number_of_legs_less_300km} trips were less than 300 km[^4] and could have been replaced by
@@ -13,7 +13,7 @@ Of these,
   ~{ratio_commercial_300km}x less CO2[^1].
 
 The use of private jets by billionaires and large companies alike is an insult
-to {citizens.0} and {citizens.1} companies alike that are doing everything they can
+to {country.plural} and {country.possessive} companies alike that are doing everything they can
 to reduce emissions.
 
 > Ban private jets _now_

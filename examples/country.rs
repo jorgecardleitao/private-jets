@@ -4,11 +4,11 @@ use clap::Parser;
 use num_format::{Locale, ToFormattedString};
 use simple_logger::SimpleLogger;
 
-use flights::{emissions, load_aircrafts, load_private_jet_types, Class, Fact, Leg};
+use flights::{emissions, load_aircrafts, load_private_jet_types, Class, Fact, Leg, Position};
 use time::Date;
 
 fn render(context: &Context) -> Result<(), Box<dyn Error>> {
-    let path = format!("{}_story.md", context.country.to_lowercase());
+    let path = format!("{}_story.md", context.country.name.to_lowercase());
 
     let template = std::fs::read_to_string("examples/country.md")?;
 
@@ -24,9 +24,16 @@ fn render(context: &Context) -> Result<(), Box<dyn Error>> {
 }
 
 #[derive(serde::Serialize)]
+pub struct CountryContext {
+    pub name: String,
+    pub plural: String,
+    pub possessive: String,
+}
+
+#[derive(serde::Serialize)]
 pub struct Context {
-    pub country: String,
-    pub citizens: [&'static str; 2],
+    pub country: CountryContext,
+    pub location: String,
     pub from_date: String,
     pub to_date: String,
     pub number_of_private_jets: Fact<String>,
@@ -57,7 +64,48 @@ enum Country {
     Portugal,
 }
 
+#[derive(clap::ValueEnum, Debug, Clone, Copy)]
+enum Location {
+    Davos,
+}
+
+impl Location {
+    fn name(&self) -> &'static str {
+        match self {
+            Self::Davos => "Davos airport (LSZR)",
+        }
+    }
+
+    fn region(&self) -> [[f64; 2]; 2] {
+        match self {
+            Self::Davos => [[47.482, 9.538], [47.490, 9.568]],
+        }
+    }
+}
+
 impl Country {
+    fn to_context(&self) -> CountryContext {
+        CountryContext {
+            name: self.name().to_string(),
+            plural: self.plural().to_string(),
+            possessive: self.possessive().to_string(),
+        }
+    }
+
+    fn possessive(&self) -> &'static str {
+        match self {
+            Self::Denmark => "Danish",
+            Self::Portugal => "Portuguese",
+        }
+    }
+
+    fn plural(&self) -> &'static str {
+        match self {
+            Self::Denmark => "Danes",
+            Self::Portugal => "Portugueses",
+        }
+    }
+
     fn tail_number(&self) -> &'static str {
         match self {
             Country::Denmark => "OY-",
@@ -69,13 +117,6 @@ impl Country {
         match self {
             Country::Denmark => "Denmark",
             Country::Portugal => "Portugal",
-        }
-    }
-
-    fn citizens(&self) -> [&'static str; 2] {
-        match self {
-            Country::Denmark => ["Danes", "Danish"],
-            Country::Portugal => ["Portugueses", "Portuguese"],
         }
     }
 
@@ -114,12 +155,22 @@ struct Cli {
     /// Optional end date in format `yyyy-mm-dd` (else it is to today)
     #[arg(long, value_parser = parse_date)]
     to: Option<time::Date>,
+
+    /// Optional location to restrict the search geographically. Currently only
+    #[arg(long)]
+    location: Option<Location>,
+}
+
+pub fn in_box(position: &Position, region: [[f64; 2]; 2]) -> bool {
+    return (position.latitude() >= region[0][0] && position.latitude() < region[1][0])
+        && (position.longitude() >= region[0][1] && position.longitude() < region[1][1]);
 }
 
 async fn legs(
     from: Date,
     to: Date,
     icao_number: &str,
+    location: Option<Location>,
     client: Option<&flights::fs_azure::ContainerClient>,
 ) -> Result<Vec<Leg>, Box<dyn Error>> {
     let positions = flights::aircraft_positions(from, to, icao_number, client).await?;
@@ -131,7 +182,18 @@ async fn legs(
     positions.sort_unstable_by_key(|p| p.datetime());
 
     log::info!("Computing legs {}", icao_number);
-    Ok(flights::legs(positions.into_iter()))
+    let legs = flights::legs(positions.into_iter());
+
+    // filter by location
+    if let Some(location) = location {
+        let region = location.region();
+        Ok(legs
+            .into_iter()
+            .filter(|leg| leg.positions().iter().any(|p| in_box(p, region)))
+            .collect())
+    } else {
+        Ok(legs)
+    }
 }
 
 #[tokio::main]
@@ -178,7 +240,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let client = client.as_ref();
     let legs = private_jets.iter().map(|(_, aircraft)| async {
-        legs(from, to, &aircraft.icao_number, client)
+        legs(from, to, &aircraft.icao_number, cli.location, client)
             .await
             .map(|legs| (aircraft.icao_number.clone(), legs))
     });
@@ -241,8 +303,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     };
 
     let context = Context {
-        country: cli.country.name().to_string(),
-        citizens: cli.country.citizens(),
+        country: cli.country.to_context(),
+        location: cli
+            .location
+            .map(|l| format!(" at {}", l.name()))
+            .unwrap_or_default(),
         from_date,
         to_date,
         number_of_private_jets,
