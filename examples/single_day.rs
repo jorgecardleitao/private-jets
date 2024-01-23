@@ -104,11 +104,11 @@ async fn flight_date(
     log::info!("Number of legs: {}", legs.len());
 
     Ok(legs.into_iter().filter_map(|leg| {
-        let is_leg = matches!(leg.from, Position::Grounded{..}) & matches!(leg.to, Position::Grounded{..});
+        let is_leg = matches!(leg.from(), Position::Grounded{..}) & matches!(leg.to(), Position::Grounded{..});
         if !is_leg {
-            log::info!("{:?} -> {:?} skipped", leg.from, leg.to);
+            log::info!("{:?} -> {:?} skipped", leg.from(), leg.to());
         }
-        is_leg.then_some((leg.from, leg.to))
+        is_leg.then_some((leg.from().clone(), leg.to().clone()))
     }).map(|(from, to)| {
         let emissions = emissions(from.pos(), to.pos(), Class::First);
 

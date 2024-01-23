@@ -159,7 +159,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .iter()
         .map(|(_, legs)| {
             legs.iter()
-                .map(|leg| emissions(leg.from.pos(), leg.to.pos(), Class::First) / 1000.0)
+                .map(|leg| emissions(leg.from().pos(), leg.to().pos(), Class::First) / 1000.0)
                 .sum::<f64>()
         })
         .sum::<f64>();

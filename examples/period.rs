@@ -136,22 +136,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
     for leg in &legs {
         log::info!(
             "{},{},{},{},{},{},{},{},{}",
-            leg.from.datetime(),
-            leg.from.latitude(),
-            leg.from.longitude(),
-            leg.from.altitude(),
-            leg.to.datetime(),
-            leg.to.latitude(),
-            leg.to.longitude(),
-            leg.to.altitude(),
-            leg.maximum_altitude
+            leg.from().datetime(),
+            leg.from().latitude(),
+            leg.from().longitude(),
+            leg.from().altitude(),
+            leg.to().datetime(),
+            leg.to().latitude(),
+            leg.to().longitude(),
+            leg.to().altitude(),
+            leg.maximum_altitude(),
         );
     }
 
     let commercial_to_private_ratio = 10.0;
     let commercial_emissions_tons = legs
         .iter()
-        .map(|leg| emissions(leg.from.pos(), leg.to.pos(), Class::First) / 1000.0)
+        .map(|leg| emissions(leg.from().pos(), leg.to().pos(), Class::First) / 1000.0)
         .sum::<f64>();
     let emissions_tons = Fact {
         claim: (commercial_emissions_tons * commercial_to_private_ratio) as usize,

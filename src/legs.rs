@@ -4,60 +4,58 @@ use crate::Position;
 /// between two positions.
 #[derive(Debug, Clone)]
 pub struct Leg {
-    pub from: Position,
-    pub to: Position,
-    /// in feet
-    pub maximum_altitude: f64,
+    /// Sequence of positions defining the leg. Ends may start Flying, when the first/last observed
+    /// position was flying. Otherwise, first and last are Grounded.
+    positions: Vec<Position>,
 }
 
 impl Leg {
+    /// Positions of the leg
+    pub fn positions(&self) -> &[Position] {
+        &self.positions
+    }
+
     /// Leg geo distance in km
     pub fn distance(&self) -> f64 {
-        self.from.distace(&self.to)
+        self.from().distace(&self.to())
     }
 
     /// Leg duration
     pub fn duration(&self) -> time::Duration {
-        self.to.datetime() - self.from.datetime()
+        self.to().datetime() - self.from().datetime()
+    }
+
+    pub fn maximum_altitude(&self) -> f64 {
+        self.positions
+            .iter()
+            .map(|p| p.altitude() as u32)
+            .max()
+            .unwrap() as f64
+    }
+
+    pub fn from(&self) -> &Position {
+        self.positions.first().unwrap()
+    }
+
+    pub fn to(&self) -> &Position {
+        self.positions.last().unwrap()
     }
 }
 
 /// Returns a set of [`Leg`]s from a sequence of [`Position`]s.
-fn all_legs(mut positions: impl Iterator<Item = Position>) -> Vec<Leg> {
+pub fn all_legs(mut positions: impl Iterator<Item = Position>) -> Vec<Leg> {
     let Some(mut prev_position) = positions.next() else {
         return vec![];
     };
 
-    let first = prev_position.clone();
+    let mut sequence: Vec<Position> = vec![];
     let mut legs: Vec<Leg> = vec![];
-    let mut maximum_altitude = first.altitude();
     positions.for_each(|position| {
-        maximum_altitude = position.altitude().max(maximum_altitude);
-        match (&prev_position, &position) {
-            (Position::Grounded { .. }, Position::Flying { .. }) => {
-                // departed, still do not know to where
-                legs.push(Leg {
-                    from: prev_position.clone(),
-                    to: prev_position.clone(),
-                    maximum_altitude,
-                });
-            }
-            (Position::Flying { .. }, Position::Grounded { .. }) => {
-                // arrived
-                if let Some(leg) = legs.last_mut() {
-                    // there is a leg - set its arrival position
-                    leg.to = position.clone();
-                } else {
-                    // if it was initially flying, need to push to the leg
-                    legs.push(Leg {
-                        from: first.clone(),
-                        to: position.clone(),
-                        maximum_altitude,
-                    });
-                    maximum_altitude = 0.0
-                }
-            }
-            _ => {}
+        sequence.push(position.clone());
+        if let (Position::Flying { .. }, Position::Grounded { .. }) = (&prev_position, &position) {
+            legs.push(Leg {
+                positions: std::mem::take(&mut sequence),
+            });
         };
         prev_position = position;
     });
