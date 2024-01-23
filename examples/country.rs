@@ -4,13 +4,13 @@ use clap::Parser;
 use num_format::{Locale, ToFormattedString};
 use simple_logger::SimpleLogger;
 
-use flights::{emissions, load_aircraft_types, load_aircrafts, Class, Fact, Leg};
+use flights::{emissions, load_aircrafts, load_private_jet_types, Class, Fact, Leg};
 use time::Date;
 
 fn render(context: &Context) -> Result<(), Box<dyn Error>> {
-    let path = "all_dk_jets.md";
+    let path = format!("{}_story.md", context.country.to_lowercase());
 
-    let template = std::fs::read_to_string("examples/dk_jets.md")?;
+    let template = std::fs::read_to_string("examples/country.md")?;
 
     let mut tt = tinytemplate::TinyTemplate::new();
     tt.set_default_formatter(&tinytemplate::format_unescaped);
@@ -25,12 +25,14 @@ fn render(context: &Context) -> Result<(), Box<dyn Error>> {
 
 #[derive(serde::Serialize)]
 pub struct Context {
+    pub country: String,
+    pub citizens: [&'static str; 2],
     pub from_date: String,
     pub to_date: String,
     pub number_of_private_jets: Fact<String>,
     pub number_of_legs: Fact<String>,
     pub emissions_tons: Fact<String>,
-    pub dane_years: Fact<String>,
+    pub citizen_years: Fact<String>,
     pub number_of_legs_less_300km: String,
     pub number_of_legs_more_300km: String,
     pub ratio_commercial_300km: String,
@@ -49,14 +51,62 @@ fn parse_date(arg: &str) -> Result<time::Date, time::error::Parse> {
     )
 }
 
+#[derive(clap::ValueEnum, Debug, Clone)]
+enum Country {
+    Denmark,
+    Portugal,
+}
+
+impl Country {
+    fn tail_number(&self) -> &'static str {
+        match self {
+            Country::Denmark => "OY-",
+            Country::Portugal => "CS-",
+        }
+    }
+
+    fn name(&self) -> &'static str {
+        match self {
+            Country::Denmark => "Denmark",
+            Country::Portugal => "Portugal",
+        }
+    }
+
+    fn citizens(&self) -> [&'static str; 2] {
+        match self {
+            Country::Denmark => ["Danes", "Danish"],
+            Country::Portugal => ["Portugueses", "Portuguese"],
+        }
+    }
+
+    fn emissions(&self) -> Fact<f64> {
+        match self {
+            Country::Denmark => Fact {
+                claim: 5.1,
+                source: "A dane emitted 5.1 t CO2/person/year in 2019 according to [work bank data](https://ourworldindata.org/co2/country/denmark).".to_string(),
+                date: "2023-10-08".to_string(),
+            },
+            Country::Portugal => Fact {
+                claim: 4.1,
+                source: "A portuguese emitted 4.1 t CO2/person/year in 2022 according to [work bank data](https://ourworldindata.org/co2/country/denmark).".to_string(),
+                date: "2024-01-23".to_string(),
+            },
+        }
+    }
+}
+
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
     /// The Azure token
-    #[arg(short, long)]
+    #[arg(long)]
     azure_sas_token: Option<String>,
-    #[arg(short, long, value_enum, default_value_t=Backend::Azure)]
+    #[arg(long, value_enum, default_value_t=Backend::Azure)]
     backend: Backend,
+
+    /// Name of the country to compute on
+    #[arg(long)]
+    country: Country,
 
     /// A date in format `yyyy-mm-dd`
     #[arg(long, value_parser = parse_date)]
@@ -109,26 +159,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // load datasets to memory
     let aircrafts = load_aircrafts(client.as_ref()).await?;
-    let types = load_aircraft_types()?;
+    let types = load_private_jet_types()?;
 
     let private_jets = aircrafts
         .into_iter()
         // is private jet
         .filter(|(_, a)| types.contains_key(&a.model))
-        // is from DK
-        .filter(|(a, _)| a.starts_with("OY-"))
+        // from country
+        .filter(|(a, _)| a.starts_with(cli.country.tail_number()))
         .collect::<HashMap<_, _>>();
 
-    let number_of_private_jets = Fact {
-        claim: private_jets.len().to_formatted_string(&Locale::en),
-        source: format!(
-            "All aircrafts in [adsbexchange.com](https://globe.adsbexchange.com) whose model is a private jet and tail number starts with \"OY-\""
-        ),
-        date: "2023-11-06".to_string(),
-    };
-
+    let now = time::OffsetDateTime::now_utc().date();
     let from = cli.from;
-    let to = cli.to.unwrap_or(time::OffsetDateTime::now_utc().date());
+    let to = cli.to.unwrap_or(now);
 
     let from_date = from.to_string();
     let to_date = to.to_string();
@@ -143,6 +186,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let legs = futures::future::join_all(legs).await;
     let legs = legs.into_iter().collect::<Result<HashMap<_, _>, _>>()?;
 
+    let number_of_private_jets = Fact {
+        claim: legs.iter().filter(|x| x.1.len() > 0).count().to_formatted_string(&Locale::en),
+        source: format!(
+            "All aircrafts in [adsbexchange.com](https://globe.adsbexchange.com) whose model is a private jet, registered in {}, and with at least one leg - ", cli.country.name()
+        ),
+        date: "2023-11-06".to_string(),
+    };
+
     let number_of_legs = Fact {
         claim: legs
             .iter()
@@ -152,7 +203,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         source: format!(
             "[adsbexchange.com](https://globe.adsbexchange.com) between {from_date} and {to_date}"
         ),
-        date: to.to_string(),
+        date: now.to_string(),
     };
 
     let commercial_emissions_tons = legs
@@ -180,26 +231,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .map(|(_, legs)| legs.iter().filter(|leg| leg.distance() >= 300.0).count())
         .sum::<usize>();
 
-    let dane_emissions_tons = Fact {
-            claim: 5.1,
-            source: "A dane emitted 5.1 t CO2/person/year in 2019 according to [work bank data](https://ourworldindata.org/co2/country/denmark).".to_string(),
-            date: "2023-10-08".to_string(),
-        };
+    let citizen_emissions_tons = cli.country.emissions();
 
-    let dane_years = (emissions_tons_value / dane_emissions_tons.claim) as usize;
-    let dane_years = Fact {
-        claim: dane_years.to_formatted_string(&Locale::en),
-        source: "https://ourworldindata.org/co2/country/denmark Denmark emits 5.1 t CO2/person/year in 2019.".to_string(),
-        date: "2023-10-08".to_string(),
+    let citizen_years = (emissions_tons_value / citizen_emissions_tons.claim) as usize;
+    let citizen_years = Fact {
+        claim: citizen_years.to_formatted_string(&Locale::en),
+        source: citizen_emissions_tons.source,
+        date: citizen_emissions_tons.date,
     };
 
     let context = Context {
+        country: cli.country.name().to_string(),
+        citizens: cli.country.citizens(),
         from_date,
         to_date,
         number_of_private_jets,
         number_of_legs,
         emissions_tons,
-        dane_years,
+        citizen_years,
         number_of_legs_less_300km: short_legs.to_formatted_string(&Locale::en),
         number_of_legs_more_300km: long_legs.to_formatted_string(&Locale::en),
         ratio_commercial_300km: format!("{:.0}", commercial_to_private_ratio),
