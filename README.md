@@ -59,6 +59,10 @@ cargo run --example country -- --from=2024-01-13 --to=2024-01-21 --country=denma
 cargo run --example country -- --from=2024-01-13 --to=2024-01-21 --country=denmark
 # Story about Portuguese private jets that flew between two dates
 cargo run --example country -- --from=2024-01-13 --to=2024-01-21 --country=portugal
+
+# Story about German private jets that flew between in 2023, where the azure-sas-token
+# is on the file token.txt
+cargo run --example country -- --from=2023-01-01 --to=2024-01-01 --country=germany --azure-sas-token=$(cat token.txt)
 ```
 
 ## Methodology

@@ -1,6 +1,7 @@
 use std::{collections::HashMap, error::Error};
 
 use clap::Parser;
+use futures::{StreamExt, TryStreamExt};
 use num_format::{Locale, ToFormattedString};
 use simple_logger::SimpleLogger;
 
@@ -62,6 +63,8 @@ fn parse_date(arg: &str) -> Result<time::Date, time::error::Parse> {
 enum Country {
     Denmark,
     Portugal,
+    Spain,
+    Germany,
 }
 
 #[derive(clap::ValueEnum, Debug, Clone, Copy)]
@@ -96,6 +99,8 @@ impl Country {
         match self {
             Self::Denmark => "Danish",
             Self::Portugal => "Portuguese",
+            Self::Spain => "Spanish",
+            Self::Germany => "German",
         }
     }
 
@@ -103,13 +108,17 @@ impl Country {
         match self {
             Self::Denmark => "Danes",
             Self::Portugal => "Portugueses",
+            Self::Spain => "Spanish",
+            Self::Germany => "Germans",
         }
     }
 
     fn tail_number(&self) -> &'static str {
         match self {
-            Country::Denmark => "OY-",
-            Country::Portugal => "CS-",
+            Self::Denmark => "OY-",
+            Self::Portugal => "CS-",
+            Self::Spain => "EC-",
+            Self::Germany => "D-",
         }
     }
 
@@ -117,6 +126,8 @@ impl Country {
         match self {
             Country::Denmark => "Denmark",
             Country::Portugal => "Portugal",
+            Country::Spain => "Spain",
+            Country::Germany => "Germany",
         }
     }
 
@@ -130,6 +141,16 @@ impl Country {
             Country::Portugal => Fact {
                 claim: 4.1,
                 source: "A portuguese emitted 4.1 t CO2/person/year in 2022 according to [work bank data](https://ourworldindata.org/co2/country/denmark).".to_string(),
+                date: "2024-01-23".to_string(),
+            },
+            Country::Spain => Fact {
+                claim: 5.2,
+                source: "A spanish emitted 5.2 t CO2/person/year in 2022 according to [work bank data](https://ourworldindata.org/co2/country/spain).".to_string(),
+                date: "2024-01-23".to_string(),
+            },
+            Country::Germany => Fact {
+                claim: 8.0,
+                source: "A german emitted 8.0 t CO2/person/year in 2022 according to [work bank data](https://ourworldindata.org/co2/country/germany).".to_string(),
                 date: "2024-01-23".to_string(),
             },
         }
@@ -245,8 +266,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .map(|legs| (aircraft.icao_number.clone(), legs))
     });
 
-    let legs = futures::future::join_all(legs).await;
-    let legs = legs.into_iter().collect::<Result<HashMap<_, _>, _>>()?;
+    let legs = futures::stream::iter(legs)
+        // limit concurrent tasks
+        .buffered(1)
+        .try_collect::<HashMap<_, _>>()
+        .await?;
 
     let number_of_private_jets = Fact {
         claim: legs.iter().filter(|x| x.1.len() > 0).count().to_formatted_string(&Locale::en),
