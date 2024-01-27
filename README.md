@@ -50,6 +50,17 @@ As of today, the flag `--azure-sas-token` is only available when the code is exe
 from `main`, as writing to the blob storage must be done through a controlled code base
 that preserves data integrity.
 
+### Examples:
+
+```bash
+# Story about Danish private jets that flew to Davos between two dates
+cargo run --example country -- --from=2024-01-13 --to=2024-01-21 --country=denmark --location=davos
+# Story about Danish private jets that flew between two dates
+cargo run --example country -- --from=2024-01-13 --to=2024-01-21 --country=denmark
+# Story about Portuguese private jets that flew between two dates
+cargo run --example country -- --from=2024-01-13 --to=2024-01-21 --country=portugal
+```
+
 ## Methodology
 
 The methodology used to extract information is available at [`methodology.md`](./methodology.md).

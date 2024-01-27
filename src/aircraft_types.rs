@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 /// A map of the aircraft type (e.g. `CL30`) to an [`AircraftType`].
 pub type AircraftTypes = HashMap<String, AircraftType>;
 
-/// The in-memory representation of an aircraft type
+/// In-memory representation of an aircraft type
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AircraftType {
     /// the type (e.g. `CL30`)
@@ -18,9 +18,11 @@ pub struct AircraftType {
     pub date: String,
 }
 
-/// Loads [`AircraftType`] from `src/types.csv` into memory.
+/// Returns the set of all [`AircraftType`] in `src/types.csv`,
+/// corresponding to aircraft types whose primary use is to be a private jet
+/// according to the [methodology `M-2`](../methodology.md).
 /// # Error
 /// Errors if the file cannot be read
-pub fn load_aircraft_types() -> Result<AircraftTypes, Box<dyn Error>> {
+pub fn load_private_jet_types() -> Result<AircraftTypes, Box<dyn Error>> {
     super::csv::load("src/types.csv", |a: AircraftType| (a.icao.clone(), a))
 }
