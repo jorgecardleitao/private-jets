@@ -77,6 +77,7 @@ async fn flight_date(
     aircrafts: &Aircrafts,
     client: Option<&fs_azure::ContainerClient>,
 ) -> Result<Vec<Event>, Box<dyn Error>> {
+    let consumptions = load_aircraft_consumption()?;
     let airports = airports_cached().await?;
     let aircraft_owner = aircraft_owners
         .get(tail_number)
@@ -94,43 +95,43 @@ async fn flight_date(
 
     let aircraft = aircrafts
         .get(tail_number)
-        .ok_or_else(|| Into::<Box<dyn Error>>::into("Aircraft ICAO number not found"))?;
+        .ok_or_else(|| Into::<Box<dyn Error>>::into("Aircraft transponder number"))?;
     let icao = &aircraft.icao_number;
-    log::info!("ICAO number: {}", icao);
+    log::info!("transponder number: {}", icao);
+
+    let consumption = consumptions
+        .get(&aircraft.model)
+        .ok_or_else(|| Into::<Box<dyn Error>>::into("Consumption not found"))?;
+    log::info!("Consumption: {} [gallon/h]", consumption.gph);
 
     let positions = positions(icao, date, client).await?;
     let legs = legs(positions);
 
     log::info!("Number of legs: {}", legs.len());
 
-    Ok(legs.into_iter().filter_map(|leg| {
-        let is_leg = matches!(leg.from(), Position::Grounded{..}) & matches!(leg.to(), Position::Grounded{..});
-        if !is_leg {
-            log::info!("{:?} -> {:?} skipped", leg.from(), leg.to());
-        }
-        is_leg.then_some((leg.from().clone(), leg.to().clone()))
-    }).map(|(from, to)| {
-        let emissions = emissions(from.pos(), to.pos(), Class::First);
+    Ok(legs.into_iter().map(|leg| {
+        let commercial_emissions_kg = Fact {
+            claim: emissions(leg.from().pos(), leg.to().pos(), Class::First) as usize,
+            source: "https://www.myclimate.org/en/information/about-myclimate/downloads/flight-emission-calculator/".to_string(),
+            date: "2023-10-19".to_string()
+        };
+        let emissions_kg = Fact {
+            claim: leg_co2_kg(consumption.gph as f64, leg.duration()) as usize,
+            source: "See [methodology M-7](https://github.com/jorgecardleitao/private-jets/blob/main/methodology.md)".to_string(),
+            date: time::OffsetDateTime::now_utc().date().to_string(),
+        };
 
         Event {
             tail_number: tail_number.to_string(),
-                owner: owner.clone(),
-                date: date.to_string(),
-                from_airport: closest(from.pos(), &airports).name.clone(),
-                to_airport: closest(to.pos(), &airports).name.clone(),
-                two_way: false,
-                commercial_emissions_kg: Fact {
-                    claim: emissions as usize,
-                    source: "https://www.myclimate.org/en/information/about-myclimate/downloads/flight-emission-calculator/".to_string(),
-                    date: "2023-10-19".to_string()
-                },
-                emissions_kg: Fact {
-                    claim: (emissions * 10.0) as usize,
-                    source: "Private jets emit 5-14x times. 10x was used here https://www.transportenvironment.org/discover/private-jets-can-the-super-rich-supercharge-zero-emission-aviation/".to_string(),
-                    date: "2023-10-05, from 2021-05-27".to_string(),
-                },
-                source: format!("https://globe.adsbexchange.com/?icao={icao}&showTrace={date}"),
-                source_date: date.to_string(),
+            owner: owner.clone(),
+            date: date.to_string(),
+            from_airport: closest(leg.from().pos(), &airports).name.clone(),
+            to_airport: closest(leg.to().pos(), &airports).name.clone(),
+            two_way: false,
+            commercial_emissions_kg,
+            emissions_kg,
+            source: format!("https://globe.adsbexchange.com/?icao={icao}&showTrace={date}"),
+            source_date: date.to_string(),
         }
     }).collect())
 }

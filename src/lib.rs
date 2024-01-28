@@ -3,6 +3,7 @@ mod aircraft_db;
 mod aircraft_owners;
 mod aircraft_types;
 mod airports;
+mod consumption;
 mod csv;
 mod emissions;
 pub(crate) mod fs;
@@ -11,6 +12,7 @@ mod icao_to_trace;
 mod legs;
 mod model;
 mod owners;
+mod private_emissions;
 mod trace_month;
 
 use std::sync::Arc;
@@ -19,12 +21,14 @@ pub use aircraft_db::*;
 pub use aircraft_owners::*;
 pub use aircraft_types::*;
 pub use airports::*;
+pub use consumption::*;
 pub use emissions::*;
 pub use fs::BlobStorageProvider;
 pub use icao_to_trace::*;
 pub use legs::*;
 pub use model::*;
 pub use owners::*;
+pub use private_emissions::leg_co2_kg;
 
 /// A position of an aircraft
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]

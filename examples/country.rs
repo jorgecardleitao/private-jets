@@ -1,11 +1,14 @@
-use std::{collections::HashMap, error::Error};
+use std::{collections::HashMap, error::Error, sync::Arc};
 
 use clap::Parser;
 use futures::{StreamExt, TryStreamExt};
 use num_format::{Locale, ToFormattedString};
 use simple_logger::SimpleLogger;
 
-use flights::{emissions, load_aircrafts, load_private_jet_types, Class, Fact, Leg, Position};
+use flights::{
+    emissions, leg_co2_kg, load_aircraft_consumption, load_aircrafts, load_private_jet_types,
+    AircraftTypeConsumptions, Class, Fact, Leg, Position,
+};
 use time::Date;
 
 fn render(context: &Context) -> Result<(), Box<dyn Error>> {
@@ -43,7 +46,8 @@ pub struct Context {
     pub citizen_years: Fact<String>,
     pub number_of_legs_less_300km: String,
     pub number_of_legs_more_300km: String,
-    pub ratio_commercial_300km: String,
+    pub ratio_commercial_300km: Fact<usize>,
+    pub ratio_train_300km: Fact<usize>,
 }
 
 #[derive(clap::ValueEnum, Debug, Clone)]
@@ -217,6 +221,40 @@ async fn legs(
     }
 }
 
+fn private_emissions(
+    legs: &HashMap<(Arc<str>, String), Vec<Leg>>,
+    consumptions: &AircraftTypeConsumptions,
+    filter: impl Fn(&&Leg) -> bool + Copy,
+) -> f64 {
+    legs.iter()
+        .map(|((_, model), legs)| {
+            legs.iter()
+                .filter(filter)
+                .map(|leg| {
+                    leg_co2_kg(
+                        consumptions.get(model).expect(model).gph as f64,
+                        leg.duration(),
+                    ) / 1000.0
+                })
+                .sum::<f64>()
+        })
+        .sum::<f64>()
+}
+
+fn commercial_emissions(
+    legs: &HashMap<(Arc<str>, String), Vec<Leg>>,
+    filter: impl Fn(&&Leg) -> bool + Copy,
+) -> f64 {
+    legs.iter()
+        .map(|(_, legs)| {
+            legs.iter()
+                .filter(filter)
+                .map(|leg| emissions(leg.from().pos(), leg.to().pos(), Class::First) / 1000.0)
+                .sum::<f64>()
+        })
+        .sum::<f64>()
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     SimpleLogger::new()
@@ -243,6 +281,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // load datasets to memory
     let aircrafts = load_aircrafts(client.as_ref()).await?;
     let types = load_private_jet_types()?;
+    let consumptions = load_aircraft_consumption()?;
 
     let private_jets = aircrafts
         .into_iter()
@@ -263,7 +302,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let legs = private_jets.iter().map(|(_, aircraft)| async {
         legs(from, to, &aircraft.icao_number, cli.location, client)
             .await
-            .map(|legs| (aircraft.icao_number.clone(), legs))
+            .map(|legs| ((aircraft.icao_number.clone(), aircraft.model.clone()), legs))
     });
 
     let legs = futures::stream::iter(legs)
@@ -292,20 +331,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
         date: now.to_string(),
     };
 
-    let commercial_emissions_tons = legs
-        .iter()
-        .map(|(_, legs)| {
-            legs.iter()
-                .map(|leg| emissions(leg.from().pos(), leg.to().pos(), Class::First) / 1000.0)
-                .sum::<f64>()
-        })
-        .sum::<f64>();
-    let commercial_to_private_ratio = 10.0;
-    let emissions_tons_value = commercial_emissions_tons * commercial_to_private_ratio;
+    let emissions_value_tons = private_emissions(&legs, &consumptions, |_| true);
+
     let emissions_tons = Fact {
-        claim: (emissions_tons_value as usize).to_formatted_string(&Locale::en),
-        source: format!("Commercial flights would have emitted {commercial_emissions_tons:.1} tons of CO2e (based on [myclimate.org](https://www.myclimate.org/en/information/about-myclimate/downloads/flight-emission-calculator/) - retrieved on 2023-10-19). Private jets emit 5-14x times. 10x was used based on [transportenvironment.org](https://www.transportenvironment.org/discover/private-jets-can-the-super-rich-supercharge-zero-emission-aviation/)"),
-        date: "2023-10-05, from 2021-05-27".to_string(),
+        claim: (emissions_value_tons as usize).to_formatted_string(&Locale::en),
+        source: "See [methodology M-7](https://github.com/jorgecardleitao/private-jets/blob/main/methodology.md)".to_string(),
+        date: time::OffsetDateTime::now_utc().date().to_string(),
     };
 
     let short_legs = legs
@@ -317,9 +348,31 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .map(|(_, legs)| legs.iter().filter(|leg| leg.distance() >= 300.0).count())
         .sum::<usize>();
 
+    let emissions_short_legs =
+        private_emissions(&legs, &consumptions, |leg| leg.distance() < 300.0);
+    let commercial_emissions_short = commercial_emissions(&legs, |leg| leg.distance() < 300.0);
+
+    let short_ratio = emissions_short_legs / commercial_emissions_short;
+    let ratio_train_300km = Fact {
+        claim: (short_ratio + 7.0) as usize,
+        source: format!("{}x in comparison to a commercial flight[^1][^6] plus 7x of a commercial flight in comparison to a train, as per https://ourworldindata.org/travel-carbon-footprint (UK data, vary by country) - retrieved on 2024-01-20", short_ratio as usize),
+        date: now.to_string()
+    };
+
+    // compute emissions for the >300km legs, so we can compare with emissions from commercial flights
+    let emissions_long_legs =
+        private_emissions(&legs, &consumptions, |leg| leg.distance() >= 300.0);
+    let commercial_emissions_long = commercial_emissions(&legs, |leg| leg.distance() >= 300.0);
+
+    let ratio_commercial_300km = Fact {
+        claim: (emissions_long_legs / commercial_emissions_long) as usize,
+        source: "Commercial flight emissions based on [myclimate.org](https://www.myclimate.org/en/information/about-myclimate/downloads/flight-emission-calculator/) - retrieved on 2023-10-19".to_string(),
+        date: now.to_string(),
+    };
+
     let citizen_emissions_tons = cli.country.emissions();
 
-    let citizen_years = (emissions_tons_value / citizen_emissions_tons.claim) as usize;
+    let citizen_years = (emissions_value_tons / citizen_emissions_tons.claim) as usize;
     let citizen_years = Fact {
         claim: citizen_years.to_formatted_string(&Locale::en),
         source: citizen_emissions_tons.source,
@@ -340,7 +393,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         citizen_years,
         number_of_legs_less_300km: short_legs.to_formatted_string(&Locale::en),
         number_of_legs_more_300km: long_legs.to_formatted_string(&Locale::en),
-        ratio_commercial_300km: format!("{:.0}", commercial_to_private_ratio),
+        ratio_commercial_300km,
+        ratio_train_300km,
     };
 
     render(&context)?;
