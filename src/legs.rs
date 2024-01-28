@@ -78,9 +78,11 @@ pub fn all_legs(mut positions: impl Iterator<Item = Position>) -> Vec<Leg> {
             sequence.push(position.clone());
         }
         if landed(&prev_position, &position) {
-            legs.push(Leg {
-                positions: std::mem::take(&mut sequence),
-            });
+            if !sequence.is_empty() {
+                legs.push(Leg {
+                    positions: std::mem::take(&mut sequence),
+                });
+            }
         }
         prev_position = position;
     });
