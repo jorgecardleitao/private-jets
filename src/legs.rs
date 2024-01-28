@@ -50,7 +50,19 @@ fn landed(prev_position: &Position, position: &Position) -> bool {
     ) || (matches!(
         (&prev_position, &position),
         (Position::Flying { .. }, Position::Flying { .. })
-    ) && position.datetime() - prev_position.datetime() > time::Duration::minutes(5))
+    ) && position.datetime() - prev_position.datetime() > time::Duration::minutes(5)
+        && position.altitude() < 10000.0)
+}
+
+fn is_grounded(prev_position: &Position, position: &Position) -> bool {
+    matches!(
+        (&prev_position, &position),
+        (Position::Grounded { .. }, Position::Grounded { .. })
+    ) || (matches!(
+        (&prev_position, &position),
+        (Position::Flying { .. }, Position::Flying { .. })
+    ) && position.datetime() - prev_position.datetime() > time::Duration::minutes(5)
+        && position.altitude() < 10000.0)
 }
 
 /// Returns a set of [`Leg`]s from a sequence of [`Position`]s.
@@ -62,13 +74,9 @@ pub fn all_legs(mut positions: impl Iterator<Item = Position>) -> Vec<Leg> {
     let mut sequence: Vec<Position> = vec![];
     let mut legs: Vec<Leg> = vec![];
     positions.for_each(|position| {
-        if let (Position::Grounded { .. }, Position::Grounded { .. }) = (&prev_position, &position)
-        {
-            // legs are by definition the minimum length on ground
-            prev_position = position;
-            return;
-        };
-        sequence.push(position.clone());
+        if !is_grounded(&prev_position, &position) {
+            sequence.push(position.clone());
+        }
         if landed(&prev_position, &position) {
             legs.push(Leg {
                 positions: std::mem::take(&mut sequence),

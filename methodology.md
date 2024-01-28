@@ -55,16 +55,16 @@ Source code is available at [src/icao_to_trace.rs](./src/icao_to_trace.rs).
 
 ### M-4: Identify legs of a route
 
-This is performed automatically by the computer program. A leg is defined in this methodology has:
+This is performed automatically by the computer program. A leg is defined in this methodology
+has a continuous sequence of ADS-B positions in time where the aircraft is flying.
 
-> a continuous sequence of ADS-B positions split by landings whose distance is higher than 3km and duration longer than 5 minutes
+The aircraft at a given segment between two ADS-B positions is considered grounded (not flying) when either:
+* both positions are on the ground
+* the time between these positions is > 5m and the aircraft is below 10.000 feet
 
-where a landing is identified by either:
-* The previous ADS-B position was flying, and the current is grounded
-* Both the previous and current position is flying, and are separated by more than 5 minutes apart.
-
-The latter condition is used to mitigate the risk that ADS-B radars do not always pick up signals
-too close from the ground, resulting the leg to not be identified.
+The latter condition is used to mitigate the risk that ADS-B receivers sometimes
+do not receive an aircraft's signal when the aircraft is at low altitude.
+When this happens for more than 5m, we consider that the aircraft approached and landed.
 
 Source code is available at [src/legs.rs](./src/legs.rs).
 
