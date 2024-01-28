@@ -26,7 +26,7 @@ pub use model::*;
 pub use owners::*;
 
 /// A position of an aircraft
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Position {
     /// Aircraft transponder declares the aircraft is grounded
     Grounded {

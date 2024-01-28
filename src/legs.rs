@@ -42,23 +42,18 @@ impl Leg {
     }
 }
 
-/// Returns a set of [`Leg`]s from a sequence of [`Position`]s.
-pub fn all_legs(positions: impl Iterator<Item = Position>) -> Vec<Leg> {
-    // M-3
-    fn _correct_low_flying(position: Position) -> Position {
-        if position.altitude() < 1000.0 {
-            Position::Grounded {
-                icao: position.icao().clone(),
-                datetime: position.datetime(),
-                latitude: position.latitude(),
-                longitude: position.longitude(),
-            }
-        } else {
-            position
-        }
-    }
-    let mut positions = positions.map(_correct_low_flying);
+fn landed(prev_position: &Position, position: &Position) -> bool {
+    matches!(
+        (&prev_position, &position),
+        (Position::Flying { .. }, Position::Grounded { .. })
+    ) || (matches!(
+        (&prev_position, &position),
+        (Position::Flying { .. }, Position::Flying { .. })
+    ) && position.datetime() - prev_position.datetime() > time::Duration::minutes(5))
+}
 
+/// Returns a set of [`Leg`]s from a sequence of [`Position`]s.
+pub fn all_legs(mut positions: impl Iterator<Item = Position>) -> Vec<Leg> {
     let Some(mut prev_position) = positions.next() else {
         return vec![];
     };
@@ -68,21 +63,24 @@ pub fn all_legs(positions: impl Iterator<Item = Position>) -> Vec<Leg> {
     positions.for_each(|position| {
         if let (Position::Grounded { .. }, Position::Grounded { .. }) = (&prev_position, &position)
         {
+            // legs are by definition the minimum length on ground
             prev_position = position;
             return;
         };
         sequence.push(position.clone());
-        if let (Position::Flying { .. }, Position::Grounded { .. }) = (&prev_position, &position) {
+        if landed(&prev_position, &position) {
             legs.push(Leg {
                 positions: std::mem::take(&mut sequence),
             });
-        };
+        }
         prev_position = position;
     });
 
-    // if it is still flying, remove the incomplete leg
-    if matches!(prev_position, Position::Flying { .. }) && !legs.is_empty() {
-        legs.pop();
+    // if it is still flying, make it a new leg
+    if !sequence.is_empty() {
+        legs.push(Leg {
+            positions: std::mem::take(&mut sequence),
+        })
     }
 
     legs
