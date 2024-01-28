@@ -43,7 +43,22 @@ impl Leg {
 }
 
 /// Returns a set of [`Leg`]s from a sequence of [`Position`]s.
-pub fn all_legs(mut positions: impl Iterator<Item = Position>) -> Vec<Leg> {
+pub fn all_legs(positions: impl Iterator<Item = Position>) -> Vec<Leg> {
+    // M-3
+    fn _correct_low_flying(position: Position) -> Position {
+        if position.altitude() < 1000.0 {
+            Position::Grounded {
+                icao: position.icao().clone(),
+                datetime: position.datetime(),
+                latitude: position.latitude(),
+                longitude: position.longitude(),
+            }
+        } else {
+            position
+        }
+    }
+    let mut positions = positions.map(_correct_low_flying);
+
     let Some(mut prev_position) = positions.next() else {
         return vec![];
     };
@@ -51,6 +66,11 @@ pub fn all_legs(mut positions: impl Iterator<Item = Position>) -> Vec<Leg> {
     let mut sequence: Vec<Position> = vec![];
     let mut legs: Vec<Leg> = vec![];
     positions.for_each(|position| {
+        if let (Position::Grounded { .. }, Position::Grounded { .. }) = (&prev_position, &position)
+        {
+            prev_position = position;
+            return;
+        };
         sequence.push(position.clone());
         if let (Position::Flying { .. }, Position::Grounded { .. }) = (&prev_position, &position) {
             legs.push(Leg {
