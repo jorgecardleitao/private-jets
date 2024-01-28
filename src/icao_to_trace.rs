@@ -175,7 +175,7 @@ pub async fn positions(
     trace_cached(icao_number, &date, client)
         .await
         .map(move |trace| {
-            trace.into_iter().map(move |entry| {
+            trace.into_iter().filter_map(move |entry| {
                 let icao = icao.clone();
                 let time_seconds = entry[0].as_f64().unwrap();
                 let time = time::Time::MIDNIGHT + time_seconds.seconds();
@@ -192,34 +192,16 @@ pub async fn positions(
                             longitude,
                         })
                     })
-                    .unwrap_or_else(|| {
-                        entry[3]
-                            .as_f64()
-                            .and_then(|altitude| {
-                                // < 1000 feet => grounded, see M-3
-                                Some(if altitude < 1000.0 {
-                                    Position::Grounded {
-                                        icao: icao.clone(),
-                                        datetime,
-                                        latitude,
-                                        longitude,
-                                    }
-                                } else {
-                                    Position::Flying {
-                                        icao: icao.clone(),
-                                        datetime,
-                                        latitude,
-                                        longitude,
-                                        altitude,
-                                    }
-                                })
-                            })
-                            .unwrap_or(Position::Grounded {
-                                icao,
+                    .or_else(|| {
+                        entry[3].as_f64().and_then(|altitude| {
+                            Some(Position::Flying {
+                                icao: icao.clone(),
                                 datetime,
                                 latitude,
                                 longitude,
+                                altitude,
                             })
+                        })
                     })
             })
         })

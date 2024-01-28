@@ -48,21 +48,23 @@ This is performed automatically by the computer program and consists in looking 
 the historical route of the ICAO number in https://globe.adsbexchange.com.
 This contains the sequence of `(latitude, longitude)` and other information.
 
-Each position is assigned the state `Grounded` whether
-the transponder returns "grounded" or the (barometric) altitude is lower than 1000 feet,
-else it is assigned the state `Flying`.
+Each position is assigned the state `Grounded` when
+the transponder returns "grounded", else it is assigned the state `Flying`.
 
 Source code is available at [src/icao_to_trace.rs](./src/icao_to_trace.rs).
 
 ### M-4: Identify legs of a route
 
-This is performed automatically by the computer program and consists in identifying
-legs: contiguous sequence of positions that start and end on the state grounded.
+This is performed automatically by the computer program. A leg is defined in this methodology has:
 
-Furthermore, only legs fullfilling the below conditions are considered:
+> a continuous sequence of ADS-B positions split by landings whose distance is higher than 3km and duration longer than 5 minutes
 
-* Its distance is higher than 3km
-* Its duration is longer than 5m
+where a landing is identified by either:
+* The previous ADS-B position was flying, and the current is grounded
+* Both the previous and current position is flying, and are separated by more than 5 minutes apart.
+
+The latter condition is used to mitigate the risk that ADS-B radars do not always pick up signals
+too close from the ground, resulting the leg to not be identified.
 
 Source code is available at [src/legs.rs](./src/legs.rs).
 

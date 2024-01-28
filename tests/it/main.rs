@@ -1,6 +1,7 @@
 use std::error::Error;
 
-use time::macros::date;
+use flights::Leg;
+use time::{macros::date, Date};
 
 /// Verifies that we compute the correct number of legs.
 /// The expected 2 was confirmed by manual inspection of
@@ -52,5 +53,35 @@ async fn legs_() -> Result<(), Box<dyn Error>> {
 
     // same as ads-b computes: https://globe.adsbexchange.com/?icao=459cd3&lat=53.265&lon=8.038&zoom=6.5&showTrace=2023-11-17
     assert_eq!(legs.len(), 5);
+    Ok(())
+}
+
+async fn legs(
+    from: Date,
+    to: Date,
+    icao_number: &str,
+    client: Option<&flights::fs_azure::ContainerClient>,
+) -> Result<Vec<Leg>, Box<dyn Error>> {
+    let positions = flights::aircraft_positions(from, to, icao_number, client).await?;
+    let mut positions = positions
+        .into_iter()
+        .map(|(_, p)| p)
+        .flatten()
+        .collect::<Vec<_>>();
+    positions.sort_unstable_by_key(|p| p.datetime());
+
+    log::info!("Computing legs {}", icao_number);
+    let legs = flights::legs(positions.into_iter());
+
+    // filter by location
+    Ok(legs)
+}
+
+#[tokio::test]
+async fn multi_day_legs() -> Result<(), Box<dyn Error>> {
+    let legs = legs(date!(2023 - 07 - 21), date!(2023 - 07 - 23), "458d90", None).await?;
+
+    // same as ads-b computes: https://globe.adsbexchange.com/?icao=458d90&lat=53.265&lon=8.038&zoom=6.5&showTrace=2023-07-21
+    assert_eq!(legs.len(), 6);
     Ok(())
 }

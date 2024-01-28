@@ -42,6 +42,17 @@ impl Leg {
     }
 }
 
+/// Implementation of the definition of landed in [M-4](../methodology.md).
+fn landed(prev_position: &Position, position: &Position) -> bool {
+    matches!(
+        (&prev_position, &position),
+        (Position::Flying { .. }, Position::Grounded { .. })
+    ) || (matches!(
+        (&prev_position, &position),
+        (Position::Flying { .. }, Position::Flying { .. })
+    ) && position.datetime() - prev_position.datetime() > time::Duration::minutes(5))
+}
+
 /// Returns a set of [`Leg`]s from a sequence of [`Position`]s.
 pub fn all_legs(mut positions: impl Iterator<Item = Position>) -> Vec<Leg> {
     let Some(mut prev_position) = positions.next() else {
@@ -51,18 +62,26 @@ pub fn all_legs(mut positions: impl Iterator<Item = Position>) -> Vec<Leg> {
     let mut sequence: Vec<Position> = vec![];
     let mut legs: Vec<Leg> = vec![];
     positions.for_each(|position| {
+        if let (Position::Grounded { .. }, Position::Grounded { .. }) = (&prev_position, &position)
+        {
+            // legs are by definition the minimum length on ground
+            prev_position = position;
+            return;
+        };
         sequence.push(position.clone());
-        if let (Position::Flying { .. }, Position::Grounded { .. }) = (&prev_position, &position) {
+        if landed(&prev_position, &position) {
             legs.push(Leg {
                 positions: std::mem::take(&mut sequence),
             });
-        };
+        }
         prev_position = position;
     });
 
-    // if it is still flying, remove the incomplete leg
-    if matches!(prev_position, Position::Flying { .. }) && !legs.is_empty() {
-        legs.pop();
+    // if it is still flying, make it a new leg
+    if !sequence.is_empty() {
+        legs.push(Leg {
+            positions: std::mem::take(&mut sequence),
+        })
     }
 
     legs
