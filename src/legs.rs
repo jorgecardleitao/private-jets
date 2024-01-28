@@ -42,6 +42,7 @@ impl Leg {
     }
 }
 
+/// Implementation of the definition of landed in [M-4](../methodology.md).
 fn landed(prev_position: &Position, position: &Position) -> bool {
     matches!(
         (&prev_position, &position),

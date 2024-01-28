@@ -12,7 +12,7 @@ use crate::{fs, fs_azure};
 
 fn cache_file_path(icao: &str, date: &time::Date) -> String {
     format!(
-        "{DIRECTORY}/{DATABASE}/{}-{}/trace_full_{icao}.json",
+        "{DIRECTORY}/{DATABASE}/{}-{:02}/trace_full_{icao}.json",
         date.year(),
         date.month() as u8
     )
