@@ -28,6 +28,21 @@ fn render(context: &Context) -> Result<(), Box<dyn Error>> {
 }
 
 #[derive(serde::Serialize)]
+struct LegOut {
+    tail_number: String,
+    model: String,
+    start: String,
+    end: String,
+    duration: String,
+    from_lat: f64,
+    from_lon: f64,
+    to_lat: f64,
+    to_lon: f64,
+    commercial_emissions_kg: usize,
+    emissions_kg: usize,
+}
+
+#[derive(serde::Serialize)]
 pub struct CountryContext {
     pub name: String,
     pub plural: String,
@@ -310,6 +325,32 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .buffered(1)
         .try_collect::<HashMap<_, _>>()
         .await?;
+
+    let mut wtr = csv::Writer::from_writer(vec![]);
+    for ((tail_number, model), legs) in legs.iter() {
+        for leg in legs {
+            wtr.serialize(LegOut {
+                tail_number: tail_number.to_string(),
+                model: model.to_string(),
+                start: leg.from().datetime().to_string(),
+                end: leg.to().datetime().to_string(),
+                duration: leg.duration().to_string(),
+                from_lat: leg.from().latitude(),
+                from_lon: leg.from().longitude(),
+                to_lat: leg.to().latitude(),
+                to_lon: leg.to().longitude(),
+                commercial_emissions_kg: emissions(leg.from().pos(), leg.to().pos(), Class::First)
+                    as usize,
+                emissions_kg: leg_co2_kg(
+                    consumptions.get(model).expect(model).gph as f64,
+                    leg.duration(),
+                ) as usize,
+            })
+            .unwrap()
+        }
+    }
+    let data_csv = wtr.into_inner().unwrap();
+    std::fs::write("data.csv", data_csv)?;
 
     let number_of_private_jets = Fact {
         claim: legs.iter().filter(|x| x.1.len() > 0).count().to_formatted_string(&Locale::en),
