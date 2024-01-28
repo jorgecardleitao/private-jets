@@ -42,27 +42,35 @@ impl Leg {
     }
 }
 
+fn grounded_heuristic(prev_position: &Position, position: &Position) -> bool {
+    let is_flying = matches!(
+        (&prev_position, &position),
+        (Position::Flying { .. }, Position::Flying { .. })
+            | (Position::Flying { .. }, Position::Grounded { .. })
+    );
+    let lost_close_to_ground = position.datetime() - prev_position.datetime()
+        > time::Duration::minutes(5)
+        && (position.altitude() < 10000.0 || prev_position.altitude() < 10000.0);
+
+    // lost signal for more than 10h => assume it landed somewhere
+    let lost_somewhere = position.datetime() - prev_position.datetime() > time::Duration::hours(10);
+
+    is_flying && (lost_close_to_ground || lost_somewhere)
+}
+
 /// Implementation of the definition of landed in [M-4](../methodology.md).
 fn landed(prev_position: &Position, position: &Position) -> bool {
     matches!(
         (&prev_position, &position),
         (Position::Flying { .. }, Position::Grounded { .. })
-    ) || (matches!(
-        (&prev_position, &position),
-        (Position::Flying { .. }, Position::Flying { .. })
-    ) && position.datetime() - prev_position.datetime() > time::Duration::minutes(5)
-        && position.altitude() < 10000.0)
+    ) || grounded_heuristic(prev_position, position)
 }
 
 fn is_grounded(prev_position: &Position, position: &Position) -> bool {
     matches!(
         (&prev_position, &position),
         (Position::Grounded { .. }, Position::Grounded { .. })
-    ) || (matches!(
-        (&prev_position, &position),
-        (Position::Flying { .. }, Position::Flying { .. })
-    ) && position.datetime() - prev_position.datetime() > time::Duration::minutes(5)
-        && position.altitude() < 10000.0)
+    ) || grounded_heuristic(prev_position, position)
 }
 
 /// Returns a set of [`Leg`]s from a sequence of [`Position`]s.
