@@ -28,7 +28,7 @@ pub use icao_to_trace::*;
 pub use legs::*;
 pub use model::*;
 pub use owners::*;
-pub use private_emissions::leg_co2_kg;
+pub use private_emissions::*;
 
 /// A position of an aircraft
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]

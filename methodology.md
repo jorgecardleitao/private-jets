@@ -102,7 +102,6 @@ leg emissions [kg CO2e] =
   x Radiative Forcing index [kg CO2e / kg CO2]
   x Life-cycle emissions [kg CO2e / kg CO2e]
   x leg time [h]
-  x occupancy [1/person]
 ```
 
 Where:
@@ -114,6 +113,17 @@ Where:
 * `Radiative Forcing index = 3 [kg CO2e / kg CO2]`, as concluded in [The contribution of global aviation to anthropogenic climate forcing for 2000 to 2018](https://www.sciencedirect.com/science/article/pii/S1352231020305689), from 2021.
 * `Life-cycle emissions = 1.68 [kg CO2e / kg CO2e]`, [Life Cycle Greenhouse Gas Emissions from Alternative Jet Fuels v1.2](https://web.mit.edu/aeroastro/partner/reports/proj28/partner-proj28-2010-001.pdf) from 2010-06, accessed 2024-01-28.
 * `leg time [h]` is obtained by computing duration of the leg, as identified via the methodology `M-4` in this document.
+
+#### Per passager
+
+```
+leg emissions/person [kg CO2e/person] =
+  leg emissions [kg CO2e]
+  x occupancy [1/person]
+```
+
+where
+* `leg emissions [kg CO2e]` is as computed above
 * `occupancy = 0.23 [1/person] = 1/4.3 [1/person]` obtained from [Average number of passengers per flight who flew private worldwide from 2016 to 2019](https://www.statista.com/statistics/1171518/private-jet-per-flight/), where there were 4.3 passagers per flight in 2019, accessed 2024-01-28.
 
 ### M-8: Identify aircraft owner in Denmark

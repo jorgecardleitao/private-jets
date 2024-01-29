@@ -17,5 +17,11 @@ pub fn leg_co2_kg(consumption: f64, duration: time::Duration) -> f64 {
         * EMISSIONS_PER_KG
         * RADIATIVE_INDEX
         * LIFE_CYCLE_FACTOR
-        * OCCUPANCY_FACTOR
+}
+
+/// Returns the total CO2 emissions per person in kg of a private jet with a given
+/// consumption (in GPH) of Jet-A fuel flying for a given amount of time,
+/// as specified in [methodology `M-7`](../methodology.md).
+pub fn leg_co2_kg_per_person(emissions: f64) -> f64 {
+    emissions * OCCUPANCY_FACTOR
 }

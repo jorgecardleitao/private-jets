@@ -6,8 +6,8 @@ use num_format::{Locale, ToFormattedString};
 use simple_logger::SimpleLogger;
 
 use flights::{
-    emissions, leg_co2_kg, load_aircraft_consumption, load_aircrafts, load_private_jet_types,
-    AircraftTypeConsumptions, Class, Fact, Leg, Position,
+    emissions, leg_co2_kg, leg_co2_kg_per_person, load_aircraft_consumption, load_aircrafts,
+    load_private_jet_types, AircraftTypeConsumptions, Class, Fact, Leg, Position,
 };
 use time::Date;
 
@@ -393,7 +393,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         private_emissions(&legs, &consumptions, |leg| leg.distance() < 300.0);
     let commercial_emissions_short = commercial_emissions(&legs, |leg| leg.distance() < 300.0);
 
-    let short_ratio = emissions_short_legs / commercial_emissions_short;
+    let short_ratio = leg_co2_kg_per_person(emissions_short_legs) / commercial_emissions_short;
     let ratio_train_300km = Fact {
         claim: (short_ratio + 7.0) as usize,
         source: format!("{}x in comparison to a commercial flight[^1][^6] plus 7x of a commercial flight in comparison to a train, as per https://ourworldindata.org/travel-carbon-footprint (UK data, vary by country) - retrieved on 2024-01-20", short_ratio as usize),
@@ -406,7 +406,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let commercial_emissions_long = commercial_emissions(&legs, |leg| leg.distance() >= 300.0);
 
     let ratio_commercial_300km = Fact {
-        claim: (emissions_long_legs / commercial_emissions_long) as usize,
+        claim: (leg_co2_kg_per_person(emissions_long_legs) / commercial_emissions_long) as usize,
         source: "Commercial flight emissions based on [myclimate.org](https://www.myclimate.org/en/information/about-myclimate/downloads/flight-emission-calculator/) - retrieved on 2023-10-19".to_string(),
         date: now.to_string(),
     };
