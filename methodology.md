@@ -58,13 +58,18 @@ Source code is available at [src/icao_to_trace.rs](./src/icao_to_trace.rs).
 This is performed automatically by the computer program. A leg is defined in this methodology
 has a continuous sequence of ADS-B positions in time where the aircraft is flying.
 
-The aircraft at a given segment between two ADS-B positions is considered grounded (not flying) when either:
-* both positions are on the ground
-* the time between these positions is > 5m and the aircraft is below 10.000 feet
+The aircraft at a given segment between two ADS-B positions is considered grounded (not flying) when any of:
+1. both positions are on the ground
+2. the time between these positions is > 5m and any of the positions is below 10.000 feet
+3. the time between these positions is > 10h
 
-The latter condition is used to mitigate the risk that ADS-B receivers sometimes
+Condition 1. is the normal case where ADS-B signal was received when the aircraft landed. 
+Condition 2. is used to mitigate the risk that ADS-B receivers sometimes
 do not receive an aircraft's signal when the aircraft is at low altitude.
-When this happens for more than 5m, we consider that the aircraft approached and landed.
+Condition 3. is used to mitigate situations where the aircraft enters regions
+of low ADS-B coverage (e.g. central Africa) while flying and then returns flying
+(sometimes days later), which should be intepreted as the aircraft being flying for the whole
+time.
 
 Source code is available at [src/legs.rs](./src/legs.rs).
 
