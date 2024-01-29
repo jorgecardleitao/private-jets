@@ -47,6 +47,7 @@ fn grounded_heuristic(prev_position: &Position, position: &Position) -> bool {
         (&prev_position, &position),
         (Position::Flying { .. }, Position::Flying { .. })
             | (Position::Flying { .. }, Position::Grounded { .. })
+            | (Position::Grounded { .. }, Position::Flying { .. })
     );
     let lost_close_to_ground = position.datetime() - prev_position.datetime()
         > time::Duration::minutes(5)

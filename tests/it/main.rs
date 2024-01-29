@@ -70,18 +70,14 @@ async fn legs(
         .collect::<Vec<_>>();
     positions.sort_unstable_by_key(|p| p.datetime());
 
-    log::info!("Computing legs {}", icao_number);
-    let legs = flights::legs(positions.into_iter());
-
-    // filter by location
-    Ok(legs)
+    Ok(flights::legs(positions.into_iter()))
 }
 
+/// Verifies that condition 2. of `M-4` is correctly applied.
+/// https://globe.adsbexchange.com/?icao=458d90&lat=53.265&lon=8.038&zoom=6.5&showTrace=2023-07-21
 #[tokio::test]
-async fn multi_day_legs() -> Result<(), Box<dyn Error>> {
+async fn ads_b_lost_on_ground() -> Result<(), Box<dyn Error>> {
     let legs = legs(date!(2023 - 07 - 21), date!(2023 - 07 - 23), "458d90", None).await?;
-
-    // same as ads-b computes: https://globe.adsbexchange.com/?icao=458d90&lat=53.265&lon=8.038&zoom=6.5&showTrace=2023-07-21
     assert_eq!(legs.len(), 6);
     Ok(())
 }
@@ -101,7 +97,8 @@ async fn case_459257_2023_12_17() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-/// Case of losing signal for 2 days mid flight.
+/// Verifies that condition 3. of `M-4` is correctly applied.
+/// Case of losing signal for 2 days mid flight while traveling to central Africa.
 /// https://globe.adsbexchange.com/?icao=45dd84&lat=9.613&lon=22.035&zoom=3.8&showTrace=2023-12-08
 #[tokio::test]
 async fn case_45dd84_2023_12_06() -> Result<(), Box<dyn Error>> {
