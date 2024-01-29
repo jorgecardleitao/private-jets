@@ -85,3 +85,12 @@ async fn multi_day_legs() -> Result<(), Box<dyn Error>> {
     assert_eq!(legs.len(), 6);
     Ok(())
 }
+
+#[tokio::test]
+async fn fs_azure() -> Result<(), Box<dyn Error>> {
+    let client = flights::fs_azure::initialize_anonymous("privatejets", "data");
+
+    let _ = flights::positions("459cd3", date!(2020 - 01 - 01), Some(&client)).await?;
+
+    Ok(())
+}
