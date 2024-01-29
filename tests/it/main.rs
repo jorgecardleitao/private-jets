@@ -83,14 +83,6 @@ async fn ads_b_lost_on_ground() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn fs_azure() -> Result<(), Box<dyn Error>> {
-    let client = flights::fs_azure::initialize_anonymous("privatejets", "data");
-
-    let _ = flights::positions("459cd3", date!(2020 - 01 - 01), Some(&client)).await?;
-    Ok(())
-}
-
-#[tokio::test]
 async fn case_459257_2023_12_17() -> Result<(), Box<dyn Error>> {
     let legs = legs(date!(2023 - 12 - 17), date!(2023 - 12 - 20), "459257", None).await?;
     assert_eq!(legs.len(), 4);
@@ -120,5 +112,30 @@ async fn case_45c824_2023_12_12() -> Result<(), Box<dyn Error>> {
     assert!(legs[0].duration().as_seconds_f32() < day);
     assert!(legs[1].duration().as_seconds_f32() < day);
     assert!(legs[2].duration().as_seconds_f32() < day);
+    Ok(())
+}
+
+#[tokio::test]
+async fn fs_azure() -> Result<(), Box<dyn Error>> {
+    let client = flights::fs_azure::initialize_anonymous("privatejets", "data");
+
+    let _ = flights::positions("459cd3", date!(2020 - 01 - 01), Some(&client)).await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn airports() -> Result<(), Box<dyn Error>> {
+    let airports = flights::airports_cached().await?;
+
+    let airport = flights::closest((57.094, 9.854), &airports);
+    assert_eq!(airport.name, "Aalborg Airport");
+    Ok(())
+}
+
+#[tokio::test]
+async fn loads() -> Result<(), Box<dyn Error>> {
+    let _ = flights::load_aircraft_owners()?;
+    let _ = flights::load_private_jet_types()?;
+    let _ = flights::load_owners()?;
     Ok(())
 }
