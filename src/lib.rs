@@ -1,3 +1,4 @@
+#[forbid(unsafe_code)]
 mod aircraft_db;
 mod aircraft_owners;
 mod aircraft_types;
