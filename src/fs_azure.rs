@@ -1,36 +1,12 @@
 use azure_storage::prelude::*;
+use azure_storage_blobs::prelude::ClientBuilder;
 pub use azure_storage_blobs::prelude::ContainerClient as _ContainerClient;
-use azure_storage_blobs::{container::operations::BlobItem, prelude::ClientBuilder};
-use futures::stream::TryStreamExt;
 
 use crate::fs::BlobStorageProvider;
 
 pub struct ContainerClient {
     client: _ContainerClient,
     can_put: bool,
-}
-
-/// Lists all blobs in container
-pub async fn list(client: ContainerClient) -> Result<Vec<String>, azure_storage::Error> {
-    Ok(client
-        .client
-        .list_blobs()
-        .into_stream()
-        .try_collect::<Vec<_>>()
-        .await?
-        .into_iter()
-        .map(|response| {
-            response
-                .blobs
-                .items
-                .into_iter()
-                .filter_map(|blob| match blob {
-                    BlobItem::Blob(blob) => Some(blob.name),
-                    BlobItem::BlobPrefix(_) => None,
-                })
-        })
-        .flatten()
-        .collect())
 }
 
 /// Returns whether the blob exists in container
