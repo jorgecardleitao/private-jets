@@ -2,6 +2,10 @@ icao	gph	source	date
 CL30	295	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Bombardier-CL-300-6	2024-01-26
 CL35	297	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Bombardier-CL-350-185	2024-01-26
 CL60	329	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Bombardier-CL-650-193	2024-01-26
+CRJ2	417	https://jetadvisors.com/jet/challenger-850/performance/	2024-01-29
+CRJ7	510	https://jetadvisors.com/jet/challenger-870/	2024-01-29
+GL5T	472	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Bombardier-Global-5500-206	2024-01-26
+GLEX	509	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Bombardier-Global-6500-204	2024-01-26
 GLEX	512	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Bombardier-Global-6000-52	2024-01-26
 GL7T	528	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Bombardier-Global-7500-203	2024-01-26
 LJ31	202	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Bombardier-Learjet-31A-3	2024-01-26
@@ -9,6 +13,8 @@ LJ40	224	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure
 LJ45	205	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Bombardier-Learjet-45-56	2024-01-26
 LJ60	239	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Bombardier-Learjet-60-59	2024-01-26
 LJ75	199	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Bombardier-Learjet-75-181	2024-01-26
+C55B	171	https://jetadvisors.com/jet/citation-bravo/	2024-01-29
+C525	132	https://jetadvisors.com/jet/citation-cj1/	2024-01-29
 C25A	141	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Cessna/Textron-CJ2-74	2024-01-26
 C25B	149	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Cessna/Textron-CJ3-76	2024-01-26
 C25C	209	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Cessna/Textron-CJ4-77	2024-01-26
@@ -20,13 +26,16 @@ C680	281	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure
 C650	241	https://www.jetcraft.com/jetstream/2018/07/cessna-citation-iii-overview-1983-1991/	2024-01-28
 C56X	386	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Cessna/Textron-Citation-X-86	2024-01-26
 C550	116	https://www.flyingmag.com/gear-mods-refurbish-citation-iis-sierra-style/ (775 pounds/h)	2024-01-26
+C560	205	https://jetadvisors.com/jet/citation-encore/	2024-01-29
 FA10	274	https://jetadvisors.com/jet/falcon-10/	2024-01-26
+FA20	277	https://jetadvisors.com/jet/falcon-200/	2024-01-29
 FA50	356	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Dassault-Falcon-50-96	2024-01-26
 F2TH	287	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Dassault-Falcon-2000-92	2024-01-26
 FA6X	444	https://jetadvisors.com/jet/falcon-6x/	2024-01-26
 FA7X	385	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Dassault-Falcon-7X-98	2024-01-26
 FA8X	377	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Dassault-Falcon-8X-194	2024-01-26
 F900	304	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Dassault-Falcon-900LX-103	2024-01-26
+E145	347	https://jetadvisors.com/jet/embraer-legacy-shuttle-emb-145/	2024-01-29
 EA40	59	https://www.blade.com/eclipse400	2024-01-26
 EA50	76	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Eclipse-Aerospace-Eclipse-500-220	2024-01-26
 E50P	113	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Embraer-Phenom-100-106	2024-01-26
@@ -36,8 +45,6 @@ E550	287	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure
 E35L	381	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Embraer-Legacy-650-162	2024-01-26
 E545	287	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Embraer-Praetor-500-200	2024-01-26
 E550	298	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Embraer-Praetor-600-201	2024-01-26
-GL5T	472	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Bombardier-Global-5500-206	2024-01-26
-GLEX	509	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Bombardier-Global-6500-204	2024-01-26
 G150	288	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Gulfstream-G150-126	2024-01-26
 GALX	278	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Gulfstream-G200-127	2024-01-26
 G280	286	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Gulfstream-G280-30	2024-01-26
@@ -52,6 +59,14 @@ BE40	222	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure
 HA4T	321	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Hawker/Textron-4000-138	2024-01-26
 BE40W	152	https://planephd.com/wizard/details/967/HAWKER-400XPR-specifications-performance-operating-cost-valuation	2024-01-26
 H25B	265	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Hawker/Textron-900XP-146	2024-01-26
+H25C	336	https://jetadvisors.com/jet/hawker-1000a/	2024-01-29
 HDJT	120	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Honda-Aircraft-Company-Honda-Jet-216	2024-01-26
 PC12	76	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Pilatus-PC-12-147	2024-01-26
 PC24	191	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Pilatus-PC-24-215	2024-01-26
+WW24	222	https://jetadvisors.com/jet/westwind-1/performance/	2024-01-29
+B18T	219	https://jetadvisors.com/jet/westwind-2/	2024-01-29
+BE40	214	https://jetadvisors.com/jet/beechjet-400	2024-01-29
+BE4W	150	https://jetadvisors.com/jet/nextant-400xti	2024-01-29
+SJ-30	156	https://jetadvisors.com/jet/syberjet-sj30-2/	2024-01-29
+SBR1	283	https://jetadvisors.com/jet/sabreliner-60/	2024-01-29
+L29B	576	https://jetadvisors.com/jet/jetstar-ii/	2024-01-29
