@@ -1,10 +1,13 @@
 use std::error::Error;
 
 use flights::Leg;
-use time::{macros::date, Date};
+use time::{
+    macros::{date, datetime},
+    Date,
+};
 
-/// Verifies that we compute the correct number of legs.
-/// The expected 2 was confirmed by manual inspection of
+/// Verifies that we compute the same number of legs and their duration
+/// as in source
 /// https://globe.adsbexchange.com/?icao=45d2ed&lat=54.128&lon=9.185&zoom=5.0&showTrace=2023-10-13
 #[tokio::test]
 async fn acceptance_legs() -> Result<(), Box<dyn Error>> {
@@ -12,6 +15,14 @@ async fn acceptance_legs() -> Result<(), Box<dyn Error>> {
     let legs = flights::legs(positions);
 
     assert_eq!(legs.len(), 2);
+
+    let expected = datetime!(2023 - 10 - 13 15:24:49) - datetime!(2023 - 10 - 13 13:21:59);
+    let diff = (legs[0].duration().as_seconds_f32() - expected.as_seconds_f32()).abs();
+    assert!(diff < 300.0);
+
+    let expected = datetime!(2023 - 10 - 13 17:34:02) - datetime!(2023 - 10 - 13 15:58:33);
+    let diff = (legs[1].duration().as_seconds_f32() - expected.as_seconds_f32()).abs();
+    assert!(diff < 300.0);
 
     Ok(())
 }

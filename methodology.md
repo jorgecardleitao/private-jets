@@ -81,7 +81,52 @@ flight in first class.
 
 Details are available in the source code, [src/emissions.rs](./src/emissions.rs).
 
-### M-6: Identify aircraft owner in Denmark
+### M-6: Consumption of private jet
+
+This was performed by a human, and consisted:
+* access websites of companies that sell private jets
+* extract the consumption in gallons per hour (GPH) of each private jet model
+* store it in a table with the jet's model, GPH, source and date of extraction, at [`./src/consumption.csv`](./src/consumption.csv).
+
+### M-7: Emissions of a private jet over a leg
+
+This was performed automatically by the program and consisted in performing the
+following calculation:
+
+```
+leg emissions [kg CO2e] = 
+  consumption [gallon/h]
+  x liters / gallons [L/gallon]
+  x liters to kg of jet fuel [L/kg]
+  x emissions per kg [kg CO2 / kg jet fuel]
+  x Radiative Forcing index [kg CO2e / kg CO2]
+  x Life-cycle emissions [kg CO2e / kg CO2e]
+  x leg time [h]
+```
+
+Where:
+
+* `consumption` is obtained via the methodology `M-6` in this document.
+* `liters / gallons = 3.78541 [L/gallon]`, as specified in [NIST's guide to SI](https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication811e2008.pdf)
+* `liters to kg of jet fuel = 0.8 [kg/L]`, as [recommended by ICAO](https://data.icao.int/newDataPlus/content/docs/glossary.pdf)
+* `emissions per kg = 3.16 [kg CO2 / kg jet fuel]`, as used on [ICAO Carbon Emissions Calculator Methodology, v12 from Sep. 2023](https://applications.icao.int/icec/Methodology%20ICAO%20Carbon%20Calculator_v12-2023.pdf)
+* `Radiative Forcing index = 3 [kg CO2e / kg CO2]`, as concluded in [The contribution of global aviation to anthropogenic climate forcing for 2000 to 2018](https://www.sciencedirect.com/science/article/pii/S1352231020305689), from 2021.
+* `Life-cycle emissions = 1.68 [kg CO2e / kg CO2e]`, [Life Cycle Greenhouse Gas Emissions from Alternative Jet Fuels v1.2](https://web.mit.edu/aeroastro/partner/reports/proj28/partner-proj28-2010-001.pdf) from 2010-06, accessed 2024-01-28.
+* `leg time [h]` is obtained by computing duration of the leg, as identified via the methodology `M-4` in this document.
+
+#### Per passager
+
+```
+leg emissions/person [kg CO2e/person] =
+  leg emissions [kg CO2e]
+  x occupancy [1/person]
+```
+
+where
+* `leg emissions [kg CO2e]` is as computed above
+* `occupancy = 0.23 [1/person] = 1/4.3 [1/person]` obtained from [Average number of passengers per flight who flew private worldwide from 2016 to 2019](https://www.statista.com/statistics/1171518/private-jet-per-flight/), where there were 4.3 passagers per flight in 2019, accessed 2024-01-28.
+
+### M-8: Identify aircraft owner in Denmark
 
 This was performed by a human, and consisted in extracting the ownership of the active
 tail number from website https://www.danishaircraft.dk.
