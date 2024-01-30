@@ -134,23 +134,23 @@ impl Country {
     fn emissions(&self) -> Fact<f64> {
         match self {
             Country::Denmark => Fact {
-                claim: 5.1,
-                source: "A dane emitted 5.1 t CO2/person/year in 2019 according to [work bank data](https://ourworldindata.org/co2/country/denmark).".to_string(),
+                claim: 8.2,
+                source: "A dane emitted 8.2 t CO2e/person/year in 2019 according to [a 2021 European parliament brief on EU progress on climate action](https://www.europarl.europa.eu/RegData/etudes/BRIE/2021/679106/EPRS_BRI(2021)679106_EN.pdf)".to_string(),
                 date: "2023-10-08".to_string(),
             },
             Country::Portugal => Fact {
-                claim: 4.1,
-                source: "A portuguese emitted 4.1 t CO2/person/year in 2022 according to [work bank data](https://ourworldindata.org/co2/country/denmark).".to_string(),
+                claim: 6.7,
+                source: "A portuguese emitted 6.7 t CO2e/person/year in 2019 according to [a 2021 European parliament brief on EU progress on climate action](https://www.europarl.europa.eu/RegData/etudes/BRIE/2021/696196/EPRS_BRI(2021)696196_EN.pdf)".to_string(),
                 date: "2024-01-23".to_string(),
             },
             Country::Spain => Fact {
-                claim: 5.2,
-                source: "A spanish emitted 5.2 t CO2/person/year in 2022 according to [work bank data](https://ourworldindata.org/co2/country/spain).".to_string(),
+                claim: 7.1,
+                source: "A spanish emitted 7.1 t CO2e/person/year in 2019 according to [a 2021 European parliament brief on EU progress on climate action](https://www.europarl.europa.eu/RegData/etudes/BRIE/2021/690579/EPRS_BRI(2021)690579_EN.pdf)".to_string(),
                 date: "2024-01-23".to_string(),
             },
             Country::Germany => Fact {
-                claim: 8.0,
-                source: "A german emitted 8.0 t CO2/person/year in 2022 according to [work bank data](https://ourworldindata.org/co2/country/germany).".to_string(),
+                claim: 10.1,
+                source: "A german emitted 10.1 t CO2e/person/year in 2019 according to [a 2021 European parliament brief on EU progress on climate action](https://www.europarl.europa.eu/RegData/etudes/BRIE/2021/690661/EPRS_BRI(2021)690661_EN.pdf)".to_string(),
                 date: "2024-01-23".to_string(),
             },
         }
