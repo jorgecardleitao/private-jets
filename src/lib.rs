@@ -97,7 +97,7 @@ impl Position {
 fn distance(from: (f64, f64), to: (f64, f64)) -> f64 {
     let from = geoutils::Location::new(from.0, from.1);
     let to = geoutils::Location::new(to.0, to.1);
-    from.distance_to(&to).unwrap().meters() / 1000.0
+    from.haversine_distance_to(&to).meters() / 1000.0
 }
 
 /// An iterator between two [`time::Date`]s in increments
