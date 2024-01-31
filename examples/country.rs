@@ -1,4 +1,4 @@
-use std::{collections::HashMap, error::Error, sync::Arc};
+use std::{collections::HashMap, error::Error};
 
 use clap::Parser;
 use futures::{StreamExt, TryStreamExt};
@@ -6,8 +6,9 @@ use num_format::{Locale, ToFormattedString};
 use simple_logger::SimpleLogger;
 
 use flights::{
-    emissions, leg_co2_kg, leg_co2_kg_per_person, load_aircraft_consumption, load_aircrafts,
-    load_private_jet_types, AircraftTypeConsumptions, Class, Fact, Leg, Position,
+    airports_cached, closest, emissions, leg_co2_kg, leg_co2_kg_per_person,
+    load_aircraft_consumption, load_aircrafts, load_private_jet_types, AircraftTypeConsumptions,
+    Class, Fact, Leg, Position,
 };
 use time::Date;
 
@@ -36,6 +37,8 @@ struct LegOut {
     duration: String,
     from_lat: f64,
     from_lon: f64,
+    from_airport: String,
+    to_airport: String,
     to_lat: f64,
     to_lon: f64,
     commercial_emissions_kg: usize,
@@ -237,7 +240,7 @@ async fn legs(
 }
 
 fn private_emissions(
-    legs: &HashMap<(Arc<str>, String), Vec<Leg>>,
+    legs: &HashMap<(String, String), Vec<Leg>>,
     consumptions: &AircraftTypeConsumptions,
     filter: impl Fn(&&Leg) -> bool + Copy,
 ) -> f64 {
@@ -257,7 +260,7 @@ fn private_emissions(
 }
 
 fn commercial_emissions(
-    legs: &HashMap<(Arc<str>, String), Vec<Leg>>,
+    legs: &HashMap<(String, String), Vec<Leg>>,
     filter: impl Fn(&&Leg) -> bool + Copy,
 ) -> f64 {
     legs.iter()
@@ -297,6 +300,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let aircrafts = load_aircrafts(client.as_ref()).await?;
     let types = load_private_jet_types()?;
     let consumptions = load_aircraft_consumption()?;
+    let airports = airports_cached().await?;
 
     let private_jets = aircrafts
         .into_iter()
@@ -317,7 +321,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let legs = private_jets.iter().map(|(_, aircraft)| async {
         legs(from, to, &aircraft.icao_number, cli.location, client)
             .await
-            .map(|legs| ((aircraft.icao_number.clone(), aircraft.model.clone()), legs))
+            .map(|legs| ((aircraft.tail_number.clone(), aircraft.model.clone()), legs))
     });
 
     let legs = futures::stream::iter(legs)
@@ -335,6 +339,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 start: leg.from().datetime().to_string(),
                 end: leg.to().datetime().to_string(),
                 duration: leg.duration().to_string(),
+                from_airport: closest(leg.from().pos(), &airports).name,
+                to_airport: closest(leg.to().pos(), &airports).name,
                 from_lat: leg.from().latitude(),
                 from_lon: leg.from().longitude(),
                 to_lat: leg.to().latitude(),
