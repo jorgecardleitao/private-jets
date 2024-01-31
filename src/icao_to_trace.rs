@@ -153,13 +153,15 @@ pub async fn trace_cached(
     let data = globe_history_cached(icao, date, client).await?;
 
     let mut value = serde_json::from_slice::<serde_json::Value>(&data)?;
-    let trace = value
-        .as_object_mut()
-        .unwrap()
-        .get_mut("trace")
-        .unwrap()
-        .as_array_mut()
-        .unwrap();
+    let Some(obj) = value.as_object_mut() else {
+        return Ok(vec![]);
+    };
+    let Some(obj) = obj.get_mut("trace") else {
+        return Ok(vec![]);
+    };
+    let Some(trace) = obj.as_array_mut() else {
+        return Ok(vec![]);
+    };
     Ok(std::mem::take(trace))
 }
 
