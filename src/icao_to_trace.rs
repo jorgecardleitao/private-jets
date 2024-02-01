@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::error::Error;
 use std::sync::Arc;
 
 use futures::{StreamExt, TryStreamExt};
@@ -84,8 +83,8 @@ async fn globe_history(icao: &str, date: &time::Date) -> Result<Vec<u8>, std::io
     headers.insert("Sec-Fetch-Site", "same-origin".parse().unwrap());
     headers.insert("TE", "trailers".parse().unwrap());
 
-    // Retry up to 3 times with increasing intervals between attempts.
-    let retry_policy = ExponentialBackoff::builder().build_with_max_retries(3);
+    // Retry up to 5 times with increasing intervals between attempts.
+    let retry_policy = ExponentialBackoff::builder().build_with_max_retries(5);
     let client = ClientBuilder::new(reqwest::Client::new())
         .with(RetryTransientMiddleware::new_with_policy(retry_policy))
         .build();
@@ -125,7 +124,7 @@ async fn globe_history_cached(
     icao: &str,
     date: &time::Date,
     client: Option<&fs_azure::ContainerClient>,
-) -> Result<Vec<u8>, Box<dyn Error>> {
+) -> Result<Vec<u8>, std::io::Error> {
     let blob_name = cache_file_path(icao, date);
     let action = fs::CacheAction::from_date(&date);
     let fetch = globe_history(&icao, date);
@@ -149,7 +148,7 @@ pub async fn trace_cached(
     icao: &str,
     date: &time::Date,
     client: Option<&fs_azure::ContainerClient>,
-) -> Result<Vec<serde_json::Value>, Box<dyn std::error::Error>> {
+) -> Result<Vec<serde_json::Value>, std::io::Error> {
     let data = globe_history_cached(icao, date, client).await?;
 
     let mut value = serde_json::from_slice::<serde_json::Value>(&data)?;
@@ -171,7 +170,7 @@ pub async fn positions(
     icao_number: &str,
     date: time::Date,
     client: Option<&fs_azure::ContainerClient>,
-) -> Result<impl Iterator<Item = Position>, Box<dyn Error>> {
+) -> Result<impl Iterator<Item = Position>, std::io::Error> {
     use time::ext::NumericalDuration;
     let icao: Arc<str> = icao_number.to_string().into();
     trace_cached(icao_number, &date, client)
@@ -214,7 +213,7 @@ pub(crate) async fn cached_aircraft_positions(
     to: Date,
     icao_number: &str,
     client: Option<&super::fs_azure::ContainerClient>,
-) -> Result<HashMap<Date, Vec<Position>>, Box<dyn Error>> {
+) -> Result<HashMap<Date, Vec<Position>>, std::io::Error> {
     let dates = super::DateIter {
         from,
         to,
@@ -222,7 +221,7 @@ pub(crate) async fn cached_aircraft_positions(
     };
 
     let tasks = dates.map(|date| async move {
-        Result::<_, Box<dyn Error>>::Ok((
+        Result::<_, std::io::Error>::Ok((
             date.clone(),
             positions(icao_number, date, client)
                 .await?
@@ -237,4 +236,4 @@ pub(crate) async fn cached_aircraft_positions(
         .await
 }
 
-pub use crate::trace_month::aircraft_positions;
+pub use crate::trace_month::*;

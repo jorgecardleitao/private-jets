@@ -5,7 +5,7 @@ pub use azure_storage_blobs::prelude::ContainerClient as _ContainerClient;
 use crate::fs::BlobStorageProvider;
 
 pub struct ContainerClient {
-    client: _ContainerClient,
+    pub client: _ContainerClient,
     can_put: bool,
 }
 
@@ -77,16 +77,28 @@ pub(crate) async fn cached_call<F: futures::Future<Output = Result<Vec<u8>, std:
     fetch: F,
     action: crate::fs::CacheAction,
     client: Option<&ContainerClient>,
-) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+) -> Result<Vec<u8>, std::io::Error> {
     let Some(client) = client else {
-        return Ok(crate::fs::cached(&blob_name, fetch, &crate::fs::LocalDisk, action).await?);
+        return Ok(
+            crate::fs::cached(&blob_name, fetch, &crate::fs::LocalDisk, action)
+                .await
+                .map_err(std::io::Error::other)?,
+        );
     };
 
-    let Some(data) = client.maybe_get(blob_name).await? else {
+    let Some(data) = client
+        .maybe_get(blob_name)
+        .await
+        .map_err(std::io::Error::other)?
+    else {
         return Ok(if !client.can_put() {
-            crate::fs::cached(&blob_name, fetch, &crate::fs::LocalDisk, action).await?
+            crate::fs::cached(&blob_name, fetch, &crate::fs::LocalDisk, action)
+                .await
+                .map_err(std::io::Error::other)?
         } else {
-            crate::fs::cached(&blob_name, fetch, client, action).await?
+            crate::fs::cached(&blob_name, fetch, client, action)
+                .await
+                .map_err(std::io::Error::other)?
         });
     };
     Ok(data)

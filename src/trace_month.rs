@@ -35,8 +35,8 @@ fn get_month(current: &time::Date) -> (time::Date, time::Date) {
     (first_of_month, first_of_next_month)
 }
 
-async fn month_positions(
-    month: &time::Date,
+pub async fn month_positions(
+    month: time::Date,
     icao_number: &str,
     client: Option<&super::fs_azure::ContainerClient>,
 ) -> Result<HashMap<Date, Vec<Position>>, Box<dyn Error>> {
@@ -49,9 +49,7 @@ async fn month_positions(
 
     // returns positions in the month, cached
     let fetch = async {
-        let positions = cached_aircraft_positions(from, to, icao_number, client)
-            .await
-            .unwrap();
+        let positions = cached_aircraft_positions(from, to, icao_number, client).await?;
 
         let positions = positions
             .into_iter()
@@ -94,7 +92,7 @@ pub async fn aircraft_positions(
 
     let tasks = months
         .into_iter()
-        .map(|month| async move { month_positions(&month, icao_number, client).await });
+        .map(|month| async move { month_positions(month, icao_number, client).await });
 
     let positions = futures::stream::iter(tasks)
         // limit concurrent tasks
