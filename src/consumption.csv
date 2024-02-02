@@ -9,8 +9,10 @@ GLEX	509	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure
 GLEX	512	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Bombardier-Global-6000-52	2024-01-26
 GL7T	528	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Bombardier-Global-7500-203	2024-01-26
 LJ31	202	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Bombardier-Learjet-31A-3	2024-01-26
+LJ35	225	https://jetadvisors.com/jet/learjet-35a/	2024-02-02
 LJ40	224	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Bombardier-Learjet-40XR-55	2024-01-26
 LJ45	205	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Bombardier-Learjet-45-56	2024-01-26
+LJ55	244	https://jetadvisors.com/jet/learjet-55/	2024-02-02
 LJ60	239	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Bombardier-Learjet-60-59	2024-01-26
 LJ75	199	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Bombardier-Learjet-75-181	2024-01-26
 C55B	171	https://jetadvisors.com/jet/citation-bravo/	2024-01-29
@@ -51,6 +53,7 @@ G280	286	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure
 GLF4	517	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Gulfstream-G350-129	2024-01-26
 GA4C	540	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Gulfstream-G400-(Heritage)-130	2024-01-26
 GA5C	455	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Gulfstream-G500-211	2024-01-26
+GLF5	455	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Gulfstream-G500-211	2024-01-26
 GA6C	500	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Gulfstream-G600-202	2024-01-26
 GLF6	500	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Gulfstream-G650-29	2024-01-26
 GA7C	509	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Gulfstream-G700-208	2024-01-26
@@ -70,3 +73,7 @@ BE4W	150	https://jetadvisors.com/jet/nextant-400xti	2024-01-29
 SJ-30	156	https://jetadvisors.com/jet/syberjet-sj30-2/	2024-01-29
 SBR1	283	https://jetadvisors.com/jet/sabreliner-60/	2024-01-29
 L29B	576	https://jetadvisors.com/jet/jetstar-ii/	2024-01-29
+PRM1	159	https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Beech-Premier-I-14	2024-02-02
+SF50	78	https://jetadvisors.com/jet/cirrus-vision-sf-50/	2024-02-02
+ASTR	245	https://jetadvisors.com/jet/astra-1125sp/	2024-02-02
+H25A	263	https://www.libertyjet.com/private_jets/HS-125-700A	2024-02-02
