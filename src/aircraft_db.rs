@@ -20,7 +20,7 @@ pub struct Aircraft {
     /// The tail number of the aircraft (e.g. `OY-GFS`)
     pub tail_number: String,
     /// The ICAO number of the aicraft model (e.g. `F2TH`)
-    pub model: String,
+    pub type_designator: String,
 }
 
 static DATABASE: &'static str = "db-20231106";
@@ -132,13 +132,13 @@ pub async fn load_aircrafts(
                 .map(|(k, v)| (format!("{prefix}{k}"), v))
                 .filter_map(|(icao_number, mut data)| {
                     let tail_number = std::mem::take(&mut data[0])?;
-                    let model = std::mem::take(&mut data[1])?;
+                    let type_designator = std::mem::take(&mut data[1])?;
                     Some((
                         tail_number.clone(),
                         Aircraft {
                             icao_number: icao_number.to_ascii_lowercase().into(),
                             tail_number,
-                            model,
+                            type_designator,
                         },
                     ))
                 });

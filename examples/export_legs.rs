@@ -55,7 +55,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let private_jets = aircrafts
         .values()
         // its primary use is to be a private jet
-        .filter(|a| types.contains_key(&a.model))
+        .filter(|a| types.contains_key(&a.type_designator))
         .collect::<Vec<_>>();
 
     let months = (2023..2024)

@@ -305,7 +305,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let private_jets = aircrafts
         .into_iter()
         // is private jet
-        .filter(|(_, a)| types.contains_key(&a.model))
+        .filter(|(_, a)| types.contains_key(&a.type_designator))
         // from country
         .filter(|(a, _)| a.starts_with(cli.country.tail_number()))
         .collect::<HashMap<_, _>>();
@@ -321,7 +321,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let legs = private_jets.iter().map(|(_, aircraft)| async {
         legs(from, to, &aircraft.icao_number, cli.location, client)
             .await
-            .map(|legs| ((aircraft.tail_number.clone(), aircraft.model.clone()), legs))
+            .map(|legs| {
+                (
+                    (
+                        aircraft.tail_number.clone(),
+                        aircraft.type_designator.clone(),
+                    ),
+                    legs,
+                )
+            })
     });
 
     let legs = futures::stream::iter(legs)

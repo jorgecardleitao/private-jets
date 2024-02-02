@@ -100,7 +100,7 @@ async fn flight_date(
     log::info!("transponder number: {}", icao);
 
     let consumption = consumptions
-        .get(&aircraft.model)
+        .get(&aircraft.type_designator)
         .ok_or_else(|| Into::<Box<dyn Error>>::into("Consumption not found"))?;
     log::info!("Consumption: {} [gallon/h]", consumption.gph);
 
