@@ -2,8 +2,10 @@ use super::icao_to_trace::*;
 use std::{
     collections::{HashMap, HashSet},
     error::Error,
+    sync::Arc,
 };
 
+use azure_storage_blobs::container::operations::BlobItem;
 use futures::{StreamExt, TryStreamExt};
 use time::Date;
 
@@ -114,4 +116,87 @@ pub async fn aircraft_positions(
             )
         })
         .collect())
+}
+
+async fn existing_blobs(
+    months: &[time::Date],
+    client: &fs_azure::ContainerClient,
+) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let tasks = months
+        .iter()
+        .map(|month| {
+            client
+                .client
+                .list_blobs()
+                .prefix(format!(
+                    "database/globe_history/{}-{:02}",
+                    month.year(),
+                    month.month() as u8
+                ))
+                .into_stream()
+                .map(|response| {
+                    let blobs = response?.blobs;
+                    Ok::<_, azure_core::Error>(
+                        blobs
+                            .items
+                            .into_iter()
+                            .filter_map(|blob| match blob {
+                                BlobItem::Blob(blob) => Some(blob.name),
+                                BlobItem::BlobPrefix(_) => None,
+                            })
+                            .collect::<Vec<_>>(),
+                    )
+                })
+                .try_collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+
+    let r = futures::stream::iter(tasks)
+        .buffered(100)
+        .try_collect::<Vec<_>>()
+        .await?;
+
+    Ok(r.into_iter()
+        .flatten()
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>())
+}
+
+fn to_set(blobs: Vec<String>) -> HashSet<(Arc<str>, time::Date)> {
+    blobs
+        .into_iter()
+        .filter_map(|blob| {
+            let bla = &blob["database/globe_history/".len()..];
+            if &bla[7..8] != "/" {
+                // complete date - ignore
+                return None;
+            }
+            let date = &bla[.."2024-01".len()];
+            let end = bla.len();
+            let icao = &bla["2024-01/trace_full_".len()..end - ".json".len()];
+            Some((
+                icao.into(),
+                time::Date::from_calendar_date(
+                    date[..4].parse().unwrap(),
+                    date[5..7]
+                        .parse::<u8>()
+                        .expect(&date[5..7])
+                        .try_into()
+                        .unwrap(),
+                    1,
+                )
+                .unwrap(),
+            ))
+        })
+        .collect::<HashSet<_>>()
+}
+
+/// Returns the set of (icao, month) that exists in the db
+pub async fn existing_months_positions(
+    months: &[time::Date],
+    client: &fs_azure::ContainerClient,
+) -> Result<HashSet<(Arc<str>, time::Date)>, Box<dyn std::error::Error>> {
+    let blobs = existing_blobs(&months, &client).await?;
+    Ok(to_set(blobs))
 }

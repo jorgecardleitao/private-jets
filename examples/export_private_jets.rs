@@ -27,7 +27,7 @@ struct Cli {
     backend: Backend,
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
     SimpleLogger::new()
         .with_level(log::LevelFilter::Info)

@@ -5,13 +5,7 @@ use futures::StreamExt;
 use itertools::Itertools;
 use simple_logger::SimpleLogger;
 
-use flights::{load_aircrafts, load_private_jet_models};
-
-#[derive(clap::ValueEnum, Debug, Clone)]
-enum Backend {
-    Disk,
-    Azure,
-}
+use flights::{existing_months_positions, load_aircrafts, load_private_jet_models};
 
 const ABOUT: &'static str = r#"Builds the database of all private jet positions from 2023"#;
 
@@ -21,11 +15,9 @@ struct Cli {
     /// The Azure token
     #[arg(short, long)]
     azure_sas_token: Option<String>,
-    #[arg(short, long, value_enum, default_value_t=Backend::Azure)]
-    backend: Backend,
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
     SimpleLogger::new()
         .with_level(log::LevelFilter::Warn)
@@ -35,21 +27,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
 
     // optionally initialize Azure client
-    let client = match (cli.backend, cli.azure_sas_token.clone()) {
-        (Backend::Disk, None) => None,
-        (Backend::Azure, None) => Some(flights::fs_azure::initialize_anonymous(
-            "privatejets",
-            "data",
-        )),
-        (_, Some(token)) => Some(flights::fs_azure::initialize_sas(
-            &token,
-            "privatejets",
-            "data",
-        )?),
+    let client = match cli.azure_sas_token.clone() {
+        None => flights::fs_azure::initialize_anonymous("privatejets", "data"),
+        Some(token) => flights::fs_azure::initialize_sas(&token, "privatejets", "data")?,
     };
 
     // load datasets to memory
-    let aircrafts = load_aircrafts(client.as_ref()).await?;
+    let aircrafts = load_aircrafts(Some(&client)).await?;
     let models = load_private_jet_models()?;
 
     let private_jets = aircrafts
@@ -66,13 +50,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
         })
         .collect::<Vec<_>>();
 
+    let completed = existing_months_positions(&months, &client).await?;
+
     let required = private_jets
         .into_iter()
         .cartesian_product(months.into_iter())
-        .collect::<Vec<_>>();
+        .filter(|(a, date)| !completed.contains(&(a.icao_number.clone(), *date)));
 
-    let tasks = required.into_iter().map(|(aircraft, month)| {
-        flights::month_positions(month, &aircraft.icao_number, client.as_ref())
+    let tasks = required.map(|(aircraft, month)| {
+        flights::month_positions(month, &aircraft.icao_number, Some(&client))
     });
 
     futures::stream::iter(tasks)
