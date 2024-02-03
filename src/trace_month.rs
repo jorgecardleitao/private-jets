@@ -121,7 +121,9 @@ pub async fn aircraft_positions(
 async fn existing_blobs(
     months: &[time::Date],
     client: &fs_azure::ContainerClient,
+    concurrency: usize,
 ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    log::info!("existing_blobs({})", months.len());
     let tasks = months
         .iter()
         .map(|month| {
@@ -152,7 +154,7 @@ async fn existing_blobs(
         .collect::<Vec<_>>();
 
     let r = futures::stream::iter(tasks)
-        .buffered(100)
+        .buffered(concurrency)
         .try_collect::<Vec<_>>()
         .await?;
 
@@ -196,7 +198,8 @@ fn to_set(blobs: Vec<String>) -> HashSet<(Arc<str>, time::Date)> {
 pub async fn existing_months_positions(
     months: &[time::Date],
     client: &fs_azure::ContainerClient,
+    concurrency: usize,
 ) -> Result<HashSet<(Arc<str>, time::Date)>, Box<dyn std::error::Error>> {
-    let blobs = existing_blobs(&months, &client).await?;
+    let blobs = existing_blobs(&months, &client, concurrency).await?;
     Ok(to_set(blobs))
 }

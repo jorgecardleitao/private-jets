@@ -31,7 +31,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let client = flights::fs_azure::initialize_anonymous("privatejets", "data");
 
-    let existing = flights::existing_months_positions(&months, &client).await?;
+    let existing = flights::existing_months_positions(&months, &client, 50).await?;
 
     let private_jets = private_jets(Some(&client)).await?;
     println!("jets    : {}", private_jets.len());
