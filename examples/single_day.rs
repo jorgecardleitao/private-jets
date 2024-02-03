@@ -77,7 +77,7 @@ async fn flight_date(
     aircrafts: &Aircrafts,
     client: Option<&fs_azure::ContainerClient>,
 ) -> Result<Vec<Event>, Box<dyn Error>> {
-    let consumptions = load_aircraft_consumption()?;
+    let models = load_private_jet_models()?;
     let airports = airports_cached().await?;
     let aircraft_owner = aircraft_owners
         .get(tail_number)
@@ -99,7 +99,7 @@ async fn flight_date(
     let icao = &aircraft.icao_number;
     log::info!("transponder number: {}", icao);
 
-    let consumption = consumptions
+    let consumption = models
         .get(&aircraft.model)
         .ok_or_else(|| Into::<Box<dyn Error>>::into("Consumption not found"))?;
     log::info!("Consumption: {} [gallon/h]", consumption.gph);

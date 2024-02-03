@@ -6,9 +6,8 @@ use num_format::{Locale, ToFormattedString};
 use simple_logger::SimpleLogger;
 
 use flights::{
-    airports_cached, closest, emissions, leg_co2_kg, leg_co2_kg_per_person,
-    load_aircraft_consumption, load_aircrafts, load_private_jet_types, AircraftTypeConsumptions,
-    Class, Fact, Leg, Position,
+    airports_cached, closest, emissions, leg_co2_kg, leg_co2_kg_per_person, load_aircrafts,
+    load_private_jet_models, AircraftModels, Class, Fact, Leg, Position,
 };
 use time::Date;
 
@@ -241,7 +240,7 @@ async fn legs(
 
 fn private_emissions(
     legs: &HashMap<(String, String), Vec<Leg>>,
-    consumptions: &AircraftTypeConsumptions,
+    models: &AircraftModels,
     filter: impl Fn(&&Leg) -> bool + Copy,
 ) -> f64 {
     legs.iter()
@@ -249,10 +248,7 @@ fn private_emissions(
             legs.iter()
                 .filter(filter)
                 .map(|leg| {
-                    leg_co2_kg(
-                        consumptions.get(model).expect(model).gph as f64,
-                        leg.duration(),
-                    ) / 1000.0
+                    leg_co2_kg(models.get(model).expect(model).gph as f64, leg.duration()) / 1000.0
                 })
                 .sum::<f64>()
         })
@@ -298,14 +294,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // load datasets to memory
     let aircrafts = load_aircrafts(client.as_ref()).await?;
-    let types = load_private_jet_types()?;
-    let consumptions = load_aircraft_consumption()?;
+    let models = load_private_jet_models()?;
     let airports = airports_cached().await?;
 
     let private_jets = aircrafts
         .into_iter()
         // is private jet
-        .filter(|(_, a)| types.contains_key(&a.model))
+        .filter(|(_, a)| models.contains_key(&a.model))
         // from country
         .filter(|(a, _)| a.starts_with(cli.country.tail_number()))
         .collect::<HashMap<_, _>>();
@@ -347,10 +342,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 to_lon: leg.to().longitude(),
                 commercial_emissions_kg: emissions(leg.from().pos(), leg.to().pos(), Class::First)
                     as usize,
-                emissions_kg: leg_co2_kg(
-                    consumptions.get(model).expect(model).gph as f64,
-                    leg.duration(),
-                ) as usize,
+                emissions_kg: leg_co2_kg(models.get(model).expect(model).gph as f64, leg.duration())
+                    as usize,
             })
             .unwrap()
         }
@@ -378,7 +371,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         date: now.to_string(),
     };
 
-    let emissions_value_tons = private_emissions(&legs, &consumptions, |_| true);
+    let emissions_value_tons = private_emissions(&legs, &models, |_| true);
 
     let emissions_tons = Fact {
         claim: (emissions_value_tons as usize).to_formatted_string(&Locale::en),
@@ -395,8 +388,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .map(|(_, legs)| legs.iter().filter(|leg| leg.distance() >= 300.0).count())
         .sum::<usize>();
 
-    let emissions_short_legs =
-        private_emissions(&legs, &consumptions, |leg| leg.distance() < 300.0);
+    let emissions_short_legs = private_emissions(&legs, &models, |leg| leg.distance() < 300.0);
     let commercial_emissions_short = commercial_emissions(&legs, |leg| leg.distance() < 300.0);
 
     let short_ratio = leg_co2_kg_per_person(emissions_short_legs) / commercial_emissions_short;
@@ -407,8 +399,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     };
 
     // compute emissions for the >300km legs, so we can compare with emissions from commercial flights
-    let emissions_long_legs =
-        private_emissions(&legs, &consumptions, |leg| leg.distance() >= 300.0);
+    let emissions_long_legs = private_emissions(&legs, &models, |leg| leg.distance() >= 300.0);
     let commercial_emissions_long = commercial_emissions(&legs, |leg| leg.distance() >= 300.0);
 
     let ratio_commercial_300km = Fact {

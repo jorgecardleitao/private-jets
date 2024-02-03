@@ -34,13 +34,13 @@ This was performed by a human, and consisted in going through different aircraft
 manufacturers' websites and identifying the aircrafts that were advertised as used
 for private flying.
 
-For example, `Dassault Falcon 2000` (`F2TH` in https://www.icao.int) is advertised as a
+For example, `Dassault Falcon 2000` is advertised as a
 private jet on https://www.dassaultfalcon.com/aircraft/overview-of-the-fleet/.
 
-This is stored in [`./src/types.csv`](./src/types.csv).
+This is stored in [`./src/models.csv`](./src/models.csv).
 
 **NOTE**: not all uses of a model whose primary use is to be a private jet is
-private jet. For example, private jets are often used for emergency services.
+private jet. For example, models are sometimes used for emergency services.
 
 ### M-3: Identify ICAO number's route in a day
 

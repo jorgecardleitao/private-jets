@@ -1,9 +1,8 @@
 #[forbid(unsafe_code)]
 mod aircraft_db;
+mod aircraft_models;
 mod aircraft_owners;
-mod aircraft_types;
 mod airports;
-mod consumption;
 mod csv;
 mod emissions;
 pub(crate) mod fs;
@@ -18,10 +17,9 @@ mod trace_month;
 use std::sync::Arc;
 
 pub use aircraft_db::*;
+pub use aircraft_models::*;
 pub use aircraft_owners::*;
-pub use aircraft_types::*;
 pub use airports::*;
-pub use consumption::*;
 pub use emissions::*;
 pub use fs::BlobStorageProvider;
 pub use icao_to_trace::*;

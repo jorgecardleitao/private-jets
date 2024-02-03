@@ -4,7 +4,7 @@ use clap::Parser;
 use simple_logger::SimpleLogger;
 
 use flights::BlobStorageProvider;
-use flights::{load_aircrafts, load_private_jet_types};
+use flights::{load_aircrafts, load_private_jet_models};
 
 #[derive(clap::ValueEnum, Debug, Clone)]
 enum Backend {
@@ -52,12 +52,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // load datasets to memory
     let aircrafts = load_aircrafts(client.as_ref()).await?;
-    let types = load_private_jet_types()?;
+    let models = load_private_jet_models()?;
 
     let private_jets = aircrafts
         .values()
         // its primary use is to be a private jet
-        .filter(|a| types.contains_key(&a.model))
+        .filter(|a| models.contains_key(&a.model))
         .collect::<Vec<_>>();
 
     let mut wtr = csv::Writer::from_writer(vec![]);
