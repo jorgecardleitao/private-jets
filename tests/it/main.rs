@@ -146,7 +146,7 @@ async fn airports() -> Result<(), Box<dyn Error>> {
 #[tokio::test]
 async fn loads() -> Result<(), Box<dyn Error>> {
     let _ = flights::load_aircraft_owners()?;
-    let _ = flights::load_private_jet_types()?;
+    let _ = flights::load_private_jet_models()?;
     let _ = flights::load_owners()?;
     Ok(())
 }
