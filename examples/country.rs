@@ -6,7 +6,7 @@ use num_format::{Locale, ToFormattedString};
 use simple_logger::SimpleLogger;
 
 use flights::{
-    airports_cached, closest, emissions, leg_co2_kg, leg_co2_kg_per_person, load_aircrafts,
+    airports_cached, closest, emissions, leg_co2e_kg, leg_per_person, load_aircrafts,
     load_private_jet_models, AircraftModels, Class, Fact, Leg, Position,
 };
 use time::Date;
@@ -248,7 +248,7 @@ fn private_emissions(
             legs.iter()
                 .filter(filter)
                 .map(|leg| {
-                    leg_co2_kg(models.get(model).expect(model).gph as f64, leg.duration()) / 1000.0
+                    leg_co2e_kg(models.get(model).expect(model).gph as f64, leg.duration()) / 1000.0
                 })
                 .sum::<f64>()
         })
@@ -342,8 +342,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 to_lon: leg.to().longitude(),
                 commercial_emissions_kg: emissions(leg.from().pos(), leg.to().pos(), Class::First)
                     as usize,
-                emissions_kg: leg_co2_kg(models.get(model).expect(model).gph as f64, leg.duration())
-                    as usize,
+                emissions_kg: leg_co2e_kg(
+                    models.get(model).expect(model).gph as f64,
+                    leg.duration(),
+                ) as usize,
             })
             .unwrap()
         }
@@ -391,7 +393,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let emissions_short_legs = private_emissions(&legs, &models, |leg| leg.distance() < 300.0);
     let commercial_emissions_short = commercial_emissions(&legs, |leg| leg.distance() < 300.0);
 
-    let short_ratio = leg_co2_kg_per_person(emissions_short_legs) / commercial_emissions_short;
+    let short_ratio = leg_per_person(emissions_short_legs) / commercial_emissions_short;
     let ratio_train_300km = Fact {
         claim: (short_ratio + 7.0) as usize,
         source: format!("{}x in comparison to a commercial flight[^1][^6] plus 7x of a commercial flight in comparison to a train, as per https://ourworldindata.org/travel-carbon-footprint (UK data, vary by country) - retrieved on 2024-01-20", short_ratio as usize),
@@ -403,7 +405,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let commercial_emissions_long = commercial_emissions(&legs, |leg| leg.distance() >= 300.0);
 
     let ratio_commercial_300km = Fact {
-        claim: (leg_co2_kg_per_person(emissions_long_legs) / commercial_emissions_long) as usize,
+        claim: (leg_per_person(emissions_long_legs) / commercial_emissions_long) as usize,
         source: "Commercial flight emissions based on [myclimate.org](https://www.myclimate.org/en/information/about-myclimate/downloads/flight-emission-calculator/) - retrieved on 2023-10-19".to_string(),
         date: now.to_string(),
     };
