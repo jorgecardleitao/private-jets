@@ -36,25 +36,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let aircrafts = load_aircrafts(Some(&client)).await?;
     let models = load_private_jet_models()?;
 
+    let completed = existing_months_positions(&client).await?;
+    log::info!("already computed: {}", completed.len());
+
     let private_jets = aircrafts
         .values()
         // its primary use is to be a private jet
-        .filter(|a| models.contains_key(&a.model))
-        .collect::<Vec<_>>();
+        .filter(|a| models.contains_key(&a.model));
 
     let months = (2023..2024)
         .cartesian_product(1..=12u8)
         .map(|(year, month)| {
             time::Date::from_calendar_date(year, time::Month::try_from(month).unwrap(), 1)
                 .expect("day 1 never errors")
-        })
-        .collect::<Vec<_>>();
-
-    let completed = existing_months_positions(&months, &client, 50).await?;
+        });
 
     let required = private_jets
-        .into_iter()
-        .cartesian_product(months.into_iter())
+        .cartesian_product(months)
         .filter(|(a, date)| !completed.contains(&(a.icao_number.clone(), *date)));
 
     let tasks = required.map(|(aircraft, month)| {
