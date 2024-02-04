@@ -1,4 +1,3 @@
-use super::icao_to_trace::*;
 use std::{
     collections::{HashMap, HashSet},
     error::Error,
@@ -10,18 +9,18 @@ use futures::{Stream, StreamExt, TryStreamExt};
 use time::Date;
 
 use super::Position;
-use crate::{fs, fs_azure};
+use crate::{cached_aircraft_positions, fs, fs_azure};
 
-fn blob_name_to_pk(blob: &str) -> Option<(Arc<str>, time::Date)> {
-    let bla = &blob["database/globe_history/".len()..];
-    if &bla[7..8] != "/" {
-        // complete date - ignore
-        return None;
-    }
-    let date = &bla[.."2024-01".len()];
-    let end = bla.len();
-    let icao = &bla["2024-01/trace_full_".len()..end - ".json".len()];
-    Some((
+static DIRECTORY: &'static str = "database";
+static DATABASE: &'static str = "trace";
+
+fn blob_name_to_pk(blob: &str) -> (Arc<str>, time::Date) {
+    let bla = &blob["database/trace/icao_number=".len()..];
+    let end = bla.find("/").unwrap();
+    let icao = &bla[..end];
+    let date_start = end + "/month=".len();
+    let date = &bla[date_start..date_start + "2024-01".len()];
+    (
         icao.into(),
         time::Date::from_calendar_date(
             date[..4].parse().unwrap(),
@@ -33,12 +32,12 @@ fn blob_name_to_pk(blob: &str) -> Option<(Arc<str>, time::Date)> {
             1,
         )
         .unwrap(),
-    ))
+    )
 }
 
 fn pk_to_blob_name(icao: &str, date: &time::Date) -> String {
     format!(
-        "{DIRECTORY}/{DATABASE}/{}-{:02}/trace_full_{icao}.json",
+        "{DIRECTORY}/{DATABASE}/icao_number={icao}/month={}-{:02}/data.json",
         date.year(),
         date.month() as u8
     )
@@ -143,19 +142,13 @@ pub async fn aircraft_positions(
 }
 
 /// Returns the set of (icao, month) that exists in the db
-pub fn existing_months_positions_future(
-    month: &time::Date,
+pub fn existing_months_positions_stream(
     client: &fs_azure::ContainerClient,
 ) -> impl Stream<Item = Result<Vec<(Arc<str>, time::Date)>, azure_storage::Error>> {
-    log::info!("existing_months_positions_future({})", month);
     client
         .client
         .list_blobs()
-        .prefix(format!(
-            "database/globe_history/{}-{:02}",
-            month.year(),
-            month.month() as u8
-        ))
+        .prefix(format!("{DIRECTORY}/{DATABASE}/"))
         .into_stream()
         .map(|response| {
             let blobs = response?.blobs;
@@ -167,7 +160,7 @@ pub fn existing_months_positions_future(
                         BlobItem::Blob(blob) => Some(blob.name),
                         BlobItem::BlobPrefix(_) => None,
                     })
-                    .filter_map(|blob| blob_name_to_pk(&blob))
+                    .map(|blob| blob_name_to_pk(&blob))
                     .collect::<Vec<_>>(),
             )
         })
@@ -175,19 +168,28 @@ pub fn existing_months_positions_future(
 
 /// Returns the set of (icao, month) that exists in the db
 pub async fn existing_months_positions(
-    months: &[time::Date],
     client: &fs_azure::ContainerClient,
-    concurrency: usize,
 ) -> Result<HashSet<(Arc<str>, time::Date)>, Box<dyn std::error::Error>> {
-    log::info!("existing_months_positions({})", months.len());
-    let tasks = months
-        .iter()
-        .map(|month| existing_months_positions_future(month, client).try_collect::<Vec<_>>());
-
-    let r = futures::stream::iter(tasks)
-        .buffered(concurrency)
+    let r = existing_months_positions_stream(client)
         .try_collect::<Vec<_>>()
         .await?;
 
-    Ok(r.into_iter().flatten().into_iter().flatten().collect())
+    Ok(r.into_iter().flatten().collect())
+}
+
+#[cfg(test)]
+mod test {
+    use time::macros::date;
+
+    use super::*;
+
+    #[test]
+    fn roundtrip() {
+        let icao: Arc<str> = "aa".into();
+        let month = date!(2022 - 02 - 01);
+        assert_eq!(
+            blob_name_to_pk(&pk_to_blob_name(icao.as_ref(), &month)),
+            (icao, month)
+        )
+    }
 }
