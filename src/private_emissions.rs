@@ -5,10 +5,10 @@ static RADIATIVE_INDEX: f64 = 3.0;
 static LIFE_CYCLE_FACTOR: f64 = 1.68;
 static OCCUPANCY_FACTOR: f64 = 0.23;
 
-/// Returns the total CO2 emissions in kg of a private jet with a given
+/// Returns the total CO2e emissions in kg of a private jet with a given
 /// consumption (in GPH) of Jet-A fuel flying for a given amount of time,
 /// as specified in [methodology `M-7`](../methodology.md).
-pub fn leg_co2_kg(consumption: f64, duration: time::Duration) -> f64 {
+pub fn leg_co2e_kg(consumption: f64, duration: time::Duration) -> f64 {
     let hours = duration.as_seconds_f64() / 60.0 / 60.0;
     consumption
         * hours
@@ -19,9 +19,9 @@ pub fn leg_co2_kg(consumption: f64, duration: time::Duration) -> f64 {
         * LIFE_CYCLE_FACTOR
 }
 
-/// Returns the total CO2 emissions per person in kg of a private jet with a given
+/// Returns the total emissions per person of a private jet with a given
 /// consumption (in GPH) of Jet-A fuel flying for a given amount of time,
 /// as specified in [methodology `M-7`](../methodology.md).
-pub fn leg_co2_kg_per_person(emissions: f64) -> f64 {
+pub fn leg_per_person(emissions: f64) -> f64 {
     emissions * OCCUPANCY_FACTOR
 }

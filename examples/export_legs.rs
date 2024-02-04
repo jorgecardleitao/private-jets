@@ -50,7 +50,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         })
         .collect::<Vec<_>>();
 
-    let completed = existing_months_positions(&months, &client).await?;
+    let completed = existing_months_positions(&months, &client, 50).await?;
 
     let required = private_jets
         .into_iter()
