@@ -11,7 +11,7 @@ use time::Date;
 use time::PrimitiveDateTime;
 
 use super::Position;
-use crate::{fs, fs_azure};
+use crate::{fs, fs_s3};
 
 fn last_2(icao: &str) -> &str {
     let bytes = icao.as_bytes();
@@ -42,11 +42,10 @@ fn adsbx_sid() -> String {
     format!("{time}_{random_chars}")
 }
 
-pub(crate) static DIRECTORY: &'static str = "database";
 pub(crate) static DATABASE: &'static str = "globe_history";
 
 fn cache_file_path(icao: &str, date: &time::Date) -> String {
-    format!("{DIRECTORY}/{DATABASE}/{date}/trace_full_{icao}.json")
+    format!("{DATABASE}/{date}/trace_full_{icao}.json")
 }
 
 fn to_io_err(error: reqwest::Error) -> std::io::Error {
@@ -123,13 +122,13 @@ async fn globe_history(icao: &str, date: &time::Date) -> Result<Vec<u8>, std::io
 async fn globe_history_cached(
     icao: &str,
     date: &time::Date,
-    client: Option<&fs_azure::ContainerClient>,
+    client: Option<&fs_s3::ContainerClient>,
 ) -> Result<Vec<u8>, std::io::Error> {
     let blob_name = cache_file_path(icao, date);
     let action = fs::CacheAction::from_date(&date);
     let fetch = globe_history(&icao, date);
 
-    Ok(fs_azure::cached_call(&blob_name, fetch, action, client).await?)
+    Ok(fs_s3::cached_call(&blob_name, fetch, action, client).await?)
 }
 
 /// Returns the trace of the icao number of a given day from https://adsbexchange.com.
@@ -147,7 +146,7 @@ async fn globe_history_cached(
 pub async fn trace_cached(
     icao: &str,
     date: &time::Date,
-    client: Option<&fs_azure::ContainerClient>,
+    client: Option<&fs_s3::ContainerClient>,
 ) -> Result<Vec<serde_json::Value>, std::io::Error> {
     let data = globe_history_cached(icao, date, client).await?;
 
@@ -169,7 +168,7 @@ pub async fn trace_cached(
 pub async fn positions(
     icao_number: &str,
     date: time::Date,
-    client: Option<&fs_azure::ContainerClient>,
+    client: Option<&fs_s3::ContainerClient>,
 ) -> Result<impl Iterator<Item = Position>, std::io::Error> {
     use time::ext::NumericalDuration;
     let icao: Arc<str> = icao_number.to_string().into();
@@ -212,7 +211,7 @@ pub(crate) async fn cached_aircraft_positions(
     from: Date,
     to: Date,
     icao_number: &str,
-    client: Option<&super::fs_azure::ContainerClient>,
+    client: Option<&fs_s3::ContainerClient>,
 ) -> Result<HashMap<Date, Vec<Position>>, std::io::Error> {
     let dates = super::DateIter {
         from,

@@ -7,7 +7,7 @@ use reqwest;
 use serde::{Deserialize, Serialize};
 use serde_json;
 
-use crate::{fs, fs_azure};
+use crate::{fs, fs_s3};
 
 /// [`HashMap`] between tail number (e.g. "OY-TWM") and an [`Aircraft`]
 pub type Aircrafts = HashMap<String, Aircraft>;
@@ -26,10 +26,9 @@ pub struct Aircraft {
 }
 
 static DATABASE: &'static str = "db-20231106";
-static DIRECTORY: &'static str = "database";
 
 fn cache_file_path(prefix: &str) -> String {
-    format!("{DIRECTORY}/{DATABASE}/{prefix}.json")
+    format!("{DATABASE}/{prefix}.json")
 }
 
 fn url(prefix: &str) -> String {
@@ -48,7 +47,7 @@ async fn aircrafts(prefix: &str) -> Result<Vec<u8>, reqwest::Error> {
 /// Caches to disk or remote storage the first time it is executed
 async fn aircrafts_prefixed(
     prefix: String,
-    client: Option<&fs_azure::ContainerClient>,
+    client: Option<&fs_s3::ContainerClient>,
 ) -> Result<(String, HashMap<String, Vec<Option<String>>>), String> {
     let blob_name = cache_file_path(&prefix);
     let fetch = aircrafts(&prefix);
@@ -76,7 +75,7 @@ async fn aircrafts_prefixed(
 #[async_recursion]
 async fn children<'a: 'async_recursion>(
     entries: &mut HashMap<String, Vec<Option<String>>>,
-    client: Option<&'a fs_azure::ContainerClient>,
+    client: Option<&'a fs_s3::ContainerClient>,
 ) -> Result<Vec<(String, HashMap<String, Vec<Option<String>>>)>, String> {
     let Some(entries) = entries.remove("children") else {
         return Ok(Default::default());
@@ -109,7 +108,7 @@ async fn children<'a: 'async_recursion>(
 /// This function is idempotent but not pure: it caches every https request either to disk or remote storage
 /// to not penalize adsbexchange.com
 pub async fn load_aircrafts(
-    client: Option<&fs_azure::ContainerClient>,
+    client: Option<&fs_s3::ContainerClient>,
 ) -> Result<Aircrafts, Box<dyn Error>> {
     let prefixes = (b'A'..=b'F').chain(b'0'..b'9');
     let prefixes = prefixes.map(|x| std::str::from_utf8(&[x]).unwrap().to_string());

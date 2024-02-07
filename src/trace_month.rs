@@ -4,18 +4,16 @@ use std::{
     sync::Arc,
 };
 
-use azure_storage_blobs::container::operations::BlobItem;
-use futures::{Stream, StreamExt, TryStreamExt};
+use futures::{StreamExt, TryStreamExt};
 use time::Date;
 
 use super::Position;
-use crate::{cached_aircraft_positions, fs, fs_azure};
+use crate::{cached_aircraft_positions, fs, fs_s3};
 
-static DIRECTORY: &'static str = "database";
 static DATABASE: &'static str = "trace";
 
 fn blob_name_to_pk(blob: &str) -> (Arc<str>, time::Date) {
-    let bla = &blob["database/trace/icao_number=".len()..];
+    let bla = &blob["trace/icao_number=".len()..];
     let end = bla.find("/").unwrap();
     let icao = &bla[..end];
     let date_start = end + "/month=".len();
@@ -37,7 +35,7 @@ fn blob_name_to_pk(blob: &str) -> (Arc<str>, time::Date) {
 
 fn pk_to_blob_name(icao: &str, date: &time::Date) -> String {
     format!(
-        "{DIRECTORY}/{DATABASE}/icao_number={icao}/month={}-{:02}/data.json",
+        "{DATABASE}/icao_number={icao}/month={}-{:02}/data.json",
         date.year(),
         date.month() as u8
     )
@@ -63,7 +61,7 @@ fn get_month(current: &time::Date) -> (time::Date, time::Date) {
 pub async fn month_positions(
     month: time::Date,
     icao_number: &str,
-    client: Option<&super::fs_azure::ContainerClient>,
+    client: Option<&fs_s3::ContainerClient>,
 ) -> Result<HashMap<Date, Vec<Position>>, Box<dyn Error>> {
     log::info!("month_positions({month},{icao_number})");
     assert_eq!(month.day(), 1);
@@ -86,7 +84,7 @@ pub async fn month_positions(
         Ok(bytes)
     };
 
-    let r = fs_azure::cached_call(&blob_name, fetch, action, client).await?;
+    let r = fs_s3::cached_call(&blob_name, fetch, action, client).await?;
     Ok(serde_json::from_slice(&r)?)
 }
 
@@ -94,13 +92,13 @@ pub async fn month_positions(
 /// # Implementation
 /// This function is idempotent but not pure:
 /// * the data is retrieved from `https://globe.adsbexchange.com`
-/// * the call is cached on local disk or Azure Blob (depending on `client` configuration)
+/// * the call is cached on local disk or Remote Blob (depending on `client` configuration)
 /// * the data is retrieved in batches of months and cached, to reduce IO
 pub async fn aircraft_positions(
     from: Date,
     to: Date,
     icao_number: &str,
-    client: Option<&super::fs_azure::ContainerClient>,
+    client: Option<&fs_s3::ContainerClient>,
 ) -> Result<HashMap<Date, Vec<Position>>, Box<dyn Error>> {
     let dates = super::DateIter {
         from,
@@ -142,39 +140,30 @@ pub async fn aircraft_positions(
 }
 
 /// Returns the set of (icao, month) that exists in the db
-pub fn existing_months_positions_stream(
-    client: &fs_azure::ContainerClient,
-) -> impl Stream<Item = Result<Vec<(Arc<str>, time::Date)>, azure_storage::Error>> {
-    client
-        .client
-        .list_blobs()
-        .prefix(format!("{DIRECTORY}/{DATABASE}/"))
-        .into_stream()
-        .map(|response| {
-            let blobs = response?.blobs;
-            Ok::<_, azure_core::Error>(
-                blobs
-                    .items
-                    .into_iter()
-                    .filter_map(|blob| match blob {
-                        BlobItem::Blob(blob) => Some(blob.name),
-                        BlobItem::BlobPrefix(_) => None,
-                    })
-                    .map(|blob| blob_name_to_pk(&blob))
-                    .collect::<Vec<_>>(),
-            )
-        })
-}
-
-/// Returns the set of (icao, month) that exists in the db
 pub async fn existing_months_positions(
-    client: &fs_azure::ContainerClient,
-) -> Result<HashSet<(Arc<str>, time::Date)>, Box<dyn std::error::Error>> {
-    let r = existing_months_positions_stream(client)
-        .try_collect::<Vec<_>>()
-        .await?;
-
-    Ok(r.into_iter().flatten().collect())
+    client: &fs_s3::ContainerClient,
+) -> Result<HashSet<(Arc<str>, time::Date)>, fs_s3::Error> {
+    Ok(client
+        .client
+        .list_objects_v2()
+        .bucket(&client.bucket)
+        .prefix(format!("{DATABASE}/"))
+        .into_paginator()
+        .send()
+        .try_collect()
+        .await
+        .map_err(|e| fs_s3::Error::from(e.to_string()))?
+        .into_iter()
+        .map(|response| {
+            response
+                .contents()
+                .iter()
+                .filter_map(|blob| blob.key())
+                .map(|blob| blob_name_to_pk(&blob))
+                .collect::<Vec<_>>()
+        })
+        .flatten()
+        .collect())
 }
 
 #[cfg(test)]

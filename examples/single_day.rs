@@ -32,7 +32,7 @@ pub struct Context {
 #[derive(clap::ValueEnum, Debug, Clone)]
 enum Backend {
     Disk,
-    Azure,
+    Remote,
 }
 
 const ABOUT: &'static str = r#"Writes a markdown file per leg (named `{tail-number}_{date}_{leg}.md`) on disk with a description of:
@@ -54,11 +54,14 @@ struct Cli {
     /// The date in format `yyyy-mm-dd`
     #[arg(short, long, value_parser = parse_date)]
     date: time::Date,
-    /// Optional azure token to write any new data to the blob storage
-    #[arg(short, long)]
-    azure_sas_token: Option<String>,
+    /// The token to the remote storage
+    #[arg(long)]
+    access_key: Option<String>,
+    /// The token to the remote storage
+    #[arg(long)]
+    secret_access_key: Option<String>,
     /// The backend to read cached data from.
-    #[arg(short, long, value_enum, default_value_t=Backend::Azure)]
+    #[arg(short, long, value_enum, default_value_t=Backend::Remote)]
     backend: Backend,
 }
 
@@ -75,7 +78,7 @@ async fn flight_date(
     owners: &Owners,
     aircraft_owners: &AircraftOwners,
     aircrafts: &Aircrafts,
-    client: Option<&fs_azure::ContainerClient>,
+    client: Option<&fs_s3::ContainerClient>,
 ) -> Result<Vec<Event>, Box<dyn Error>> {
     let models = load_private_jet_models()?;
     let airports = airports_cached().await?;
@@ -177,18 +180,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let cli = Cli::parse();
 
-    // optionally initialize Azure client
-    let client = match (cli.backend, cli.azure_sas_token) {
-        (Backend::Disk, None) => None,
-        (Backend::Azure, None) => Some(flights::fs_azure::initialize_anonymous(
-            "privatejets",
-            "data",
-        )),
-        (_, Some(token)) => Some(flights::fs_azure::initialize_sas(
-            &token,
-            "privatejets",
-            "data",
-        )?),
+    // initialize client
+    let client = match (cli.backend, cli.access_key, cli.secret_access_key) {
+        (Backend::Disk, _, _) => None,
+        (_, Some(access_key), Some(secret_access_key)) => {
+            Some(flights::fs_s3::client(access_key, secret_access_key).await)
+        }
+        (Backend::Remote, _, _) => Some(flights::fs_s3::anonymous_client().await),
     };
 
     let owners = load_owners()?;

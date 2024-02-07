@@ -17,7 +17,7 @@ reqwest-middleware = "*"
 rand = {version="*", default_features = false, features = ["std", "std_rng", "getrandom"]}
 
 # to perform time-based calculations
-time = {version="*", default_features = false, features = ["formatting", "parsing", "macros"]}
+time = {version="*", default_features = false, features = ["formatting", "parsing", "macros", "serde"]}
 
 # compute distances between geo-points
 geoutils = {version="*", default_features = false}
@@ -33,11 +33,10 @@ futures = "0.3"
 # logging
 log = "*"
 
-# azure integration
-azure_storage = "*"
-azure_storage_blobs = "*"
-azure_core = "*"
-bytes = "1.5"
+# S3 integration
+aws-config = { version = "1.1.4", features = ["behavior-version-latest"] }
+aws-sdk-s3 = "*"
+aws-credential-types = "*"
 
 [dev-dependencies]
 tinytemplate = "1.1"
