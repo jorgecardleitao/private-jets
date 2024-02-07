@@ -5,7 +5,7 @@ use async_trait::async_trait;
 pub trait BlobStorageProvider {
     type Error: std::error::Error + Send;
     async fn maybe_get(&self, blob_name: &str) -> Result<Option<Vec<u8>>, Self::Error>;
-    async fn put(&self, blob_name: &str, contents: Vec<u8>) -> Result<Vec<u8>, Self::Error>;
+    async fn put(&self, blob_name: &str, contents: Vec<u8>) -> Result<(), Self::Error>;
 
     fn can_put(&self) -> bool;
 }
@@ -27,12 +27,12 @@ impl BlobStorageProvider for LocalDisk {
     }
 
     #[must_use]
-    async fn put(&self, blob_name: &str, contents: Vec<u8>) -> Result<Vec<u8>, Self::Error> {
+    async fn put(&self, blob_name: &str, contents: Vec<u8>) -> Result<(), Self::Error> {
         let mut dir: std::path::PathBuf = blob_name.into();
         dir.pop();
         std::fs::create_dir_all(dir)?;
         std::fs::write(blob_name, &contents)?;
-        Ok(contents)
+        Ok(())
     }
 
     fn can_put(&self) -> bool {
@@ -105,11 +105,11 @@ where
             log::info!("{blob_name} - cache do not write");
             return Ok(contents);
         };
-        let data = provider
-            .put(blob_name, contents)
+        provider
+            .put(blob_name, contents.clone())
             .await
             .map_err(|e| Error::Backend(e))?;
         log::info!("{blob_name} - cache write");
-        Ok(data)
+        Ok(contents)
     }
 }

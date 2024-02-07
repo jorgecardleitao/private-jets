@@ -61,7 +61,7 @@ has a continuous sequence of ADS-B positions in time where the aircraft is flyin
 The aircraft at a given segment between two ADS-B positions is considered grounded (not flying) when any of:
 1. both positions are on the ground
 2. the time between these positions is > 5m and any of the positions is below 10.000 feet
-3. the time between these positions is > 10h
+3. the time between these positions is > 4h
 
 Condition 1. is the normal case where ADS-B signal was received when the aircraft landed. 
 Condition 2. is used to mitigate the risk that ADS-B receivers sometimes

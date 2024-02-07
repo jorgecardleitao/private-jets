@@ -71,7 +71,7 @@ async fn legs(
     from: Date,
     to: Date,
     icao_number: &str,
-    client: Option<&flights::fs_azure::ContainerClient>,
+    client: Option<&flights::fs_s3::ContainerClient>,
 ) -> Result<Vec<Leg>, Box<dyn Error>> {
     let positions = flights::aircraft_positions(from, to, icao_number, client).await?;
     let mut positions = positions
@@ -127,8 +127,8 @@ async fn case_45c824_2023_12_12() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn fs_azure() -> Result<(), Box<dyn Error>> {
-    let client = flights::fs_azure::initialize_anonymous("privatejets", "data");
+async fn fs_s3() -> Result<(), Box<dyn Error>> {
+    let client = flights::fs_s3::anonymous_client().await;
 
     let _ = flights::positions("459cd3", date!(2020 - 01 - 01), Some(&client)).await?;
     Ok(())

@@ -9,21 +9,24 @@ use flights::{load_aircrafts, load_private_jet_models};
 #[derive(clap::ValueEnum, Debug, Clone)]
 enum Backend {
     Disk,
-    Azure,
+    Remote,
 }
 
 const ABOUT: &'static str = r#"Exports the database of all worldwide aircrafts whose primary use is to be a private jet to "data.csv"
 and its description at `description.md` (in disk).
-If `azure_sas_token` is provided, data is written to the public blob storage instead.
+If `access_key` and `secret_access_key` is provided, data is written to the public blob storage instead.
 "#;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about = ABOUT)]
 struct Cli {
-    /// The Azure token
-    #[arg(short, long)]
-    azure_sas_token: Option<String>,
-    #[arg(short, long, value_enum, default_value_t=Backend::Azure)]
+    /// The token to the remote storage
+    #[arg(long)]
+    access_key: Option<String>,
+    /// The token to the remote storage
+    #[arg(long)]
+    secret_access_key: Option<String>,
+    #[arg(short, long, value_enum, default_value_t=Backend::Remote)]
     backend: Backend,
 }
 
@@ -36,18 +39,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let cli = Cli::parse();
 
-    // optionally initialize Azure client
-    let client = match (cli.backend, cli.azure_sas_token.clone()) {
-        (Backend::Disk, None) => None,
-        (Backend::Azure, None) => Some(flights::fs_azure::initialize_anonymous(
-            "privatejets",
-            "data",
-        )),
-        (_, Some(token)) => Some(flights::fs_azure::initialize_sas(
-            &token,
-            "privatejets",
-            "data",
-        )?),
+    // initialize client
+    let client = match (cli.backend, cli.access_key, cli.secret_access_key) {
+        (Backend::Disk, _, _) => None,
+        (_, Some(access_key), Some(secret_access_key)) => {
+            Some(flights::fs_s3::client(access_key, secret_access_key).await)
+        }
+        (Backend::Remote, _, _) => Some(flights::fs_s3::anonymous_client().await),
     };
 
     // load datasets to memory
@@ -77,7 +75,7 @@ It contains 3 columns:
 Both `icao_number` and `tail_number` are unique keys (independently).
 "#;
 
-    if cli.azure_sas_token.is_some() {
+    if client.as_ref().map(|c| c.can_put()).unwrap_or(false) {
         let client = client.unwrap();
         client
             .put("database/private_jets/2023/11/06/data.csv", data_csv)

@@ -6,7 +6,7 @@ mod airports;
 mod csv;
 mod emissions;
 pub(crate) mod fs;
-pub mod fs_azure;
+pub mod fs_s3;
 mod icao_to_trace;
 mod legs;
 mod model;

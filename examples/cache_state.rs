@@ -6,7 +6,7 @@ use itertools::Itertools;
 use flights::Aircraft;
 
 async fn private_jets(
-    client: Option<&flights::fs_azure::ContainerClient>,
+    client: Option<&flights::fs_s3::ContainerClient>,
 ) -> Result<Vec<Aircraft>, Box<dyn std::error::Error>> {
     // load datasets to memory
     let aircrafts = flights::load_aircrafts(client).await?;
@@ -29,7 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         })
         .collect::<Vec<_>>();
 
-    let client = flights::fs_azure::initialize_anonymous("privatejets", "data");
+    let client = flights::fs_s3::anonymous_client().await;
 
     let existing = flights::existing_months_positions(&client).await?;
 
