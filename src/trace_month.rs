@@ -10,7 +10,7 @@ use time::Date;
 use super::Position;
 use crate::{cached_aircraft_positions, fs, fs_s3};
 
-static DATABASE: &'static str = "trace";
+static DATABASE: &'static str = "position";
 
 fn blob_name_to_pk(blob: &str) -> (Arc<str>, time::Date) {
     let bla = &blob["trace/icao_number=".len()..];
@@ -62,7 +62,7 @@ pub async fn month_positions(
     month: time::Date,
     icao_number: &str,
     client: Option<&fs_s3::ContainerClient>,
-) -> Result<HashMap<Date, Vec<Position>>, Box<dyn Error>> {
+) -> Result<Vec<Position>, Box<dyn Error>> {
     log::info!("month_positions({month},{icao_number})");
     assert_eq!(month.day(), 1);
     let blob_name = pk_to_blob_name(&icao_number, &month);
@@ -74,10 +74,7 @@ pub async fn month_positions(
     let fetch = async {
         let positions = cached_aircraft_positions(from, to, icao_number, client).await?;
 
-        let positions = positions
-            .into_iter()
-            .map(|(d, p)| (d.to_string(), p))
-            .collect::<HashMap<_, _>>();
+        let positions = positions.into_iter().map(|(_, p)| p).collect::<Vec<_>>();
 
         let mut bytes: Vec<u8> = Vec::new();
         serde_json::to_writer(&mut bytes, &positions)?;
@@ -88,7 +85,7 @@ pub async fn month_positions(
     Ok(serde_json::from_slice(&r)?)
 }
 
-/// Returns a map (date -> positions) for a given icao number.
+/// Returns a list of positions within two dates
 /// # Implementation
 /// This function is idempotent but not pure:
 /// * the data is retrieved from `https://globe.adsbexchange.com`
@@ -99,7 +96,7 @@ pub async fn aircraft_positions(
     to: Date,
     icao_number: &str,
     client: Option<&fs_s3::ContainerClient>,
-) -> Result<HashMap<Date, Vec<Position>>, Box<dyn Error>> {
+) -> Result<Vec<Position>, Box<dyn Error>> {
     let dates = super::DateIter {
         from,
         to,
@@ -123,20 +120,9 @@ pub async fn aircraft_positions(
         .try_collect::<Vec<_>>()
         .await?;
 
-    // flatten positions so we can look days on them
-    let mut positions = positions.into_iter().flatten().collect::<HashMap<_, _>>();
-
-    Ok(dates
-        .map(|date| {
-            (
-                date,
-                // we can .remove because dates are guaranteed to be unique (and avoids clone)
-                positions
-                    .remove(&date)
-                    .expect("That every date is covered on months; every date is unique"),
-            )
-        })
-        .collect())
+    let mut positions = positions.into_iter().flatten().collect::<Vec<_>>();
+    positions.sort_unstable_by_key(|p| p.datetime());
+    Ok(positions)
 }
 
 /// Returns the set of (icao, month) that exists in the db

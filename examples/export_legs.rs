@@ -5,7 +5,9 @@ use futures::StreamExt;
 use itertools::Itertools;
 use simple_logger::SimpleLogger;
 
-use flights::{existing_months_positions, load_aircrafts, load_private_jet_models};
+use flights::{
+    existing_months_positions, load_aircrafts, load_private_jet_models, month_positions,
+};
 
 const ABOUT: &'static str = r#"Builds the database of all private jet positions from 2023"#;
 
@@ -32,31 +34,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let client = flights::fs_s3::client(cli.access_key, cli.secret_access_key).await;
 
     // load datasets to memory
-    let aircrafts = load_aircrafts(Some(&client)).await?;
-    let models = load_private_jet_models()?;
+    //let aircrafts = load_aircrafts(Some(&client)).await?;
+    //let models = load_private_jet_models()?;
 
     let completed = existing_months_positions(&client).await?;
     log::info!("already computed: {}", completed.len());
 
-    let private_jets = aircrafts
-        .values()
-        // its primary use is to be a private jet
-        .filter(|a| models.contains_key(&a.model));
-
-    let months = (2023..2024)
-        .cartesian_product(1..=12u8)
-        .map(|(year, month)| {
-            time::Date::from_calendar_date(year, time::Month::try_from(month).unwrap(), 1)
-                .expect("day 1 never errors")
-        });
-
-    let required = private_jets
-        .cartesian_product(months)
-        .filter(|(a, date)| !completed.contains(&(a.icao_number.clone(), *date)));
-
-    let tasks = required.map(|(aircraft, month)| {
-        flights::month_positions(month, &aircraft.icao_number, Some(&client))
-    });
+    let a = Some(&client);
+    let tasks = completed
+        .into_iter()
+        .map(|(icao, date)| async move { month_positions(date.clone(), &icao, a).await });
 
     futures::stream::iter(tasks)
         // limit concurrent tasks
@@ -69,5 +56,5 @@ async fn main() -> Result<(), Box<dyn Error>> {
         })
         .collect::<Vec<_>>()
         .await;
-    Ok(())
+    return Ok(());
 }

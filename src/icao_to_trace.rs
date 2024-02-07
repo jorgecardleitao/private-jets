@@ -185,21 +185,22 @@ pub async fn positions(
                 entry[3]
                     .as_str()
                     .and_then(|x| {
-                        (x == "ground").then_some(Position::Grounded {
+                        (x == "ground").then_some(Position {
                             icao: icao.clone(),
                             datetime,
                             latitude,
                             longitude,
+                            altitude: None,
                         })
                     })
                     .or_else(|| {
                         entry[3].as_f64().and_then(|altitude| {
-                            Some(Position::Flying {
+                            Some(Position {
                                 icao: icao.clone(),
                                 datetime,
                                 latitude,
                                 longitude,
-                                altitude,
+                                altitude: Some(altitude),
                             })
                         })
                     })
