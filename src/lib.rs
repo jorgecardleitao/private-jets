@@ -14,8 +14,6 @@ mod owners;
 mod private_emissions;
 mod trace_month;
 
-use std::sync::Arc;
-
 pub use aircraft_db::*;
 pub use aircraft_models::*;
 pub use aircraft_owners::*;
@@ -31,11 +29,12 @@ pub use private_emissions::*;
 /// A position of an aircraft
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Position {
-    icao: Arc<str>,
     datetime: time::PrimitiveDateTime,
     latitude: f64,
     longitude: f64,
     /// None means on the ground
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     altitude: Option<f64>,
 }
 
@@ -46,10 +45,6 @@ impl Position {
 
     pub fn grounded(&self) -> bool {
         self.altitude.is_none()
-    }
-
-    pub fn icao(&self) -> &Arc<str> {
-        &self.icao
     }
 
     pub fn latitude(&self) -> f64 {

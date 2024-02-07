@@ -122,12 +122,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     log::info!("ICAO number: {}", icao);
 
     let positions = flights::aircraft_positions(from, to, icao, client.as_ref()).await?;
-    let mut positions = positions
-        .into_iter()
-        .map(|(_, p)| p)
-        .flatten()
-        .collect::<Vec<_>>();
-    positions.sort_unstable_by_key(|p| p.datetime());
 
     let legs = flights::legs(positions.into_iter());
     log::info!("number_of_legs: {}", legs.len());

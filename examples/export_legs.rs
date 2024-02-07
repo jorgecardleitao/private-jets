@@ -25,12 +25,11 @@ struct Cli {
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
     SimpleLogger::new()
-        .with_level(log::LevelFilter::Warn)
+        .with_level(log::LevelFilter::Info)
         .init()
         .unwrap();
 
     let cli = Cli::parse();
-
     let client = flights::fs_s3::client(cli.access_key, cli.secret_access_key).await;
 
     // load datasets to memory
@@ -47,7 +46,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     futures::stream::iter(tasks)
         // limit concurrent tasks
-        .buffered(10)
+        .buffered(100)
         // continue if error
         .map(|r| {
             if let Err(e) = r {

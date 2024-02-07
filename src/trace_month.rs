@@ -1,8 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    error::Error,
-    sync::Arc,
-};
+use std::{collections::HashSet, error::Error, sync::Arc};
 
 use futures::{StreamExt, TryStreamExt};
 use time::Date;
@@ -11,9 +7,10 @@ use super::Position;
 use crate::{cached_aircraft_positions, fs, fs_s3};
 
 static DATABASE: &'static str = "position";
+static OLD_DATABASE: &'static str = "trace";
 
 fn blob_name_to_pk(blob: &str) -> (Arc<str>, time::Date) {
-    let bla = &blob["trace/icao_number=".len()..];
+    let bla = &blob[OLD_DATABASE.len() + "/icao_number=".len()..];
     let end = bla.find("/").unwrap();
     let icao = &bla[..end];
     let date_start = end + "/month=".len();
@@ -62,7 +59,7 @@ pub async fn month_positions(
     month: time::Date,
     icao_number: &str,
     client: Option<&fs_s3::ContainerClient>,
-) -> Result<Vec<Position>, Box<dyn Error>> {
+) -> Result<Vec<Position>, std::io::Error> {
     log::info!("month_positions({month},{icao_number})");
     assert_eq!(month.day(), 1);
     let blob_name = pk_to_blob_name(&icao_number, &month);
@@ -72,20 +69,18 @@ pub async fn month_positions(
 
     // returns positions in the month, cached
     let fetch = async {
-        let positions = cached_aircraft_positions(from, to, icao_number, client).await?;
-
-        let positions = positions.into_iter().map(|(_, p)| p).collect::<Vec<_>>();
-
+        let mut positions = cached_aircraft_positions(from, to, icao_number, client).await?;
+        positions.sort_unstable_by_key(|p| p.datetime());
         let mut bytes: Vec<u8> = Vec::new();
-        serde_json::to_writer(&mut bytes, &positions)?;
+        serde_json::to_writer(&mut bytes, &positions).map_err(std::io::Error::other)?;
         Ok(bytes)
     };
 
     let r = fs_s3::cached_call(&blob_name, fetch, action, client).await?;
-    Ok(serde_json::from_slice(&r)?)
+    serde_json::from_slice(&r).map_err(std::io::Error::other)
 }
 
-/// Returns a list of positions within two dates
+/// Returns a list of positions within two dates ordered by timestamp
 /// # Implementation
 /// This function is idempotent but not pure:
 /// * the data is retrieved from `https://globe.adsbexchange.com`
@@ -133,7 +128,7 @@ pub async fn existing_months_positions(
         .client
         .list_objects_v2()
         .bucket(&client.bucket)
-        .prefix(format!("{DATABASE}/"))
+        .prefix(format!("{OLD_DATABASE}/"))
         .into_paginator()
         .send()
         .try_collect()

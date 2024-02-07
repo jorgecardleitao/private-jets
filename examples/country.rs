@@ -219,12 +219,6 @@ async fn legs(
     client: Option<&flights::fs_s3::ContainerClient>,
 ) -> Result<Vec<Leg>, Box<dyn Error>> {
     let positions = flights::aircraft_positions(from, to, icao_number, client).await?;
-    let mut positions = positions
-        .into_iter()
-        .map(|(_, p)| p)
-        .flatten()
-        .collect::<Vec<_>>();
-    positions.sort_unstable_by_key(|p| p.datetime());
 
     log::info!("Computing legs {}", icao_number);
     let legs = flights::legs(positions.into_iter());

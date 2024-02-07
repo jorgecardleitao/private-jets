@@ -3,7 +3,7 @@ use std::fmt::Display;
 use aws_credential_types::provider::ProvideCredentials;
 use aws_sdk_s3::{
     config::Credentials, error::SdkError, operation::head_object::HeadObjectError,
-    primitives::ByteStream,
+    primitives::ByteStream, types::ObjectCannedAcl,
 };
 
 use crate::fs::BlobStorageProvider;
@@ -82,6 +82,7 @@ async fn put(client: &ContainerClient, blob_name: &str, content: Vec<u8>) -> Res
         .put_object()
         .bucket(&client.bucket)
         .key(blob_name)
+        .acl(ObjectCannedAcl::PublicRead)
         .body(stream)
         .send()
         .await
