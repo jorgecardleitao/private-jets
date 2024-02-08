@@ -62,7 +62,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let completed = existing_months_positions(&client).await?;
     log::info!("completed: {}", completed.len());
-    let todo = required.intersection(&completed).collect::<HashSet<_>>();
+    let todo = required.difference(&completed).collect::<HashSet<_>>();
     log::info!("todo     : {}", todo.len());
 
     let tasks = todo

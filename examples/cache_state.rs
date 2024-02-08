@@ -44,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "progress : {:.2}%",
         (completed.len() as f64) / (required.len() as f64) * 100.0
     );
-    let todo = required.intersection(&completed).collect::<HashSet<_>>();
+    let todo = required.difference(&completed).collect::<HashSet<_>>();
     println!("todo     : {}", todo.len());
 
     Ok(())
