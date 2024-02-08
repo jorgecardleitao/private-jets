@@ -213,16 +213,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .await?
         .len();
 
-    write_json(
-        client.unwrap(),
-        Metadata {
-            icao_months_to_process: required,
-            icao_months_processed: processed + completed.len(),
-        },
-        "status",
-    )
-    .await?;
-
     let client = client.unwrap();
     let completed = existing(&client)
         .await?
@@ -231,8 +221,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .collect::<HashSet<_>>();
 
     let tasks = completed
-        .into_iter()
-        .map(|(icao, date)| async move { read(&icao, date, client).await });
+        .iter()
+        .map(|(icao, date)| async move { read(icao, *date, client).await });
 
     let legs = futures::stream::iter(tasks)
         .buffered(20)
@@ -243,6 +233,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let key = format!("{DATABASE_ROOT}all.csv");
     write_csv(legs, &key, client).await?;
+    log::info!("Written {key}");
+
+    write_json(
+        client,
+        Metadata {
+            icao_months_to_process: required,
+            icao_months_processed: processed + completed.len(),
+        },
+        "status",
+    )
+    .await?;
+    log::info!("status written");
 
     Ok(())
 }
