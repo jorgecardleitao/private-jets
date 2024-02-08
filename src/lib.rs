@@ -14,8 +14,6 @@ mod owners;
 mod private_emissions;
 mod trace_month;
 
-use std::sync::Arc;
-
 pub use aircraft_db::*;
 pub use aircraft_models::*;
 pub use aircraft_owners::*;
@@ -30,41 +28,31 @@ pub use private_emissions::*;
 
 /// A position of an aircraft
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub enum Position {
-    /// Aircraft transponder declares the aircraft is grounded
-    Grounded {
-        icao: Arc<str>,
-        datetime: time::PrimitiveDateTime,
-        latitude: f64,
-        longitude: f64,
-    },
-    /// Aircraft transponder declares the aircraft is flying at a given altitude
-    Flying {
-        icao: Arc<str>,
-        datetime: time::PrimitiveDateTime,
-        latitude: f64,
-        longitude: f64,
-        altitude: f64,
-    },
+pub struct Position {
+    datetime: time::PrimitiveDateTime,
+    latitude: f64,
+    longitude: f64,
+    /// None means on the ground
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    altitude: Option<f64>,
 }
 
 impl Position {
-    pub fn icao(&self) -> &Arc<str> {
-        match self {
-            Position::Flying { icao, .. } | Position::Grounded { icao, .. } => icao,
-        }
+    pub fn flying(&self) -> bool {
+        self.altitude.is_some()
+    }
+
+    pub fn grounded(&self) -> bool {
+        self.altitude.is_none()
     }
 
     pub fn latitude(&self) -> f64 {
-        match *self {
-            Position::Flying { latitude, .. } | Position::Grounded { latitude, .. } => latitude,
-        }
+        self.latitude
     }
 
     pub fn longitude(&self) -> f64 {
-        match *self {
-            Position::Flying { longitude, .. } | Position::Grounded { longitude, .. } => longitude,
-        }
+        self.longitude
     }
 
     pub fn pos(&self) -> (f64, f64) {
@@ -72,17 +60,11 @@ impl Position {
     }
 
     pub fn altitude(&self) -> f64 {
-        match *self {
-            Position::Flying { altitude, .. } => altitude,
-            Position::Grounded { .. } => 0.0,
-        }
+        self.altitude.unwrap_or(0.0)
     }
 
     pub fn datetime(&self) -> time::PrimitiveDateTime {
-        match *self {
-            Position::Flying { datetime, .. } => datetime,
-            Position::Grounded { datetime, .. } => datetime,
-        }
+        self.datetime
     }
 
     /// Returns the distance to another [`Position`] in km

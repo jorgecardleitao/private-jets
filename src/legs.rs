@@ -43,12 +43,7 @@ impl Leg {
 }
 
 fn grounded_heuristic(prev_position: &Position, position: &Position) -> bool {
-    let is_flying = matches!(
-        (&prev_position, &position),
-        (Position::Flying { .. }, Position::Flying { .. })
-            | (Position::Flying { .. }, Position::Grounded { .. })
-            | (Position::Grounded { .. }, Position::Flying { .. })
-    );
+    let is_flying = prev_position.flying() || position.flying();
     let lost_close_to_ground = position.datetime() - prev_position.datetime()
         > time::Duration::minutes(5)
         && (position.altitude() < 10000.0 || prev_position.altitude() < 10000.0);
@@ -61,17 +56,11 @@ fn grounded_heuristic(prev_position: &Position, position: &Position) -> bool {
 
 /// Implementation of the definition of landed in [M-4](../methodology.md).
 fn landed(prev_position: &Position, position: &Position) -> bool {
-    matches!(
-        (&prev_position, &position),
-        (Position::Flying { .. }, Position::Grounded { .. })
-    ) || grounded_heuristic(prev_position, position)
+    (prev_position.flying() && position.grounded()) || grounded_heuristic(prev_position, position)
 }
 
 fn is_grounded(prev_position: &Position, position: &Position) -> bool {
-    matches!(
-        (&prev_position, &position),
-        (Position::Grounded { .. }, Position::Grounded { .. })
-    ) || grounded_heuristic(prev_position, position)
+    (prev_position.grounded() && position.grounded()) || grounded_heuristic(prev_position, position)
 }
 
 /// Returns a set of [`Leg`]s from a sequence of [`Position`]s.

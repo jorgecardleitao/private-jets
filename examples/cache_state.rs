@@ -21,33 +21,31 @@ async fn private_jets(
 
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = flights::fs_s3::anonymous_client().await;
+
     let months = (2023..2024)
         .cartesian_product(1..=12u8)
         .map(|(year, month)| {
             time::Date::from_calendar_date(year, time::Month::try_from(month).unwrap(), 1)
                 .expect("day 1 never errors")
-        })
-        .collect::<Vec<_>>();
-
-    let client = flights::fs_s3::anonymous_client().await;
-
-    let existing = flights::existing_months_positions(&client).await?;
-
+        });
     let private_jets = private_jets(Some(&client)).await?;
-    println!("jets    : {}", private_jets.len());
+    println!("jets     : {}", private_jets.len());
     let required = private_jets
         .into_iter()
-        .map(|a| a.icao_number.clone())
-        .cartesian_product(months.into_iter())
+        .map(|a| a.icao_number)
+        .cartesian_product(months)
         .collect::<HashSet<_>>();
+    println!("required : {}", required.len());
 
-    let computed = required.intersection(&existing).count();
-    println!("required: {}", required.len());
-    println!("finished: {}", computed);
+    let completed = flights::existing_months_positions(&client).await?;
+    println!("completed: {}", completed.len());
     println!(
-        "progress: {:.2}%",
-        (computed as f64) / (required.len() as f64) * 100.0
+        "progress : {:.2}%",
+        (completed.len() as f64) / (required.len() as f64) * 100.0
     );
+    let todo = required.intersection(&completed).collect::<HashSet<_>>();
+    println!("todo     : {}", todo.len());
 
     Ok(())
 }

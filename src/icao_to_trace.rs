@@ -1,6 +1,3 @@
-use std::collections::HashMap;
-use std::sync::Arc;
-
 use futures::{StreamExt, TryStreamExt};
 use rand::Rng;
 use reqwest::header;
@@ -171,12 +168,10 @@ pub async fn positions(
     client: Option<&fs_s3::ContainerClient>,
 ) -> Result<impl Iterator<Item = Position>, std::io::Error> {
     use time::ext::NumericalDuration;
-    let icao: Arc<str> = icao_number.to_string().into();
     trace_cached(icao_number, &date, client)
         .await
         .map(move |trace| {
             trace.into_iter().filter_map(move |entry| {
-                let icao = icao.clone();
                 let time_seconds = entry[0].as_f64().unwrap();
                 let time = time::Time::MIDNIGHT + time_seconds.seconds();
                 let datetime = PrimitiveDateTime::new(date.clone(), time);
@@ -185,21 +180,20 @@ pub async fn positions(
                 entry[3]
                     .as_str()
                     .and_then(|x| {
-                        (x == "ground").then_some(Position::Grounded {
-                            icao: icao.clone(),
+                        (x == "ground").then_some(Position {
                             datetime,
                             latitude,
                             longitude,
+                            altitude: None,
                         })
                     })
                     .or_else(|| {
                         entry[3].as_f64().and_then(|altitude| {
-                            Some(Position::Flying {
-                                icao: icao.clone(),
+                            Some(Position {
                                 datetime,
                                 latitude,
                                 longitude,
-                                altitude,
+                                altitude: Some(altitude),
                             })
                         })
                     })
@@ -212,7 +206,7 @@ pub(crate) async fn cached_aircraft_positions(
     to: Date,
     icao_number: &str,
     client: Option<&fs_s3::ContainerClient>,
-) -> Result<HashMap<Date, Vec<Position>>, std::io::Error> {
+) -> Result<Vec<Position>, std::io::Error> {
     let dates = super::DateIter {
         from,
         to,
@@ -220,19 +214,19 @@ pub(crate) async fn cached_aircraft_positions(
     };
 
     let tasks = dates.map(|date| async move {
-        Result::<_, std::io::Error>::Ok((
-            date.clone(),
+        Result::<_, std::io::Error>::Ok(
             positions(icao_number, date, client)
                 .await?
                 .collect::<Vec<_>>(),
-        ))
+        )
     });
 
     futures::stream::iter(tasks)
         // limit concurrent tasks
         .buffered(5)
-        .try_collect()
+        .try_collect::<Vec<_>>()
         .await
+        .map(|x| x.into_iter().flatten().collect())
 }
 
 pub use crate::trace_month::*;
