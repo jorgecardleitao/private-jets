@@ -7,8 +7,6 @@ edition = "2021"
 # process JSON from https
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = { version = "1.0", default_features = false }
-# small, fast binary serde
-bincode = "1"
 
 # perform requests to the internet
 reqwest = {version="*", features = ["gzip"]}

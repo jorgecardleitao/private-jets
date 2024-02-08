@@ -1,13 +1,11 @@
-use std::error::Error;
+use std::{collections::HashSet, error::Error};
 
 use clap::Parser;
 use futures::StreamExt;
 use itertools::Itertools;
 use simple_logger::SimpleLogger;
 
-use flights::{
-    existing_months_positions, load_aircrafts, load_private_jet_models, month_positions,
-};
+use flights::{existing_months_positions, Aircraft};
 
 const ABOUT: &'static str = r#"Builds the database of all private jet positions from 2023"#;
 
@@ -22,6 +20,20 @@ struct Cli {
     secret_access_key: String,
 }
 
+async fn private_jets(
+    client: Option<&flights::fs_s3::ContainerClient>,
+) -> Result<Vec<Aircraft>, Box<dyn std::error::Error>> {
+    // load datasets to memory
+    let aircrafts = flights::load_aircrafts(client).await?;
+    let models = flights::load_private_jet_models()?;
+
+    Ok(aircrafts
+        .into_iter()
+        // its primary use is to be a private jet
+        .filter_map(|(_, a)| models.contains_key(&a.model).then_some(a))
+        .collect())
+}
+
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
     SimpleLogger::new()
@@ -30,23 +42,36 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .unwrap();
 
     let cli = Cli::parse();
+
     let client = flights::fs_s3::client(cli.access_key, cli.secret_access_key).await;
 
-    // load datasets to memory
-    //let aircrafts = load_aircrafts(Some(&client)).await?;
-    //let models = load_private_jet_models()?;
+    let months = (2023..2024)
+        .cartesian_product(1..=12u8)
+        .map(|(year, month)| {
+            time::Date::from_calendar_date(year, time::Month::try_from(month).unwrap(), 1)
+                .expect("day 1 never errors")
+        });
+    let private_jets = private_jets(Some(&client)).await?;
+    log::info!("jets     : {}", private_jets.len());
+    let required = private_jets
+        .into_iter()
+        .map(|a| a.icao_number)
+        .cartesian_product(months)
+        .collect::<HashSet<_>>();
+    log::info!("required : {}", required.len());
 
     let completed = existing_months_positions(&client).await?;
-    log::info!("already computed: {}", completed.len());
+    log::info!("completed: {}", completed.len());
+    let todo = required.intersection(&completed).collect::<HashSet<_>>();
+    log::info!("todo     : {}", todo.len());
 
-    let a = Some(&client);
-    let tasks = completed
+    let tasks = todo
         .into_iter()
-        .map(|(icao, date)| async move { month_positions(date.clone(), &icao, a).await });
+        .map(|(icao_number, month)| flights::month_positions(*month, icao_number, Some(&client)));
 
     futures::stream::iter(tasks)
         // limit concurrent tasks
-        .buffered(100)
+        .buffered(10)
         // continue if error
         .map(|r| {
             if let Err(e) = r {
@@ -55,5 +80,5 @@ async fn main() -> Result<(), Box<dyn Error>> {
         })
         .collect::<Vec<_>>()
         .await;
-    return Ok(());
+    Ok(())
 }

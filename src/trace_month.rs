@@ -7,10 +7,9 @@ use super::Position;
 use crate::{cached_aircraft_positions, fs, fs_s3};
 
 static DATABASE: &'static str = "position";
-static OLD_DATABASE: &'static str = "trace";
 
-fn blob_name_to_pk(blob: &str) -> (Arc<str>, time::Date) {
-    let bla = &blob[OLD_DATABASE.len() + "/icao_number=".len()..];
+fn blob_name_to_pk(db: &str, blob: &str) -> (Arc<str>, time::Date) {
+    let bla = &blob[db.len() + "/icao_number=".len()..];
     let end = bla.find("/").unwrap();
     let icao = &bla[..end];
     let date_start = end + "/month=".len();
@@ -115,7 +114,11 @@ pub async fn aircraft_positions(
         .try_collect::<Vec<_>>()
         .await?;
 
-    let mut positions = positions.into_iter().flatten().collect::<Vec<_>>();
+    let mut positions = positions
+        .into_iter()
+        .flatten()
+        .filter(|p| (p.datetime().date() >= from) && (p.datetime().date() < to))
+        .collect::<Vec<_>>();
     positions.sort_unstable_by_key(|p| p.datetime());
     Ok(positions)
 }
@@ -128,7 +131,7 @@ pub async fn existing_months_positions(
         .client
         .list_objects_v2()
         .bucket(&client.bucket)
-        .prefix(format!("{OLD_DATABASE}/"))
+        .prefix(format!("{DATABASE}/"))
         .into_paginator()
         .send()
         .try_collect()
@@ -140,7 +143,7 @@ pub async fn existing_months_positions(
                 .contents()
                 .iter()
                 .filter_map(|blob| blob.key())
-                .map(|blob| blob_name_to_pk(&blob))
+                .map(|blob| blob_name_to_pk(DATABASE, &blob))
                 .collect::<Vec<_>>()
         })
         .flatten()
@@ -158,7 +161,7 @@ mod test {
         let icao: Arc<str> = "aa".into();
         let month = date!(2022 - 02 - 01);
         assert_eq!(
-            blob_name_to_pk(&pk_to_blob_name(icao.as_ref(), &month)),
+            blob_name_to_pk(DATABASE, &pk_to_blob_name(icao.as_ref(), &month)),
             (icao, month)
         )
     }
