@@ -76,6 +76,10 @@ async fn get(client: &ContainerClient, blob_name: &str) -> Result<Vec<u8>, Error
 
 async fn put(client: &ContainerClient, blob_name: &str, content: Vec<u8>) -> Result<(), Error> {
     let stream = ByteStream::from(content);
+    let content_type = blob_name
+        .ends_with(".json")
+        .then_some("application/json")
+        .unwrap_or("application/csv");
 
     client
         .client
@@ -84,6 +88,7 @@ async fn put(client: &ContainerClient, blob_name: &str, content: Vec<u8>) -> Res
         .key(blob_name)
         .acl(ObjectCannedAcl::PublicRead)
         .body(stream)
+        .content_type(content_type)
         .send()
         .await
         .map_err(|e| Error::from(format!("{e:?}")))
@@ -174,6 +179,30 @@ impl BlobStorageProvider for ContainerClient {
     #[must_use]
     async fn put(&self, blob_name: &str, contents: Vec<u8>) -> Result<(), Self::Error> {
         put(&self, blob_name, contents).await
+    }
+
+    #[must_use]
+    async fn list(&self, prefix: &str) -> Result<Vec<String>, Self::Error> {
+        Ok(self
+            .client
+            .list_objects_v2()
+            .bucket(&self.bucket)
+            .prefix(prefix)
+            .into_paginator()
+            .send()
+            .try_collect()
+            .await
+            .map_err(|e| Error::from(e.to_string()))?
+            .into_iter()
+            .map(|response| {
+                response
+                    .contents()
+                    .iter()
+                    .filter_map(|blob| blob.key().map(|x| x.to_string()))
+                    .collect::<Vec<_>>()
+            })
+            .flatten()
+            .collect())
     }
 
     fn can_put(&self) -> bool {

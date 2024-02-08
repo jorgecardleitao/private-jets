@@ -6,6 +6,7 @@ pub trait BlobStorageProvider {
     type Error: std::error::Error + Send;
     async fn maybe_get(&self, blob_name: &str) -> Result<Option<Vec<u8>>, Self::Error>;
     async fn put(&self, blob_name: &str, contents: Vec<u8>) -> Result<(), Self::Error>;
+    async fn list(&self, prefix: &str) -> Result<Vec<String>, Self::Error>;
 
     fn can_put(&self) -> bool;
 }
@@ -33,6 +34,11 @@ impl BlobStorageProvider for LocalDisk {
         std::fs::create_dir_all(dir)?;
         std::fs::write(blob_name, &contents)?;
         Ok(())
+    }
+
+    #[must_use]
+    async fn list(&self, _prefix: &str) -> Result<Vec<String>, Self::Error> {
+        todo!()
     }
 
     fn can_put(&self) -> bool {
