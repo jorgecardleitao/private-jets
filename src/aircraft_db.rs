@@ -7,7 +7,7 @@ use reqwest;
 use serde::{Deserialize, Serialize};
 use serde_json;
 
-use crate::{fs, fs_s3};
+use crate::{fs, fs_s3, CountryIcaoRanges};
 
 /// [`HashMap`] between tail number (e.g. "OY-TWM") and an [`Aircraft`]
 pub type Aircrafts = HashMap<String, Aircraft>;
@@ -23,6 +23,8 @@ pub struct Aircraft {
     pub type_designator: String,
     /// The model
     pub model: String,
+    /// The country in ISO 3166 of the aircraft
+    pub country: Option<Arc<str>>,
 }
 
 static DATABASE: &'static str = "db-20231106";
@@ -110,6 +112,8 @@ async fn children<'a: 'async_recursion>(
 pub async fn load_aircrafts(
     client: Option<&fs_s3::ContainerClient>,
 ) -> Result<Aircrafts, Box<dyn Error>> {
+    let country_ranges = CountryIcaoRanges::new();
+
     let prefixes = (b'A'..=b'F').chain(b'0'..b'9');
     let prefixes = prefixes.map(|x| std::str::from_utf8(&[x]).unwrap().to_string());
 
@@ -135,6 +139,8 @@ pub async fn load_aircrafts(
                     let tail_number = std::mem::take(&mut data[0])?;
                     let type_designator = std::mem::take(&mut data[1])?;
                     let model = std::mem::take(&mut data[3])?;
+                    let country = country_ranges.country(&icao_number).unwrap();
+
                     Some((
                         tail_number.clone(),
                         Aircraft {
@@ -142,6 +148,7 @@ pub async fn load_aircrafts(
                             tail_number,
                             type_designator,
                             model,
+                            country: country.cloned(),
                         },
                     ))
                 });

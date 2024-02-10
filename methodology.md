@@ -140,3 +140,8 @@ It also consisted in extracting statements or slogans from these owners from the
 to illustrate the incompatibility between owning a private jet and their sustainability goals.
 
 This is stored in [`./src/owners.json`](./src/owners.json).
+
+### M-9: Identification of country of registration
+
+This was performed automatically and consisted in mapping the ICAO number to its
+corresponding country, as per Appendix A of [ICAO working paper NACC/DCA/3 – WP/05](https://www.icao.int/Meetings/AMC/MA/NACC_DCA03_2008/naccdca3wp05.pdf).

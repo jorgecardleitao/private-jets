@@ -1,0 +1,1268 @@
+[
+    {
+        "start": 16384,
+        "end": 17407,
+        "country": "Zimbabwe",
+        "flag_image": "Zimbabwe.png"
+    },
+    {
+        "start": 24576,
+        "end": 28671,
+        "country": "Mozambique",
+        "flag_image": "Mozambique.png"
+    },
+    {
+        "start": 32768,
+        "end": 65535,
+        "country": "South Africa",
+        "flag_image": "South_Africa.png"
+    },
+    {
+        "start": 65536,
+        "end": 98303,
+        "country": "Egypt",
+        "flag_image": "Egypt.png"
+    },
+    {
+        "start": 98304,
+        "end": 131071,
+        "country": "Libyan Arab Jamahiriya",
+        "flag_image": "Libya.png"
+    },
+    {
+        "start": 131072,
+        "end": 163839,
+        "country": "Morocco",
+        "flag_image": "Morocco.png"
+    },
+    {
+        "start": 163840,
+        "end": 196607,
+        "country": "Tunisia",
+        "flag_image": "Tunisia.png"
+    },
+    {
+        "start": 196608,
+        "end": 197631,
+        "country": "Botswana",
+        "flag_image": "Botswana.png"
+    },
+    {
+        "start": 204800,
+        "end": 208895,
+        "country": "Burundi",
+        "flag_image": "Burundi.png"
+    },
+    {
+        "start": 212992,
+        "end": 217087,
+        "country": "Cameroon",
+        "flag_image": "Cameroon.png"
+    },
+    {
+        "start": 217088,
+        "end": 218111,
+        "country": "Comoros",
+        "flag_image": "Comoros.png"
+    },
+    {
+        "start": 221184,
+        "end": 225279,
+        "country": "Congo",
+        "flag_image": "Republic_of_the_Congo.png"
+    },
+    {
+        "start": 229376,
+        "end": 233471,
+        "country": "Cote d'Ivoire",
+        "flag_image": "Cote_d_Ivoire.png"
+    },
+    {
+        "start": 253952,
+        "end": 258047,
+        "country": "Gabon",
+        "flag_image": "Gabon.png"
+    },
+    {
+        "start": 262144,
+        "end": 266239,
+        "country": "Ethiopia",
+        "flag_image": "Ethiopia.png"
+    },
+    {
+        "start": 270336,
+        "end": 274431,
+        "country": "Equatorial Guinea",
+        "flag_image": "Equatorial_Guinea.png"
+    },
+    {
+        "start": 278528,
+        "end": 282623,
+        "country": "Ghana",
+        "flag_image": "Ghana.png"
+    },
+    {
+        "start": 286720,
+        "end": 290815,
+        "country": "Guinea",
+        "flag_image": "Guinea.png"
+    },
+    {
+        "start": 294912,
+        "end": 295935,
+        "country": "Guinea-Bissau",
+        "flag_image": "Guinea_Bissau.png"
+    },
+    {
+        "start": 303104,
+        "end": 304127,
+        "country": "Lesotho",
+        "flag_image": "Lesotho.png"
+    },
+    {
+        "start": 311296,
+        "end": 315391,
+        "country": "Kenya",
+        "flag_image": "Kenya.png"
+    },
+    {
+        "start": 327680,
+        "end": 331775,
+        "country": "Liberia",
+        "flag_image": "Liberia.png"
+    },
+    {
+        "start": 344064,
+        "end": 348159,
+        "country": "Madagascar",
+        "flag_image": "Madagascar.png"
+    },
+    {
+        "start": 360448,
+        "end": 364543,
+        "country": "Malawi",
+        "flag_image": "Malawi.png"
+    },
+    {
+        "start": 368640,
+        "end": 369663,
+        "country": "Maldives",
+        "flag_image": "Maldives.png"
+    },
+    {
+        "start": 376832,
+        "end": 380927,
+        "country": "Mali",
+        "flag_image": "Mali.png"
+    },
+    {
+        "start": 385024,
+        "end": 386047,
+        "country": "Mauritania",
+        "flag_image": "Mauritania.png"
+    },
+    {
+        "start": 393216,
+        "end": 394239,
+        "country": "Mauritius",
+        "flag_image": "Mauritius.png"
+    },
+    {
+        "start": 401408,
+        "end": 405503,
+        "country": "Niger",
+        "flag_image": "Niger.png"
+    },
+    {
+        "start": 409600,
+        "end": 413695,
+        "country": "Nigeria",
+        "flag_image": "Nigeria.png"
+    },
+    {
+        "start": 425984,
+        "end": 430079,
+        "country": "Uganda",
+        "flag_image": "Uganda.png"
+    },
+    {
+        "start": 434176,
+        "end": 435199,
+        "country": "Qatar",
+        "flag_image": "Qatar.png"
+    },
+    {
+        "start": 442368,
+        "end": 446463,
+        "country": "Central African Republic",
+        "flag_image": "Central_African_Republic.png"
+    },
+    {
+        "start": 450560,
+        "end": 454655,
+        "country": "Rwanda",
+        "flag_image": "Rwanda.png"
+    },
+    {
+        "start": 458752,
+        "end": 462847,
+        "country": "Senegal",
+        "flag_image": "Senegal.png"
+    },
+    {
+        "start": 475136,
+        "end": 476159,
+        "country": "Seychelles",
+        "flag_image": "Seychelles.png"
+    },
+    {
+        "start": 483328,
+        "end": 484351,
+        "country": "Sierra Leone",
+        "flag_image": "Sierra_Leone.png"
+    },
+    {
+        "start": 491520,
+        "end": 495615,
+        "country": "Somalia",
+        "flag_image": "Somalia.png"
+    },
+    {
+        "start": 499712,
+        "end": 500735,
+        "country": "Swaziland",
+        "flag_image": "Swaziland.png"
+    },
+    {
+        "start": 507904,
+        "end": 511999,
+        "country": "Sudan",
+        "flag_image": "Sudan.png"
+    },
+    {
+        "start": 524288,
+        "end": 528383,
+        "country": "Tanzania",
+        "flag_image": "Tanzania.png"
+    },
+    {
+        "start": 540672,
+        "end": 544767,
+        "country": "Chad",
+        "flag_image": "Chad.png"
+    },
+    {
+        "start": 557056,
+        "end": 561151,
+        "country": "Togo",
+        "flag_image": "Togo.png"
+    },
+    {
+        "start": 565248,
+        "end": 569343,
+        "country": "Zambia",
+        "flag_image": "Zambia.png"
+    },
+    {
+        "start": 573440,
+        "end": 577535,
+        "country": "DR Congo",
+        "flag_image": "Democratic_Republic_of_the_Congo.png"
+    },
+    {
+        "start": 589824,
+        "end": 593919,
+        "country": "Angola",
+        "flag_image": "Angola.png"
+    },
+    {
+        "start": 606208,
+        "end": 607231,
+        "country": "Benin",
+        "flag_image": "Benin.png"
+    },
+    {
+        "start": 614400,
+        "end": 615423,
+        "country": "Cape Verde",
+        "flag_image": "Cape_Verde.png"
+    },
+    {
+        "start": 622592,
+        "end": 623615,
+        "country": "Djibouti",
+        "flag_image": "Djibouti.png"
+    },
+    {
+        "start": 630784,
+        "end": 634879,
+        "country": "Gambia",
+        "flag_image": "Gambia.png"
+    },
+    {
+        "start": 638976,
+        "end": 643071,
+        "country": "Burkina Faso",
+        "flag_image": "Burkina_Faso.png"
+    },
+    {
+        "start": 647168,
+        "end": 648191,
+        "country": "Sao Tome and Principe",
+        "flag_image": "Sao_Tome_and_Principe.png"
+    },
+    {
+        "start": 655360,
+        "end": 688127,
+        "country": "Algeria",
+        "flag_image": "Algeria.png"
+    },
+    {
+        "start": 688128,
+        "end": 692223,
+        "country": "Bahamas",
+        "flag_image": "Bahamas.png"
+    },
+    {
+        "start": 696320,
+        "end": 697343,
+        "country": "Barbados",
+        "flag_image": "Barbados.png"
+    },
+    {
+        "start": 700416,
+        "end": 701439,
+        "country": "Belize",
+        "flag_image": "Belize.png"
+    },
+    {
+        "start": 704512,
+        "end": 708607,
+        "country": "Colombia",
+        "flag_image": "Colombia.png"
+    },
+    {
+        "start": 712704,
+        "end": 716799,
+        "country": "Costa Rica",
+        "flag_image": "Costa_Rica.png"
+    },
+    {
+        "start": 720896,
+        "end": 724991,
+        "country": "Cuba",
+        "flag_image": "Cuba.png"
+    },
+    {
+        "start": 729088,
+        "end": 733183,
+        "country": "El Salvador",
+        "flag_image": "El_Salvador.png"
+    },
+    {
+        "start": 737280,
+        "end": 741375,
+        "country": "Guatemala",
+        "flag_image": "Guatemala.png"
+    },
+    {
+        "start": 745472,
+        "end": 749567,
+        "country": "Guyana",
+        "flag_image": "Guyana.png"
+    },
+    {
+        "start": 753664,
+        "end": 757759,
+        "country": "Haiti",
+        "flag_image": "Haiti.png"
+    },
+    {
+        "start": 761856,
+        "end": 765951,
+        "country": "Honduras",
+        "flag_image": "Honduras.png"
+    },
+    {
+        "start": 770048,
+        "end": 771071,
+        "country": "Saint Vincent and the Grenadines",
+        "flag_image": "Saint_Vincent_and_the_Grenadines.png"
+    },
+    {
+        "start": 778240,
+        "end": 782335,
+        "country": "Jamaica",
+        "flag_image": "Jamaica.png"
+    },
+    {
+        "start": 786432,
+        "end": 790527,
+        "country": "Nicaragua",
+        "flag_image": "Nicaragua.png"
+    },
+    {
+        "start": 794624,
+        "end": 798719,
+        "country": "Panama",
+        "flag_image": "Panama.png"
+    },
+    {
+        "start": 802816,
+        "end": 806911,
+        "country": "Dominican Republic",
+        "flag_image": "Dominican_Republic.png"
+    },
+    {
+        "start": 811008,
+        "end": 815103,
+        "country": "Trinidad and Tobago",
+        "flag_image": "Trinidad_and_Tobago.png"
+    },
+    {
+        "start": 819200,
+        "end": 823295,
+        "country": "Suriname",
+        "flag_image": "Suriname.png"
+    },
+    {
+        "start": 827392,
+        "end": 828415,
+        "country": "Antigua and Barbuda",
+        "flag_image": "Antigua_and_Barbuda.png"
+    },
+    {
+        "start": 835584,
+        "end": 836607,
+        "country": "Grenada",
+        "flag_image": "Grenada.png"
+    },
+    {
+        "start": 851968,
+        "end": 884735,
+        "country": "Mexico",
+        "flag_image": "Mexico.png"
+    },
+    {
+        "start": 884736,
+        "end": 917503,
+        "country": "Venezuela",
+        "flag_image": "Venezuela.png"
+    },
+    {
+        "start": 1048576,
+        "end": 2097151,
+        "country": "Russia",
+        "flag_image": "Russian_Federation.png"
+    },
+    {
+        "start": 2101248,
+        "end": 2102271,
+        "country": "Namibia",
+        "flag_image": "Namibia.png"
+    },
+    {
+        "start": 2105344,
+        "end": 2106367,
+        "country": "Eritrea",
+        "flag_image": "Eritrea.png"
+    },
+    {
+        "start": 3145728,
+        "end": 3407871,
+        "country": "Italy",
+        "flag_image": "Italy.png"
+    },
+    {
+        "start": 3407872,
+        "end": 3670015,
+        "country": "Spain",
+        "flag_image": "Spain.png"
+    },
+    {
+        "start": 3670016,
+        "end": 3932159,
+        "country": "France",
+        "flag_image": "France.png"
+    },
+    {
+        "start": 3932160,
+        "end": 4194303,
+        "country": "Germany",
+        "flag_image": "Germany.png"
+    },
+    {
+        "start": 4194304,
+        "end": 4194751,
+        "country": "Bermuda",
+        "flag_image": "Bermuda.png"
+    },
+    {
+        "start": 4194752,
+        "end": 4194815,
+        "country": "Cayman Islands",
+        "flag_image": "Cayman_Islands.png"
+    },
+    {
+        "start": 4195072,
+        "end": 4195327,
+        "country": "Turks and Caicos Islands",
+        "flag_image": "Turks_and_Caicos_Islands.png"
+    },
+    {
+        "start": 4342069,
+        "end": 4342258,
+        "country": "Cayman Islands",
+        "flag_image": "Cayman_Islands.png"
+    },
+    {
+        "start": 4342272,
+        "end": 4343551,
+        "country": "Bermuda",
+        "flag_image": "Bermuda.png"
+    },
+    {
+        "start": 4343552,
+        "end": 4343961,
+        "country": "Cayman Islands",
+        "flag_image": "Cayman_Islands.png"
+    },
+    {
+        "start": 4344576,
+        "end": 4344831,
+        "country": "Isle of Man",
+        "flag_image": "Isle_of_Man.png"
+    },
+    {
+        "start": 4439552,
+        "end": 4439807,
+        "country": "Bermuda",
+        "flag_image": "Bermuda.png"
+    },
+    {
+        "start": 4450048,
+        "end": 4451069,
+        "country": "Isle of Man",
+        "flag_image": "Isle_of_Man.png"
+    },
+    {
+        "start": 4451070,
+        "end": 4452095,
+        "country": "Guernsey",
+        "flag_image": "Guernsey.png"
+    },
+    {
+        "start": 4194304,
+        "end": 4456447,
+        "country": "United Kingdom",
+        "flag_image": "United_Kingdom.png"
+    },
+    {
+        "start": 4456448,
+        "end": 4489215,
+        "country": "Austria",
+        "flag_image": "Austria.png"
+    },
+    {
+        "start": 4489216,
+        "end": 4521983,
+        "country": "Belgium",
+        "flag_image": "Belgium.png"
+    },
+    {
+        "start": 4521984,
+        "end": 4554751,
+        "country": "Bulgaria",
+        "flag_image": "Bulgaria.png"
+    },
+    {
+        "start": 4554752,
+        "end": 4587519,
+        "country": "Denmark",
+        "flag_image": "Denmark.png"
+    },
+    {
+        "start": 4587520,
+        "end": 4620287,
+        "country": "Finland",
+        "flag_image": "Finland.png"
+    },
+    {
+        "start": 4620288,
+        "end": 4653055,
+        "country": "Greece",
+        "flag_image": "Greece.png"
+    },
+    {
+        "start": 4653056,
+        "end": 4685823,
+        "country": "Hungary",
+        "flag_image": "Hungary.png"
+    },
+    {
+        "start": 4685824,
+        "end": 4718591,
+        "country": "Norway",
+        "flag_image": "Norway.png"
+    },
+    {
+        "start": 4718592,
+        "end": 4751359,
+        "country": "Kingdom of the Netherlands",
+        "flag_image": "Netherlands.png"
+    },
+    {
+        "start": 4751360,
+        "end": 4784127,
+        "country": "Poland",
+        "flag_image": "Poland.png"
+    },
+    {
+        "start": 4784128,
+        "end": 4816895,
+        "country": "Portugal",
+        "flag_image": "Portugal.png"
+    },
+    {
+        "start": 4816896,
+        "end": 4849663,
+        "country": "Czechia",
+        "flag_image": "Czech_Republic.png"
+    },
+    {
+        "start": 4849664,
+        "end": 4882431,
+        "country": "Romania",
+        "flag_image": "Romania.png"
+    },
+    {
+        "start": 4882432,
+        "end": 4915199,
+        "country": "Sweden",
+        "flag_image": "Sweden.png"
+    },
+    {
+        "start": 4915200,
+        "end": 4947967,
+        "country": "Switzerland",
+        "flag_image": "Switzerland.png"
+    },
+    {
+        "start": 4947968,
+        "end": 4980735,
+        "country": "Turkey",
+        "flag_image": "Turkey.png"
+    },
+    {
+        "start": 4980736,
+        "end": 5013503,
+        "country": "Serbia",
+        "flag_image": "Serbia.png"
+    },
+    {
+        "start": 5013504,
+        "end": 5014527,
+        "country": "Cyprus",
+        "flag_image": "Cyprus.png"
+    },
+    {
+        "start": 5021696,
+        "end": 5025791,
+        "country": "Ireland",
+        "flag_image": "Ireland.png"
+    },
+    {
+        "start": 5029888,
+        "end": 5033983,
+        "country": "Iceland",
+        "flag_image": "Iceland.png"
+    },
+    {
+        "start": 5046272,
+        "end": 5047295,
+        "country": "Luxembourg",
+        "flag_image": "Luxembourg.png"
+    },
+    {
+        "start": 5054464,
+        "end": 5058559,
+        "country": "Malta",
+        "flag_image": "Malta.png"
+    },
+    {
+        "start": 5062656,
+        "end": 5063679,
+        "country": "Monaco",
+        "flag_image": "Monaco.png"
+    },
+    {
+        "start": 5242880,
+        "end": 5243903,
+        "country": "San Marino",
+        "flag_image": "San_Marino.png"
+    },
+    {
+        "start": 5246976,
+        "end": 5247999,
+        "country": "Albania",
+        "flag_image": "Albania.png"
+    },
+    {
+        "start": 5250048,
+        "end": 5251071,
+        "country": "Croatia",
+        "flag_image": "Croatia.png"
+    },
+    {
+        "start": 5254144,
+        "end": 5255167,
+        "country": "Latvia",
+        "flag_image": "Latvia.png"
+    },
+    {
+        "start": 5258240,
+        "end": 5259263,
+        "country": "Lithuania",
+        "flag_image": "Lithuania.png"
+    },
+    {
+        "start": 5262336,
+        "end": 5263359,
+        "country": "Moldova",
+        "flag_image": "Moldova.png"
+    },
+    {
+        "start": 5266432,
+        "end": 5267455,
+        "country": "Slovakia",
+        "flag_image": "Slovakia.png"
+    },
+    {
+        "start": 5270528,
+        "end": 5271551,
+        "country": "Slovenia",
+        "flag_image": "Slovenia.png"
+    },
+    {
+        "start": 5274624,
+        "end": 5275647,
+        "country": "Uzbekistan",
+        "flag_image": "Uzbekistan.png"
+    },
+    {
+        "start": 5275648,
+        "end": 5308415,
+        "country": "Ukraine",
+        "flag_image": "Ukraine.png"
+    },
+    {
+        "start": 5308416,
+        "end": 5309439,
+        "country": "Belarus",
+        "flag_image": "Belarus.png"
+    },
+    {
+        "start": 5312512,
+        "end": 5313535,
+        "country": "Estonia",
+        "flag_image": "Estonia.png"
+    },
+    {
+        "start": 5316608,
+        "end": 5317631,
+        "country": "Macedonia",
+        "flag_image": "Macedonia.png"
+    },
+    {
+        "start": 5320704,
+        "end": 5321727,
+        "country": "Bosnia and Herzegovina",
+        "flag_image": "Bosnia.png"
+    },
+    {
+        "start": 5324800,
+        "end": 5325823,
+        "country": "Georgia",
+        "flag_image": "Georgia.png"
+    },
+    {
+        "start": 5328896,
+        "end": 5329919,
+        "country": "Tajikistan",
+        "flag_image": "Tajikistan.png"
+    },
+    {
+        "start": 5332992,
+        "end": 5334015,
+        "country": "Montenegro",
+        "flag_image": "Montenegro.png"
+    },
+    {
+        "start": 6291456,
+        "end": 6292479,
+        "country": "Armenia",
+        "flag_image": "Armenia.png"
+    },
+    {
+        "start": 6293504,
+        "end": 6294527,
+        "country": "Azerbaijan",
+        "flag_image": "Azerbaijan.png"
+    },
+    {
+        "start": 6295552,
+        "end": 6296575,
+        "country": "Kyrgyzstan",
+        "flag_image": "Kyrgyzstan.png"
+    },
+    {
+        "start": 6297600,
+        "end": 6298623,
+        "country": "Turkmenistan",
+        "flag_image": "Turkmenistan.png"
+    },
+    {
+        "start": 6815744,
+        "end": 6816767,
+        "country": "Bhutan",
+        "flag_image": "Bhutan.png"
+    },
+    {
+        "start": 6819840,
+        "end": 6820863,
+        "country": "Micronesia, Federated States of",
+        "flag_image": "Micronesia.png"
+    },
+    {
+        "start": 6823936,
+        "end": 6824959,
+        "country": "Mongolia",
+        "flag_image": "Mongolia.png"
+    },
+    {
+        "start": 6828032,
+        "end": 6829055,
+        "country": "Kazakhstan",
+        "flag_image": "Kazakhstan.png"
+    },
+    {
+        "start": 6832128,
+        "end": 6833151,
+        "country": "Palau",
+        "flag_image": "Palau.png"
+    },
+    {
+        "start": 7340032,
+        "end": 7344127,
+        "country": "Afghanistan",
+        "flag_image": "Afghanistan.png"
+    },
+    {
+        "start": 7348224,
+        "end": 7352319,
+        "country": "Bangladesh",
+        "flag_image": "Bangladesh.png"
+    },
+    {
+        "start": 7356416,
+        "end": 7360511,
+        "country": "Myanmar",
+        "flag_image": "Myanmar.png"
+    },
+    {
+        "start": 7364608,
+        "end": 7368703,
+        "country": "Kuwait",
+        "flag_image": "Kuwait.png"
+    },
+    {
+        "start": 7372800,
+        "end": 7376895,
+        "country": "Laos",
+        "flag_image": "Laos.png"
+    },
+    {
+        "start": 7380992,
+        "end": 7385087,
+        "country": "Nepal",
+        "flag_image": "Nepal.png"
+    },
+    {
+        "start": 7389184,
+        "end": 7390207,
+        "country": "Oman",
+        "flag_image": "Oman.png"
+    },
+    {
+        "start": 7397376,
+        "end": 7401471,
+        "country": "Cambodia",
+        "flag_image": "Cambodia.png"
+    },
+    {
+        "start": 7405568,
+        "end": 7438335,
+        "country": "Saudi Arabia",
+        "flag_image": "Saudi_Arabia.png"
+    },
+    {
+        "start": 7438336,
+        "end": 7471103,
+        "country": "South Korea",
+        "flag_image": "South_Korea.png"
+    },
+    {
+        "start": 7471104,
+        "end": 7503871,
+        "country": "North Korea",
+        "flag_image": "North_Korea.png"
+    },
+    {
+        "start": 7503872,
+        "end": 7536639,
+        "country": "Iraq",
+        "flag_image": "Iraq.png"
+    },
+    {
+        "start": 7536640,
+        "end": 7569407,
+        "country": "Iran",
+        "flag_image": "Iran.png"
+    },
+    {
+        "start": 7569408,
+        "end": 7602175,
+        "country": "Israel",
+        "flag_image": "Israel.png"
+    },
+    {
+        "start": 7602176,
+        "end": 7634943,
+        "country": "Jordan",
+        "flag_image": "Jordan.png"
+    },
+    {
+        "start": 7634944,
+        "end": 7667711,
+        "country": "Lebanon",
+        "flag_image": "Lebanon.png"
+    },
+    {
+        "start": 7667712,
+        "end": 7700479,
+        "country": "Malaysia",
+        "flag_image": "Malaysia.png"
+    },
+    {
+        "start": 7700480,
+        "end": 7733247,
+        "country": "Philippines",
+        "flag_image": "Philippines.png"
+    },
+    {
+        "start": 7733248,
+        "end": 7766015,
+        "country": "Pakistan",
+        "flag_image": "Pakistan.png"
+    },
+    {
+        "start": 7766016,
+        "end": 7798783,
+        "country": "Singapore",
+        "flag_image": "Singapore.png"
+    },
+    {
+        "start": 7798784,
+        "end": 7831551,
+        "country": "Sri Lanka",
+        "flag_image": "Sri_Lanka.png"
+    },
+    {
+        "start": 7831552,
+        "end": 7864319,
+        "country": "Syria",
+        "flag_image": "Syria.png"
+    },
+    {
+        "start": 7901184,
+        "end": 7905279,
+        "country": "Hong Kong",
+        "flag_image": "Hong_Kong.png"
+    },
+    {
+        "start": 7864320,
+        "end": 8126463,
+        "country": "China",
+        "flag_image": "China.png"
+    },
+    {
+        "start": 8126464,
+        "end": 8388607,
+        "country": "Australia",
+        "flag_image": "Australia.png"
+    },
+    {
+        "start": 8388608,
+        "end": 8650751,
+        "country": "India",
+        "flag_image": "India.png"
+    },
+    {
+        "start": 8650752,
+        "end": 8912895,
+        "country": "Japan",
+        "flag_image": "Japan.png"
+    },
+    {
+        "start": 8912896,
+        "end": 8945663,
+        "country": "Thailand",
+        "flag_image": "Thailand.png"
+    },
+    {
+        "start": 8945664,
+        "end": 8978431,
+        "country": "Viet Nam",
+        "flag_image": "Vietnam.png"
+    },
+    {
+        "start": 8978432,
+        "end": 8982527,
+        "country": "Yemen",
+        "flag_image": "Yemen.png"
+    },
+    {
+        "start": 8994816,
+        "end": 8998911,
+        "country": "Bahrain",
+        "flag_image": "Bahrain.png"
+    },
+    {
+        "start": 8998912,
+        "end": 8999935,
+        "country": "Brunei",
+        "flag_image": "Brunei.png"
+    },
+    {
+        "start": 9003008,
+        "end": 9007103,
+        "country": "United Arab Emirates",
+        "flag_image": "UAE.png"
+    },
+    {
+        "start": 9007104,
+        "end": 9008127,
+        "country": "Solomon Islands",
+        "flag_image": "Soloman_Islands.png"
+    },
+    {
+        "start": 9011200,
+        "end": 9015295,
+        "country": "Papua New Guinea",
+        "flag_image": "Papua_New_Guinea.png"
+    },
+    {
+        "start": 9015296,
+        "end": 9016319,
+        "country": "Taiwan",
+        "flag_image": "Taiwan.png"
+    },
+    {
+        "start": 9043968,
+        "end": 9076735,
+        "country": "Indonesia",
+        "flag_image": "Indonesia.png"
+    },
+    {
+        "start": 9437184,
+        "end": 9438207,
+        "country": "Marshall Islands",
+        "flag_image": "Marshall_Islands.png"
+    },
+    {
+        "start": 9441280,
+        "end": 9442303,
+        "country": "Cook Islands",
+        "flag_image": "Cook_Islands.png"
+    },
+    {
+        "start": 9445376,
+        "end": 9446399,
+        "country": "Samoa",
+        "flag_image": "Samoa.png"
+    },
+    {
+        "start": 10485760,
+        "end": 11534335,
+        "country": "United States",
+        "flag_image": "United_States_of_America.png"
+    },
+    {
+        "start": 12582912,
+        "end": 12845055,
+        "country": "Canada",
+        "flag_image": "Canada.png"
+    },
+    {
+        "start": 13107200,
+        "end": 13139967,
+        "country": "New Zealand",
+        "flag_image": "New_Zealand.png"
+    },
+    {
+        "start": 13139968,
+        "end": 13144063,
+        "country": "Fiji",
+        "flag_image": "Fiji.png"
+    },
+    {
+        "start": 13148160,
+        "end": 13149183,
+        "country": "Nauru",
+        "flag_image": "Nauru.png"
+    },
+    {
+        "start": 13156352,
+        "end": 13157375,
+        "country": "Saint Lucia",
+        "flag_image": "Saint_Lucia.png"
+    },
+    {
+        "start": 13160448,
+        "end": 13161471,
+        "country": "Tonga",
+        "flag_image": "Tonga.png"
+    },
+    {
+        "start": 13164544,
+        "end": 13165567,
+        "country": "Kiribati",
+        "flag_image": "Kiribati.png"
+    },
+    {
+        "start": 13172736,
+        "end": 13173759,
+        "country": "Vanuatu",
+        "flag_image": "Vanuatu.png"
+    },
+    {
+        "start": 14680064,
+        "end": 14942207,
+        "country": "Argentina",
+        "flag_image": "Argentina.png"
+    },
+    {
+        "start": 14942208,
+        "end": 15204351,
+        "country": "Brazil",
+        "flag_image": "Brazil.png"
+    },
+    {
+        "start": 15204352,
+        "end": 15208447,
+        "country": "Chile",
+        "flag_image": "Chile.png"
+    },
+    {
+        "start": 15220736,
+        "end": 15224831,
+        "country": "Ecuador",
+        "flag_image": "Ecuador.png"
+    },
+    {
+        "start": 15237120,
+        "end": 15241215,
+        "country": "Paraguay",
+        "flag_image": "Paraguay.png"
+    },
+    {
+        "start": 15253504,
+        "end": 15257599,
+        "country": "Peru",
+        "flag_image": "Peru.png"
+    },
+    {
+        "start": 15269888,
+        "end": 15273983,
+        "country": "Uruguay",
+        "flag_image": "Uruguay.png"
+    },
+    {
+        "start": 15286272,
+        "end": 15290367,
+        "country": "Bolivia",
+        "flag_image": "Bolivia.png"
+    },
+    {
+        "start": 15728640,
+        "end": 15761407,
+        "country": "ICAO (temporary)",
+        "flag_image": "blank.png"
+    },
+    {
+        "start": 15765504,
+        "end": 15766527,
+        "country": "ICAO (special use)",
+        "flag_image": "blank.png"
+    },
+    {
+        "start": 2097152,
+        "end": 2621439,
+        "country": "Unassigned (AFI region)",
+        "flag_image": "blank.png"
+    },
+    {
+        "start": 2621440,
+        "end": 2686975,
+        "country": "Unassigned (SAM region)",
+        "flag_image": "blank.png"
+    },
+    {
+        "start": 5242880,
+        "end": 6291455,
+        "country": "Unassigned (EUR / NAT regions)",
+        "flag_image": "blank.png"
+    },
+    {
+        "start": 6291456,
+        "end": 6815743,
+        "country": "Unassigned (MID region)",
+        "flag_image": "blank.png"
+    },
+    {
+        "start": 6815744,
+        "end": 7340031,
+        "country": "Unassigned (ASIA region)",
+        "flag_image": "blank.png"
+    },
+    {
+        "start": 9437184,
+        "end": 10485759,
+        "country": "Unassigned (NAM / PAC regions)",
+        "flag_image": "blank.png"
+    },
+    {
+        "start": 11534336,
+        "end": 12582911,
+        "country": "Unassigned (reserved for future use)",
+        "flag_image": "blank.png"
+    },
+    {
+        "start": 15466496,
+        "end": 15728639,
+        "country": "Unassigned (CAR region)",
+        "flag_image": "blank.png"
+    },
+    {
+        "start": 13631488,
+        "end": 14680063,
+        "country": "Unassigned (reserved for future use)",
+        "flag_image": "blank.png"
+    },
+    {
+        "start": 15728640,
+        "end": 16777215,
+        "country": "Unassigned (reserved for future use)",
+        "flag_image": "blank.png"
+    }
+]

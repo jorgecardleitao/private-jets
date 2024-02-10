@@ -71,6 +71,7 @@ It contains 3 columns:
 * `tail_number`: The tail number of the aircraft
 * `model`: The icao number of the aircraft type. It is only one of the ones
   identified as private jet according to the methodology.
+* `country`: The country (ISO 3166) of registration
 
 Both `icao_number` and `tail_number` are unique keys (independently).
 "#;
