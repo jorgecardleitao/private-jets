@@ -4,12 +4,12 @@ use futures::{StreamExt, TryStreamExt};
 use time::Date;
 
 use super::Position;
-use crate::{cached_aircraft_positions, fs, fs_s3};
+use crate::{cached_aircraft_positions, fs, fs_s3, BlobStorageProvider};
 
-static DATABASE: &'static str = "position";
+static DATABASE: &'static str = "position/";
 
-fn blob_name_to_pk(db: &str, blob: &str) -> (Arc<str>, time::Date) {
-    let bla = &blob[db.len() + "/icao_number=".len()..];
+pub fn blob_name_to_pk(db: &str, blob: &str) -> (Arc<str>, time::Date) {
+    let bla = &blob[db.len() + "icao_number=".len()..];
     let end = bla.find("/").unwrap();
     let icao = &bla[..end];
     let date_start = end + "/month=".len();
@@ -29,11 +29,14 @@ fn blob_name_to_pk(db: &str, blob: &str) -> (Arc<str>, time::Date) {
     )
 }
 
-fn pk_to_blob_name(icao: &str, date: &time::Date) -> String {
+pub fn month_to_part(date: &time::Date) -> String {
+    format!("{}-{:02}", date.year(), date.month() as u8)
+}
+
+pub fn pk_to_blob_name(db: &str, icao: &str, date: &time::Date) -> String {
     format!(
-        "{DATABASE}/icao_number={icao}/month={}-{:02}/data.json",
-        date.year(),
-        date.month() as u8
+        "{db}icao_number={icao}/month={}/data.json",
+        month_to_part(date)
     )
 }
 
@@ -61,7 +64,7 @@ pub async fn month_positions(
 ) -> Result<Vec<Position>, std::io::Error> {
     log::info!("month_positions({month},{icao_number})");
     assert_eq!(month.day(), 1);
-    let blob_name = pk_to_blob_name(&icao_number, &month);
+    let blob_name = pk_to_blob_name(DATABASE, &icao_number, &month);
 
     let (from, to) = get_month(&month);
     let action = fs::CacheAction::from_date(&to);
@@ -128,25 +131,10 @@ pub async fn existing_months_positions(
     client: &fs_s3::ContainerClient,
 ) -> Result<HashSet<(Arc<str>, time::Date)>, fs_s3::Error> {
     Ok(client
-        .client
-        .list_objects_v2()
-        .bucket(&client.bucket)
-        .prefix(format!("{DATABASE}/"))
-        .into_paginator()
-        .send()
-        .try_collect()
-        .await
-        .map_err(|e| fs_s3::Error::from(e.to_string()))?
+        .list(DATABASE)
+        .await?
         .into_iter()
-        .map(|response| {
-            response
-                .contents()
-                .iter()
-                .filter_map(|blob| blob.key())
-                .map(|blob| blob_name_to_pk(DATABASE, &blob))
-                .collect::<Vec<_>>()
-        })
-        .flatten()
+        .map(|blob| blob_name_to_pk(DATABASE, &blob))
         .collect())
 }
 
@@ -161,7 +149,7 @@ mod test {
         let icao: Arc<str> = "aa".into();
         let month = date!(2022 - 02 - 01);
         assert_eq!(
-            blob_name_to_pk(DATABASE, &pk_to_blob_name(icao.as_ref(), &month)),
+            blob_name_to_pk(DATABASE, &pk_to_blob_name(DATABASE, icao.as_ref(), &month)),
             (icao, month)
         )
     }

@@ -18,10 +18,14 @@ struct Cli {
     /// The token to the remote storage
     #[arg(long)]
     secret_access_key: String,
+    /// Optional country to fetch from (in ISO 3166); defaults to whole world
+    #[arg(long)]
+    country: Option<String>,
 }
 
 async fn private_jets(
     client: Option<&flights::fs_s3::ContainerClient>,
+    country: Option<&str>,
 ) -> Result<Vec<Aircraft>, Box<dyn std::error::Error>> {
     // load datasets to memory
     let aircrafts = flights::load_aircrafts(client).await?;
@@ -30,6 +34,11 @@ async fn private_jets(
     Ok(aircrafts
         .into_iter()
         // its primary use is to be a private jet
+        .filter(|(_, a)| {
+            country
+                .map(|country| a.country.as_deref() == Some(country))
+                .unwrap_or(true)
+        })
         .filter_map(|(_, a)| models.contains_key(&a.model).then_some(a))
         .collect())
 }
@@ -46,12 +55,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let client = flights::fs_s3::client(cli.access_key, cli.secret_access_key).await;
 
     let months = (2023..2024)
+        .rev()
         .cartesian_product(1..=12u8)
         .map(|(year, month)| {
             time::Date::from_calendar_date(year, time::Month::try_from(month).unwrap(), 1)
                 .expect("day 1 never errors")
         });
-    let private_jets = private_jets(Some(&client)).await?;
+    let private_jets = private_jets(Some(&client), cli.country.as_deref()).await?;
     log::info!("jets     : {}", private_jets.len());
     let required = private_jets
         .into_iter()
@@ -62,7 +72,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let completed = existing_months_positions(&client).await?;
     log::info!("completed: {}", completed.len());
-    let todo = required.difference(&completed).collect::<HashSet<_>>();
+    let mut todo = required.difference(&completed).collect::<Vec<_>>();
+    todo.sort_unstable_by_key(|(icao, date)| (date, icao));
     log::info!("todo     : {}", todo.len());
 
     let tasks = todo

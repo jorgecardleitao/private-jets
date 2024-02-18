@@ -78,12 +78,10 @@ Both `icao_number` and `tail_number` are unique keys (independently).
 
     if client.as_ref().map(|c| c.can_put()).unwrap_or(false) {
         let client = client.unwrap();
-        client
-            .put("database/private_jets/2023/11/06/data.csv", data_csv)
-            .await?;
+        client.put("private_jets/all.csv", data_csv).await?;
         client
             .put(
-                "database/private_jets/2023/11/06/description.md",
+                "private_jets/description.md",
                 specification_md.as_bytes().to_vec(),
             )
             .await?;
