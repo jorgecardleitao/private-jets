@@ -31,7 +31,8 @@ pub use private_emissions::*;
 /// A position of an aircraft
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Position {
-    datetime: time::PrimitiveDateTime,
+    #[serde(with = "time::serde::rfc3339")]
+    datetime: time::OffsetDateTime,
     latitude: f64,
     longitude: f64,
     /// None means on the ground
@@ -65,7 +66,7 @@ impl Position {
         self.altitude.unwrap_or(0.0)
     }
 
-    pub fn datetime(&self) -> time::PrimitiveDateTime {
+    pub fn datetime(&self) -> time::OffsetDateTime {
         self.datetime
     }
 

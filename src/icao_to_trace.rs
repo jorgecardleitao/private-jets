@@ -5,7 +5,7 @@ use reqwest::{self, StatusCode};
 use reqwest_middleware::ClientBuilder;
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use time::Date;
-use time::PrimitiveDateTime;
+use time::OffsetDateTime;
 
 use super::Position;
 use crate::{fs, fs_s3};
@@ -174,7 +174,7 @@ pub async fn positions(
             trace.into_iter().filter_map(move |entry| {
                 let time_seconds = entry[0].as_f64().unwrap();
                 let time = time::Time::MIDNIGHT + time_seconds.seconds();
-                let datetime = PrimitiveDateTime::new(date.clone(), time);
+                let datetime = OffsetDateTime::new_utc(date.clone(), time);
                 let latitude = entry[1].as_f64().unwrap();
                 let longitude = entry[2].as_f64().unwrap();
                 entry[3]
