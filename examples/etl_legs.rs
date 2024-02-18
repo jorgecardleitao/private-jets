@@ -7,6 +7,7 @@ use std::{
 use clap::Parser;
 use flights::{fs_s3, Aircraft, AircraftModels, BlobStorageProvider, Leg};
 use futures::{StreamExt, TryStreamExt};
+use itertools::Itertools;
 use serde::Serialize;
 use simple_logger::SimpleLogger;
 
@@ -137,6 +138,26 @@ async fn existing(
         .collect())
 }
 
+async fn private_jets(
+    client: Option<&flights::fs_s3::ContainerClient>,
+    country: Option<&str>,
+) -> Result<Vec<Aircraft>, Box<dyn std::error::Error>> {
+    // load datasets to memory
+    let aircrafts = flights::load_aircrafts(client).await?;
+    let models = flights::load_private_jet_models()?;
+
+    Ok(aircrafts
+        .into_iter()
+        // its primary use is to be a private jet
+        .filter(|(_, a)| {
+            country
+                .map(|country| a.country.as_deref() == Some(country))
+                .unwrap_or(true)
+        })
+        .filter_map(|(_, a)| models.contains_key(&a.model).then_some(a))
+        .collect())
+}
+
 const ABOUT: &'static str = r#"Builds the database of all legs"#;
 
 #[derive(Parser, Debug)]
@@ -161,19 +182,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let client = flights::fs_s3::client(cli.access_key, cli.secret_access_key).await;
 
-    let aircrafts = flights::load_aircrafts(Some(&client)).await?;
     let models = flights::load_private_jet_models()?;
 
-    let private_jets = aircrafts
+    let months = (2023..2024).cartesian_product(1..=12u8).count();
+    let private_jets = private_jets(Some(&client), None)
+        .await?
         .into_iter()
-        // its primary use is to be a private jet
-        .filter_map(|(_, a)| models.contains_key(&a.model).then_some(a))
         .map(|a| (a.icao_number.clone(), a))
         .collect::<HashMap<_, _>>();
-    let required = private_jets.len() * 1 * 12;
+    let required = private_jets.len() * months;
+    log::info!("required : {}", required);
 
-    let ready = flights::existing_months_positions(&client).await?;
-    let ready = ready
+    let ready = flights::existing_months_positions(&client)
+        .await?
         .into_iter()
         .filter(|(icao, _)| private_jets.contains_key(icao))
         .collect::<HashSet<_>>();
@@ -186,7 +207,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .collect::<HashSet<_>>();
     log::info!("completed: {}", completed.len());
 
-    let todo = ready.difference(&completed).collect::<Vec<_>>();
+    let mut todo = ready.difference(&completed).collect::<Vec<_>>();
+    todo.sort_unstable_by_key(|(icao, date)| (date, icao));
     log::info!("todo     : {}", todo.len());
 
     let client = Some(&client);
