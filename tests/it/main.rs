@@ -86,6 +86,8 @@ async fn ads_b_lost_on_ground() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// Verifies that condition 2. of `M-4` is correctly applied.
+/// https://globe.adsbexchange.com/?icao=459257&showTrace=2023-12-17
 #[tokio::test]
 async fn case_459257_2023_12_17() -> Result<(), Box<dyn Error>> {
     let legs = legs(date!(2023 - 12 - 17), date!(2023 - 12 - 20), "459257", None).await?;

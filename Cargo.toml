@@ -17,7 +17,7 @@ reqwest-middleware = "*"
 rand = {version="*", default_features = false, features = ["std", "std_rng", "getrandom"]}
 
 # to perform time-based calculations
-time = {version="*", default_features = false, features = ["formatting", "parsing", "macros", "serde"]}
+time = {version="*", default_features = false, features = ["formatting", "parsing", "macros", "serde", "serde-well-known"]}
 
 # compute distances between geo-points
 geoutils = {version="*", default_features = false}
