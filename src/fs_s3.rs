@@ -95,6 +95,18 @@ async fn put(client: &ContainerClient, blob_name: &str, content: Vec<u8>) -> Res
         .map(|_| ())
 }
 
+async fn delete(client: &ContainerClient, blob_name: &str) -> Result<(), Error> {
+    client
+        .client
+        .delete_object()
+        .bucket(&client.bucket)
+        .key(blob_name)
+        .send()
+        .await
+        .map_err(|e| Error::from(format!("{e:?}")))
+        .map(|_| ())
+}
+
 #[derive(Debug)]
 struct Provider {
     access_key: String,
@@ -179,6 +191,11 @@ impl BlobStorageProvider for ContainerClient {
     #[must_use]
     async fn put(&self, blob_name: &str, contents: Vec<u8>) -> Result<(), Self::Error> {
         put(&self, blob_name, contents).await
+    }
+
+    #[must_use]
+    async fn delete(&self, blob_name: &str) -> Result<(), Self::Error> {
+        delete(&self, blob_name).await
     }
 
     #[must_use]

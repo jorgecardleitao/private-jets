@@ -21,7 +21,7 @@ pub use aircraft_owners::*;
 pub use airports::*;
 pub(crate) use country::CountryIcaoRanges;
 pub use emissions::*;
-pub use fs::BlobStorageProvider;
+pub use fs::{BlobStorageProvider, LocalDisk};
 pub use icao_to_trace::*;
 pub use legs::*;
 pub use model::*;

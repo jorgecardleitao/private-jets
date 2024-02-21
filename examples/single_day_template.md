@@ -7,8 +7,8 @@ jets[^2] from {event.from_airport} to {event.to_airport}{{if event.two_way }} an
 
 This trip would have emitted {event.commercial_emissions_kg.claim} kg of CO2 in a commercial
 flight in first class[^4].
-Instead, it emitted around {event.emissions_kg.claim} kg of CO2[^5].
-In comparison, a Dane emits {dane_emissions_kg.claim} of CO2 per year[^6].
+Instead, it emitted around {event.emissions_kg.claim} kg of CO2e[^5].
+In comparison, a Dane emits {dane_emissions_kg.claim} of CO2e per year[^6].
 
 > ## This single {{if event.two_way }}two{{else}}one{{endif}}-way trip by {event.owner.claim.name} emitted the same as the average Dane emits in {dane_years} years
 

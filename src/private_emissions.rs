@@ -25,3 +25,16 @@ pub fn leg_co2e_kg(consumption: f64, duration: time::Duration) -> f64 {
 pub fn leg_per_person(emissions: f64) -> f64 {
     emissions * OCCUPANCY_FACTOR
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn basics() {
+        assert_eq!(
+            leg_co2e_kg(280.0, time::Duration::hours(2)),
+            27009.003313152003
+        );
+    }
+}
