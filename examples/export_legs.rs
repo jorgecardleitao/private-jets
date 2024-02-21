@@ -54,7 +54,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let client = flights::fs_s3::client(cli.access_key, cli.secret_access_key).await;
 
-    let months = (2023..2024)
+    let months = (2020..2024)
         .rev()
         .cartesian_product(1..=12u8)
         .map(|(year, month)| {

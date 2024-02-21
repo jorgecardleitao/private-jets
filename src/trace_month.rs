@@ -8,8 +8,8 @@ use crate::{cached_aircraft_positions, fs, fs_s3, BlobStorageProvider};
 
 static DATABASE: &'static str = "position/";
 
-pub fn blob_name_to_pk(db: &str, blob: &str) -> (Arc<str>, time::Date) {
-    let bla = &blob[db.len() + "icao_number=".len()..];
+fn blob_name_to_pk(prefix: &str, blob: &str) -> (Arc<str>, time::Date) {
+    let bla = &blob[prefix.len() + "icao_number=".len()..];
     let end = bla.find("/").unwrap();
     let icao = &bla[..end];
     let date_start = end + "/month=".len();
@@ -29,13 +29,14 @@ pub fn blob_name_to_pk(db: &str, blob: &str) -> (Arc<str>, time::Date) {
     )
 }
 
+/// Returns the ISO 8601 representation of a month ("2023-01")
 pub fn month_to_part(date: &time::Date) -> String {
     format!("{}-{:02}", date.year(), date.month() as u8)
 }
 
-pub fn pk_to_blob_name(db: &str, icao: &str, date: &time::Date) -> String {
+fn pk_to_blob_name(prefix: &str, icao: &str, date: &time::Date) -> String {
     format!(
-        "{db}icao_number={icao}/month={}/data.json",
+        "{prefix}icao_number={icao}/month={}/data.json",
         month_to_part(date)
     )
 }
@@ -57,6 +58,11 @@ fn get_month(current: &time::Date) -> (time::Date, time::Date) {
     (first_of_month, first_of_next_month)
 }
 
+/// Returns a list of positions of a date ordered by timestamp
+/// # Implementation
+/// This function is idempotent but not pure:
+/// * the data is retrieved from `https://globe.adsbexchange.com`
+/// * the call is cached on local disk or Remote Blob (depending on `client` configuration)
 pub async fn month_positions(
     month: time::Date,
     icao_number: &str,
@@ -126,16 +132,24 @@ pub async fn aircraft_positions(
     Ok(positions)
 }
 
-/// Returns the set of (icao, month) that exists in the db
-pub async fn existing_months_positions(
-    client: &fs_s3::ContainerClient,
-) -> Result<HashSet<(Arc<str>, time::Date)>, fs_s3::Error> {
+/// Returns the set of (icao number, month) that exist in the container prefixed by `dataset`
+pub async fn existing<B: BlobStorageProvider>(
+    prefix: &str,
+    client: &B,
+) -> Result<HashSet<(Arc<str>, time::Date)>, B::Error> {
     Ok(client
-        .list(DATABASE)
+        .list(prefix)
         .await?
         .into_iter()
-        .map(|blob| blob_name_to_pk(DATABASE, &blob))
+        .map(|blob| blob_name_to_pk(prefix, &blob))
         .collect())
+}
+
+/// Returns the set of (icao, month) that exists in the db
+pub async fn existing_months_positions<B: BlobStorageProvider>(
+    client: &B,
+) -> Result<HashSet<(Arc<str>, time::Date)>, B::Error> {
+    existing(DATABASE, client).await
 }
 
 #[cfg(test)]

@@ -119,7 +119,7 @@ async fn flight_date(
             date: "2023-10-19".to_string()
         };
         let emissions_kg = Fact {
-            claim: leg_co2e_kg(consumption.gph as f64, leg.duration()) as usize,
+            claim: leg_per_person(leg_co2e_kg(consumption.gph as f64, leg.duration())) as usize,
             source: "See [methodology M-7](https://github.com/jorgecardleitao/private-jets/blob/main/methodology.md)".to_string(),
             date: time::OffsetDateTime::now_utc().date().to_string(),
         };

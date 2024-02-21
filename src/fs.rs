@@ -1,12 +1,17 @@
+use std::path::{Path, PathBuf};
+
 use async_trait::async_trait;
+
+static ROOT: &'static str = "database/";
 
 /// An object that can be used to get and put blobs.
 #[async_trait]
 pub trait BlobStorageProvider {
-    type Error: std::error::Error + Send;
+    type Error: std::error::Error + Send + Sync + 'static;
     async fn maybe_get(&self, blob_name: &str) -> Result<Option<Vec<u8>>, Self::Error>;
     async fn put(&self, blob_name: &str, contents: Vec<u8>) -> Result<(), Self::Error>;
     async fn list(&self, prefix: &str) -> Result<Vec<String>, Self::Error>;
+    async fn delete(&self, blob_name: &str) -> Result<(), Self::Error>;
 
     fn can_put(&self) -> bool;
 }
@@ -20,8 +25,9 @@ impl BlobStorageProvider for LocalDisk {
 
     #[must_use]
     async fn maybe_get(&self, blob_name: &str) -> Result<Option<Vec<u8>>, Self::Error> {
-        if std::path::Path::new(blob_name).try_exists()? {
-            Ok(Some(std::fs::read(blob_name)?))
+        let path = PathBuf::from(ROOT).join(Path::new(blob_name));
+        if path.try_exists()? {
+            Ok(Some(std::fs::read(path)?))
         } else {
             Ok(None)
         }
@@ -29,15 +35,21 @@ impl BlobStorageProvider for LocalDisk {
 
     #[must_use]
     async fn put(&self, blob_name: &str, contents: Vec<u8>) -> Result<(), Self::Error> {
-        let mut dir: std::path::PathBuf = blob_name.into();
+        let path = PathBuf::from(ROOT).join(Path::new(blob_name));
+        let mut dir = path.clone();
         dir.pop();
         std::fs::create_dir_all(dir)?;
-        std::fs::write(blob_name, &contents)?;
+        std::fs::write(path, &contents)?;
         Ok(())
     }
 
     #[must_use]
     async fn list(&self, _prefix: &str) -> Result<Vec<String>, Self::Error> {
+        todo!()
+    }
+
+    #[must_use]
+    async fn delete(&self, _prefix: &str) -> Result<(), Self::Error> {
         todo!()
     }
 
