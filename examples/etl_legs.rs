@@ -18,8 +18,10 @@ static DATABASE: &'static str = "leg/v1/data/";
 struct LegOut {
     tail_number: String,
     model: String,
-    start: String,
-    end: String,
+    #[serde(with = "time::serde::rfc3339")]
+    start: time::OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
+    end: time::OffsetDateTime,
     from_lat: f64,
     from_lon: f64,
     to_lat: f64,
@@ -76,8 +78,8 @@ async fn write(
         LegOut {
             tail_number: aircraft.tail_number.to_string(),
             model: aircraft.model.to_string(),
-            start: leg.from().datetime().to_string(),
-            end: leg.to().datetime().to_string(),
+            start: leg.from().datetime(),
+            end: leg.to().datetime(),
             from_lat: leg.from().latitude(),
             from_lon: leg.from().longitude(),
             to_lat: leg.to().latitude(),
@@ -175,7 +177,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let models = flights::load_private_jet_models()?;
 
-    let months = (2023..2024).cartesian_product(1..=12u8).count();
+    let months = (2020..2024).cartesian_product(1..=12u8).count();
     let relevant_jets = private_jets(Some(&client), cli.country.as_deref())
         .await?
         .into_iter()
