@@ -24,7 +24,7 @@ pub struct Context {
 fn render(context: &Context) -> Result<(), Box<dyn Error>> {
     let path = "story.md";
 
-    let template = std::fs::read_to_string("examples/period_template.md")?;
+    let template = std::fs::read_to_string("src/bin/period_template.md")?;
 
     let mut tt = tinytemplate::TinyTemplate::new();
     tt.set_default_formatter(&tinytemplate::format_unescaped);

@@ -157,7 +157,7 @@ fn process_leg(
         dane_years,
     };
 
-    let template = std::fs::read_to_string("examples/single_day_template.md")?;
+    let template = std::fs::read_to_string("src/bin/single_day_template.md")?;
 
     let mut tt = TinyTemplate::new();
     tt.set_default_formatter(&tinytemplate::format_unescaped);
