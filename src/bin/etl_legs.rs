@@ -16,7 +16,6 @@ static DATABASE: &'static str = "leg/v1/data/";
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct LegOut {
-    icao_number: String,
     tail_number: String,
     model: String,
     #[serde(with = "time::serde::rfc3339")]
@@ -73,7 +72,6 @@ fn transform<'a>(
     legs.into_iter().map(|leg| {
         let aircraft = private_jets.get(icao_number).expect(icao_number);
         LegOut {
-            icao_number: icao_number.to_string(),
             tail_number: aircraft.tail_number.to_string(),
             model: aircraft.model.to_string(),
             start: leg.from().datetime(),
