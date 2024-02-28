@@ -29,5 +29,5 @@ jobs:
       - name: Install Rust
         run: rustup toolchain install stable
       - uses: Swatinem/rust-cache@v2
-      - name: Generate code coverage
-        run: cargo run --example export_private_jets
+      - name: Run etl
+        run: cargo run --features="build-binary" --bin etl_private_jets

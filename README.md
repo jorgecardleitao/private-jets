@@ -32,7 +32,7 @@ This repository contains both a Rust library and a set of [`examples/`](./exampl
 to perform actual calculations. To use one of such examples:
 
 1. Install Rust
-2. run `cargo run --example single_day -- --tail-number "OY-GFS" --date "2023-10-20"`
+2. run `cargo run --features="build-binary" --bin single_day -- --tail-number "OY-GFS" --date "2023-10-20"`
 3. open `OY-GFS_2023-10-20_0.md`
 
 Step 2. has an optional arguments, `--access-key`, `--secret-access-key`, specifying
@@ -55,22 +55,22 @@ that preserves data integrity.
 
 ```bash
 # Story about Danish private jets that flew to Davos between two dates
-cargo run --example country -- --from=2024-01-13 --to=2024-01-21 --country=denmark --location=davos
+cargo run --features="build-binary" --bin country -- --from=2024-01-13 --to=2024-01-21 --country=denmark --location=davos
 # Story about Danish private jets that flew between two dates
-cargo run --example country -- --from=2024-01-13 --to=2024-01-21 --country=denmark
+cargo run --features="build-binary" --bin country -- --from=2024-01-13 --to=2024-01-21 --country=denmark
 # Story about Portuguese private jets that flew between two dates
-cargo run --example country -- --from=2024-01-13 --to=2024-01-21 --country=portugal
+cargo run --features="build-binary" --bin country -- --from=2024-01-13 --to=2024-01-21 --country=portugal
 
 # Story about German private jets that flew in 2023, where secret is on a file
-cargo run --example country -- --from=2023-01-01 --to=2024-01-01 --country=germany --access-key=DO00AUDGL32QLFKV8CEP --secret-access-key=$(cat secrets.txt)
+cargo run --features="build-binary" --bin country -- --from=2023-01-01 --to=2024-01-01 --country=germany --access-key=DO00AUDGL32QLFKV8CEP --secret-access-key=$(cat secrets.txt)
 
 # Build database of positions `[2020, 2023]`
-cargo run --release --example etl_positions -- --access-key=DO00AUDGL32QLFKV8CEP --secret-access-key=$(cat secrets.txt)
+cargo run --features="build-binary" --release --bin etl_positions -- --access-key=DO00AUDGL32QLFKV8CEP --secret-access-key=$(cat secrets.txt)
 # they are available at
 # https://private-jets.fra1.digitaloceanspaces.com/position/icao_number={icao}/month={year}-{month}/data.json
 
 # Build database of legs `[2020, 2023]` (over existing positions computed by `etl_positions`)
-cargo run --release --example etl_legs -- --access-key=DO00AUDGL32QLFKV8CEP --secret-access-key=$(cat secrets.txt)
+cargo run --features="build-binary" --release --bin etl_legs -- --access-key=DO00AUDGL32QLFKV8CEP --secret-access-key=$(cat secrets.txt)
 # they are available at
 # https://private-jets.fra1.digitaloceanspaces.com/leg/v1/data/icao_number={icao}/month={year}-{month}/data.csv
 ```

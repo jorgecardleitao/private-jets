@@ -14,7 +14,7 @@ use time::Date;
 fn render(context: &Context) -> Result<(), Box<dyn Error>> {
     let path = format!("{}_story.md", context.country.name.to_lowercase());
 
-    let template = std::fs::read_to_string("examples/country.md")?;
+    let template = std::fs::read_to_string("src/bin/country.md")?;
 
     let mut tt = tinytemplate::TinyTemplate::new();
     tt.set_default_formatter(&tinytemplate::format_unescaped);
