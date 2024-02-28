@@ -63,6 +63,16 @@ cargo run --example country -- --from=2024-01-13 --to=2024-01-21 --country=portu
 
 # Story about German private jets that flew in 2023, where secret is on a file
 cargo run --example country -- --from=2023-01-01 --to=2024-01-01 --country=germany --access-key=DO00AUDGL32QLFKV8CEP --secret-access-key=$(cat secrets.txt)
+
+# Build database of positions `[2020, 2023]`
+cargo run --release --example etl_positions -- --access-key=DO00AUDGL32QLFKV8CEP --secret-access-key=$(cat secrets.txt)
+# they are available at
+# https://private-jets.fra1.digitaloceanspaces.com/position/icao_number={icao}/month={year}-{month}/data.json
+
+# Build database of legs `[2020, 2023]` (over existing positions computed by `etl_positions`)
+cargo run --release --example etl_legs -- --access-key=DO00AUDGL32QLFKV8CEP --secret-access-key=$(cat secrets.txt)
+# they are available at
+# https://private-jets.fra1.digitaloceanspaces.com/leg/v1/data/icao_number={icao}/month={year}-{month}/data.csv
 ```
 
 ## Methodology

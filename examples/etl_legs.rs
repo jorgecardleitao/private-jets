@@ -8,7 +8,7 @@ use clap::Parser;
 use flights::{Aircraft, AircraftModels, BlobStorageProvider, Leg};
 use futures::{StreamExt, TryStreamExt};
 use itertools::Itertools;
-use serde::Serialize;
+use serde::{de::DeserializeOwned, Serialize};
 use simple_logger::SimpleLogger;
 
 static DATABASE_ROOT: &'static str = "leg/v1/";
@@ -16,6 +16,7 @@ static DATABASE: &'static str = "leg/v1/data/";
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct LegOut {
+    icao_number: String,
     tail_number: String,
     model: String,
     #[serde(with = "time::serde::rfc3339")]
@@ -46,9 +47,7 @@ async fn write_json(
     let mut bytes: Vec<u8> = Vec::new();
     serde_json::to_writer(&mut bytes, &d).map_err(std::io::Error::other)?;
 
-    Ok(client
-        .put(&format!("{DATABASE_ROOT}{key}.json"), bytes)
-        .await?)
+    Ok(client.put(key, bytes).await?)
 }
 
 async fn write_csv<B: BlobStorageProvider>(
@@ -65,17 +64,16 @@ async fn write_csv<B: BlobStorageProvider>(
     Ok(())
 }
 
-async fn write(
-    icao_number: &Arc<str>,
-    month: time::Date,
+fn transform<'a>(
+    icao_number: &'a Arc<str>,
     legs: Vec<Leg>,
-    private_jets: &HashMap<Arc<str>, Aircraft>,
-    models: &AircraftModels,
-    client: &impl BlobStorageProvider,
-) -> Result<(), Box<dyn Error>> {
-    let legs = legs.into_iter().map(|leg| {
+    private_jets: &'a HashMap<Arc<str>, Aircraft>,
+    models: &'a AircraftModels,
+) -> impl Iterator<Item = LegOut> + 'a {
+    legs.into_iter().map(|leg| {
         let aircraft = private_jets.get(icao_number).expect(icao_number);
         LegOut {
+            icao_number: icao_number.to_string(),
             tail_number: aircraft.tail_number.to_string(),
             model: aircraft.model.to_string(),
             start: leg.from().datetime(),
@@ -96,8 +94,15 @@ async fn write(
                 leg.duration(),
             ) as usize,
         }
-    });
+    })
+}
 
+async fn write(
+    icao_number: &Arc<str>,
+    month: time::Date,
+    legs: impl Iterator<Item = impl Serialize>,
+    client: &impl BlobStorageProvider,
+) -> Result<(), Box<dyn Error>> {
     let key = format!(
         "{DATABASE}icao_number={icao_number}/month={}/data.csv",
         flights::month_to_part(&month)
@@ -108,11 +113,11 @@ async fn write(
     Ok(())
 }
 
-async fn read(
+async fn read<D: DeserializeOwned>(
     icao_number: &Arc<str>,
     month: time::Date,
     client: &impl BlobStorageProvider,
-) -> Result<Vec<LegOut>, Box<dyn Error>> {
+) -> Result<Vec<D>, Box<dyn Error>> {
     let key = format!(
         "{DATABASE}icao_number={icao_number}/month={}/data.csv",
         flights::month_to_part(&month)
@@ -120,17 +125,13 @@ async fn read(
     let content = client.maybe_get(&key).await?.expect("File to be present");
 
     csv::Reader::from_reader(&content[..])
-        .deserialize()
-        .map(|x| {
-            let record: LegOut = x?;
-            Ok(record)
-        })
+        .deserialize::<D>()
+        .map(|x| Ok(x?))
         .collect()
 }
 
 async fn private_jets(
     client: Option<&flights::fs_s3::ContainerClient>,
-    country: Option<&str>,
 ) -> Result<Vec<Aircraft>, Box<dyn std::error::Error>> {
     // load datasets to memory
     let aircrafts = flights::load_aircrafts(client).await?;
@@ -139,11 +140,6 @@ async fn private_jets(
     Ok(aircrafts
         .into_iter()
         // its primary use is to be a private jet
-        .filter(|(_, a)| {
-            country
-                .map(|country| a.country.as_deref() == Some(country))
-                .unwrap_or(true)
-        })
         .filter_map(|(_, a)| models.contains_key(&a.model).then_some(a))
         .collect())
 }
@@ -164,6 +160,73 @@ struct Cli {
     country: Option<String>,
 }
 
+async fn etl_task(
+    icao_number: &Arc<str>,
+    month: time::Date,
+    private_jets: &HashMap<Arc<str>, Aircraft>,
+    models: &AircraftModels,
+    client: Option<&flights::fs_s3::ContainerClient>,
+) -> Result<(), Box<dyn Error>> {
+    // extract
+    let positions = flights::month_positions(month, &icao_number, client).await?;
+    // transform
+    let legs = transform(
+        &icao_number,
+        flights::legs(positions.into_iter()),
+        &private_jets,
+        &models,
+    );
+    // load
+    write(&icao_number, month, legs, client.unwrap()).await
+}
+
+async fn aggregate(
+    private_jets: Vec<Aircraft>,
+    required: usize,
+    client: &impl BlobStorageProvider,
+) -> Result<(), Box<dyn Error>> {
+    let private_jets = private_jets
+        .into_iter()
+        .map(|a| a.icao_number)
+        .collect::<HashSet<_>>();
+
+    let completed = flights::existing(DATABASE, client)
+        .await?
+        .into_iter()
+        .filter(|(icao, _)| private_jets.contains(icao))
+        .collect::<HashSet<_>>();
+
+    let tasks = completed
+        .iter()
+        .map(|(icao, date)| async move { read::<LegOut>(icao, *date, client).await });
+
+    log::info!("Gettings all legs");
+    let legs = futures::stream::iter(tasks)
+        .buffered(20)
+        .try_collect::<Vec<_>>()
+        .await?
+        .into_iter()
+        .flatten();
+
+    log::info!("Writing all legs");
+    let key = format!("{DATABASE_ROOT}all.csv");
+    write_csv(legs, &key, client).await?;
+    log::info!("Written {key}");
+
+    let key = format!("{DATABASE_ROOT}status.json");
+    write_json(
+        client,
+        Metadata {
+            icao_months_to_process: required,
+            icao_months_processed: completed.len(),
+        },
+        &key,
+    )
+    .await?;
+    log::info!("status written");
+    Ok(())
+}
+
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
     SimpleLogger::new()
@@ -178,9 +241,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let models = flights::load_private_jet_models()?;
 
     let months = (2020..2024).cartesian_product(1..=12u8).count();
-    let relevant_jets = private_jets(Some(&client), cli.country.as_deref())
-        .await?
+    let private_jets = private_jets(Some(&client)).await?;
+    let relevant_jets = private_jets
+        .clone()
         .into_iter()
+        // in the country
+        .filter(|a| {
+            cli.country
+                .as_deref()
+                .map(|country| a.country.as_deref() == Some(country))
+                .unwrap_or(true)
+        })
         .map(|a| (a.icao_number.clone(), a))
         .collect::<HashMap<_, _>>();
     let required = relevant_jets.len() * months;
@@ -209,17 +280,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let models = &models;
 
     let tasks = todo.into_iter().map(|(icao_number, month)| async move {
-        let positions = flights::month_positions(*month, &icao_number, client).await?;
-        let legs = flights::legs(positions.into_iter());
-        write(
-            &icao_number,
-            *month,
-            legs,
-            &relevant_jets,
-            &models,
-            client.unwrap(),
-        )
-        .await
+        etl_task(icao_number, *month, &relevant_jets, &models, client).await
     });
 
     let _ = futures::stream::iter(tasks)
@@ -227,45 +288,5 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .try_collect::<Vec<_>>()
         .await?;
 
-    let private_jets = private_jets(client, None)
-        .await?
-        .into_iter()
-        .map(|a| (a.icao_number.clone(), a))
-        .collect::<HashMap<_, _>>();
-
-    let client = client.unwrap();
-    let completed = flights::existing(DATABASE, client)
-        .await?
-        .into_iter()
-        .filter(|(icao, _)| private_jets.contains_key(icao))
-        .collect::<HashSet<_>>();
-
-    let tasks = completed
-        .iter()
-        .map(|(icao, date)| async move { read(icao, *date, client).await });
-
-    log::info!("Gettings all legs");
-    let legs = futures::stream::iter(tasks)
-        .buffered(20)
-        .try_collect::<Vec<_>>()
-        .await?
-        .into_iter()
-        .flatten();
-
-    let key = format!("{DATABASE_ROOT}all.csv");
-    write_csv(legs, &key, client).await?;
-    log::info!("Written {key}");
-
-    write_json(
-        client,
-        Metadata {
-            icao_months_to_process: required,
-            icao_months_processed: completed.len(),
-        },
-        "status",
-    )
-    .await?;
-    log::info!("status written");
-
-    Ok(())
+    aggregate(private_jets, required, client.unwrap()).await
 }

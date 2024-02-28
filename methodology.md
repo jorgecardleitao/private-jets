@@ -28,19 +28,19 @@ in extracting the database of all aircrafts in https://globe.adsbexchange.com.
 
 Details are available in the source code, [src/aircraft_db.rs](./src/aircraft_db.rs).
 
-### M-2: Identify aircraft types whose primary use is to be a private flying
+### M-2: Identify aircraft types whose primary use is to be a private use
 
 This was performed by a human, and consisted in going through different aircraft
 manufacturers' websites and identifying the aircrafts that were advertised as used
-for private flying.
+for private use.
 
 For example, `Dassault Falcon 2000` is advertised as a
-private jet on https://www.dassaultfalcon.com/aircraft/overview-of-the-fleet/.
+private use on https://www.dassaultfalcon.com/aircraft/overview-of-the-fleet/.
 
 This is stored in [`./src/models.csv`](./src/models.csv).
 
 **NOTE**: not all uses of a model whose primary use is to be a private jet is
-private jet. For example, models are sometimes used for emergency services.
+for private use. For example, models are sometimes used for emergency services.
 
 ### M-3: Identify ICAO number's route in a day
 
@@ -55,8 +55,8 @@ Source code is available at [src/icao_to_trace.rs](./src/icao_to_trace.rs).
 
 ### M-4: Identify legs of a route
 
-This is performed automatically by the computer program. A leg is defined in this methodology
-has a continuous sequence of ADS-B positions in time where the aircraft is flying.
+This is performed automatically by the solution. A leg is defined in this methodology
+as a continuous sequence of ADS-B positions in time where the aircraft is flying.
 
 The aircraft at a given segment between two ADS-B positions is considered grounded (not flying) when any of:
 1. both positions are on the ground
@@ -132,7 +132,7 @@ This was performed by a human, and consisted in extracting the ownership of the 
 tail number from website https://www.danishaircraft.dk.
 
 For example `OY-CKK` results in 3 records, whose most recent, `OY-CKK(3)`, is registered
-to owned by `Kirkbi Invest A/S`.
+to be owned by `Kirkbi Invest A/S`.
 
 This is stored in [`./src/owners.csv`](./src/owners.csv).
 
