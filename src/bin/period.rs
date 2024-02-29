@@ -21,14 +21,17 @@ pub struct Context {
     pub ratio_commercial_300km: String,
 }
 
+static TEMPLATE: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/src/bin/period_template.md"
+));
+
 fn render(context: &Context) -> Result<(), Box<dyn Error>> {
     let path = "story.md";
 
-    let template = std::fs::read_to_string("src/bin/period_template.md")?;
-
     let mut tt = tinytemplate::TinyTemplate::new();
     tt.set_default_formatter(&tinytemplate::format_unescaped);
-    tt.add_template("t", &template)?;
+    tt.add_template("t", TEMPLATE)?;
 
     let rendered = tt.render("t", context)?;
 

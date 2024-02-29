@@ -11,14 +11,14 @@ use flights::{
 };
 use time::Date;
 
+static TEMPLATE: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/bin/country.md"));
+
 fn render(context: &Context) -> Result<(), Box<dyn Error>> {
     let path = format!("{}_story.md", context.country.name.to_lowercase());
 
-    let template = std::fs::read_to_string("src/bin/country.md")?;
-
     let mut tt = tinytemplate::TinyTemplate::new();
     tt.set_default_formatter(&tinytemplate::format_unescaped);
-    tt.add_template("t", &template)?;
+    tt.add_template("t", TEMPLATE)?;
 
     let rendered = tt.render("t", context)?;
 

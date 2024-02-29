@@ -6,6 +6,10 @@ use tinytemplate::TinyTemplate;
 
 use flights::*;
 
+static TEMPLATE: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/src/bin/single_day_template.md"
+));
 static TEMPLATE_NAME: &'static str = "t";
 
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
@@ -157,11 +161,9 @@ fn process_leg(
         dane_years,
     };
 
-    let template = std::fs::read_to_string("src/bin/single_day_template.md")?;
-
     let mut tt = TinyTemplate::new();
     tt.set_default_formatter(&tinytemplate::format_unescaped);
-    tt.add_template(TEMPLATE_NAME, &template)?;
+    tt.add_template(TEMPLATE_NAME, TEMPLATE)?;
 
     let rendered = tt.render(TEMPLATE_NAME, &context)?;
 
