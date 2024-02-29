@@ -1,13 +1,17 @@
 name: Test
 
-on: [push, pull_request]
+on:
+  release:
+    types: [created]
+  push:
+  pull_request:
 
 jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install Rust
         run: rustup toolchain install stable --component llvm-tools-preview
       - name: Install cargo-llvm-cov
@@ -25,9 +29,40 @@ jobs:
   run:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install Rust
         run: rustup toolchain install stable
       - uses: Swatinem/rust-cache@v2
       - name: Run etl
         run: cargo run --features="build-binary" --bin etl_private_jets
+
+  build-and-publish-binaries:
+    permissions: write-all
+    name: Publish binaries (${{ matrix.target }})
+    needs: [run]
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-gnu
+            archive: zip
+          - target: x86_64-unknown-linux-musl
+            archive: tar.gz tar.xz tar.zst
+          # 
+          #- target: x86_64-apple-darwin
+          #  archive: zip
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - name: Compile and release
+        uses: rust-build/rust-build.action@v1.4.5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          RUSTTARGET: ${{ matrix.target }}
+          ARCHIVE_TYPES: ${{ matrix.archive }}
+          EXTRA_COMMAND_FLAGS: --features=build-binary
+          TOOLCHAIN_VERSION: 1.74.0
+          MINIFY: true
