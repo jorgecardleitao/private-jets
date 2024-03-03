@@ -36,6 +36,7 @@ struct LegOut {
 struct Metadata {
     icao_months_to_process: usize,
     icao_months_processed: usize,
+    url: String,
 }
 
 async fn write_json(
@@ -180,47 +181,72 @@ async fn etl_task(
 
 async fn aggregate(
     private_jets: Vec<Aircraft>,
-    required: usize,
-    client: &impl BlobStorageProvider,
+    client: &flights::fs_s3::ContainerClient,
 ) -> Result<(), Box<dyn Error>> {
+    let models = flights::load_private_jet_models()?;
+
     let private_jets = private_jets
         .into_iter()
-        .map(|a| a.icao_number)
-        .collect::<HashSet<_>>();
+        .map(|a| (a.icao_number.clone(), a))
+        .collect::<HashMap<_, _>>();
 
     let completed = flights::existing(DATABASE, client)
         .await?
         .into_iter()
-        .filter(|(icao, _)| private_jets.contains(icao))
+        .filter(|(icao, _)| private_jets.contains_key(icao))
         .collect::<HashSet<_>>();
 
-    let tasks = completed
-        .iter()
-        .map(|(icao, date)| async move { read::<LegOut>(icao, *date, client).await });
-
-    log::info!("Gettings all legs");
-    let legs = futures::stream::iter(tasks)
-        .buffered(20)
-        .try_collect::<Vec<_>>()
-        .await?
+    // group completed by year
+    let by_year = completed
         .into_iter()
-        .flatten();
+        .fold(HashMap::<i32, HashSet<_>>::new(), |mut acc, v| {
+            acc.entry(v.1.year())
+                .and_modify(|entries| {
+                    entries.insert(v.clone());
+                })
+                .or_insert(HashSet::from([v]));
+            acc
+        });
 
-    log::info!("Writing all legs");
-    let key = format!("{DATABASE_ROOT}all.csv");
-    write_csv(legs, &key, client).await?;
-    log::info!("Written {key}");
+    // run tasks by year
+    let private_jets = &private_jets;
+    let models = &models;
+    let mut metadata = HashMap::<i32, Metadata>::new();
+    for (year, completed) in by_year {
+        let tasks = completed.iter().map(|(icao_number, date)| async move {
+            let r = read::<LegOut>(icao_number, *date, client).await;
+            if let Err(_) = r {
+                etl_task(icao_number, *date, private_jets, models, Some(client)).await?;
+                return read::<LegOut>(icao_number, *date, client).await;
+            } else {
+                r
+            }
+        });
+
+        log::info!("Gettings all legs for year={year}");
+        let legs = futures::stream::iter(tasks)
+            .buffered(100)
+            .try_collect::<Vec<_>>()
+            .await?
+            .into_iter()
+            .flatten();
+
+        log::info!("Writing all legs for year={year}");
+        let key = format!("{DATABASE_ROOT}all/year={year}/data.csv");
+        write_csv(legs, &key, client).await?;
+        log::info!("Written {key}");
+        metadata.insert(
+            year,
+            Metadata {
+                icao_months_to_process: private_jets.len() * 12,
+                icao_months_processed: completed.len(),
+                url: format!("https://fra1.digitaloceanspaces.com/{key}"),
+            },
+        );
+    }
 
     let key = format!("{DATABASE_ROOT}status.json");
-    write_json(
-        client,
-        Metadata {
-            icao_months_to_process: required,
-            icao_months_processed: completed.len(),
-        },
-        &key,
-    )
-    .await?;
+    write_json(client, metadata, &key).await?;
     log::info!("status written");
     Ok(())
 }
@@ -286,5 +312,5 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .try_collect::<Vec<_>>()
         .await?;
 
-    aggregate(private_jets, required, client.unwrap()).await
+    aggregate(private_jets, client.unwrap()).await
 }
