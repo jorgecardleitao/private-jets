@@ -7,7 +7,95 @@ This repository contains a CLI application to analyze flights of private jets.
 It is supported by an S3 Blob storage container for caching data, thereby
 reducing its impact to [https://adsbexchange.com/](https://adsbexchange.com/).
 
-## Risk and impact
+## How to use the data
+
+This solution's data is publicly available over https and s3 protocols.
+The data format is always either CSV or JSON as it offers the greatest compatibility.
+
+### Examples
+
+The following examples use [`duckDB`](https://duckdb.org/).
+Similar functionality can be obtained with other query engines.
+
+#### Number of legs and emissions
+
+```python
+import duckdb
+
+# Path to all legs
+# Not all data is still available - use years that are completed.
+# See https://private-jets.fra1.digitaloceanspaces.com/leg/v1/status.json
+# for the current status
+LEGS_PATH = [
+    #"https://private-jets.fra1.digitaloceanspaces.com/leg/v1/all/year=2019/data.csv",
+    "https://private-jets.fra1.digitaloceanspaces.com/leg/v1/all/year=2020/data.csv",
+    #"https://private-jets.fra1.digitaloceanspaces.com/leg/v1/all/year=2021/data.csv",
+    #"https://private-jets.fra1.digitaloceanspaces.com/leg/v1/all/year=2022/data.csv",
+    "https://private-jets.fra1.digitaloceanspaces.com/leg/v1/all/year=2023/data.csv",
+]
+
+print(duckdb.sql(
+    f"""
+SELECT 
+    year
+    , SUM(distance) AS "distance_km"
+    , SUM(duration) AS "flying_time_km"
+    , COUNT(*) AS "legs"
+    , SUM(emissions_kg) / 1000 / 1000 / 1000 AS "emissions_mt"
+FROM read_csv_auto({LEGS_PATH}, header = true)
+GROUP BY year
+ORDER BY year
+"""
+))
+```
+
+### Datasets
+
+#### DATASET-1 - List of private jets
+
+> `https://private-jets.fra1.digitaloceanspaces.com/private_jets/all.csv`
+
+#### DATASET-2 - Positions of an ICAO number (as per ADS-B exchange)
+
+> `https://private-jets.fra1.digitaloceanspaces.com/globe_history/{date}/trace_full_{icao_number}.json`
+
+where `{icao_number}` is the icao number in lower case (e.g. `06a0d8`) and `{date}` the date in ISO 8601 (e.g. `2019-01-01`).
+
+This dataset is a one-to-one (binary) representation of ADS-B exchange history endpoint.
+
+#### DATASET-3 - Positions of an ICAO number by month
+
+> `https://private-jets.fra1.digitaloceanspaces.com/position/icao_number={icao_number}/month={month}/data.json`
+
+where `{icao_number}` is the icao number in lower case (e.g. `06a0d8`) and `{month}` the
+month in ISO 8601 (e.g. `2019-01`).
+
+This dataset is an aggregation of `DATASET-2` over months.
+
+#### DATASET-4 - Legs of an ICAO number by month
+
+> `https://private-jets.fra1.digitaloceanspaces.com/leg/v1/data/icao_number={icao_number}/month={month}/data.csv`
+
+where `{icao_number}` is the icao number in lower case (e.g. `06a0d8`) and `{month}` the
+month in ISO 8601 (e.g. `2019-01`).
+
+This is the result of applying the methodology `M-4` to the dataset `DATASET-3`.
+
+#### DATASET-5 - Legs of an ICAO number by year
+
+> `https://private-jets.fra1.digitaloceanspaces.com/leg/v1/all/year={year}/data.csv`
+
+where `{year}` is the year in ISO 8601 (e.g. `2019`).
+
+This dataset is an aggregation of `DATASET-4` over months and aircrafts.
+
+> `https://private-jets.fra1.digitaloceanspaces.com/leg/v1/status.json`
+
+Exposes the current status of this calculation, as not all years are completed yet.
+
+## How to use the code
+
+### Risk and impact
 
 This code performs API calls to [https://adsbexchange.com/](https://adsbexchange.com/),
 a production website of a company.
@@ -26,7 +114,7 @@ All cached data is available on S3 blob storage at endpoint
 
 and has anonymous and public read permissions.
 
-## How to use
+### How to use
 
 This repository contains both a Rust library and a set of [`examples/`](./examples) used
 to perform actual calculations. To use one of such examples:
