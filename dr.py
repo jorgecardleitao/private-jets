@@ -65,6 +65,24 @@ COPY (
         SELECT *
         FROM '{LEGS}'
     )
+    , "count" AS (
+        SELECT tail_number,year,to_airport, COUNT(*) AS count
+        FROM "legs"
+        GROUP BY tail_number,year,to_airport
+    )
+    , "ranked" AS (
+        SELECT
+        tail_number,year,to_airport,
+        row_number() over (partition by tail_number, year order by count desc) as rank
+        FROM "count"
+    )
+    , "top5" AS (
+        SELECT * FROM "ranked" WHERE rank <= 5
+    )
+    , "top5_grouped" AS (
+        SELECT tail_number, year, list(to_airport) as top_destinations FROM "top5" 
+        GROUP BY tail_number, year
+    )
     , "counts" AS (
         SELECT
             tail_number
@@ -78,8 +96,9 @@ COPY (
         GROUP BY tail_number, year
     )
     SELECT 
-        "counts".*
-    FROM "counts"
+        "counts".*, "top5_grouped"."top_destinations"
+    FROM "counts", "top5_grouped"
+    WHERE "counts".tail_number = "top5_grouped".tail_number AND "counts".year = "top5_grouped".year
     ORDER BY "counts".tail_number, "counts".year
 )
 TO 'results/dr_by_tail_number.csv' (HEADER, DELIMITER ',');
@@ -94,6 +113,24 @@ COPY (
         SELECT *
         FROM 'results/dr_by_tail_number.csv'
     )
+    , "count" AS (
+        SELECT year,to_airport, COUNT(*) AS count
+        FROM '{LEGS}'
+        GROUP BY year,to_airport
+    )
+    , "ranked" AS (
+        SELECT
+        year,to_airport,
+        row_number() over (partition by year order by count desc) as rank
+        FROM "count"
+    )
+    , "top10" AS (
+        SELECT * FROM "ranked" WHERE rank <= 10
+    )
+    , "top10_grouped" AS (
+        SELECT year, list(to_airport) as top_destinations FROM "top10" 
+        GROUP BY year
+    )
     , "counts" AS (
         SELECT
             year
@@ -106,8 +143,9 @@ COPY (
         GROUP BY year
     )
     SELECT 
-        "counts".*
-    FROM "counts"
+        "counts".*, "top10_grouped"."top_destinations"
+    FROM "counts", "top10_grouped"
+    WHERE "counts".year = "top10_grouped".year
     ORDER BY "counts".year
 )
 TO 'results/dr_by_year.csv' (HEADER, DELIMITER ',');
