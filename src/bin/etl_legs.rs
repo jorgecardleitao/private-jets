@@ -5,7 +5,7 @@ use std::{
 };
 
 use clap::Parser;
-use flights::{Aircraft, AircraftModels, BlobStorageProvider, Leg};
+use flights::{Aircraft, AircraftModels, Airport, BlobStorageProvider, Leg};
 use futures::{StreamExt, TryStreamExt};
 use itertools::Itertools;
 use serde::{de::DeserializeOwned, Serialize};
@@ -24,8 +24,10 @@ struct LegOut {
     end: time::OffsetDateTime,
     from_lat: f64,
     from_lon: f64,
+    from_airport: String,
     to_lat: f64,
     to_lon: f64,
+    to_airport: String,
     distance: f64,
     duration: f64,
     commercial_emissions_kg: usize,
@@ -69,6 +71,7 @@ fn transform<'a>(
     legs: Vec<Leg>,
     private_jets: &'a HashMap<Arc<str>, Aircraft>,
     models: &'a AircraftModels,
+    airports: &'a [Airport],
 ) -> impl Iterator<Item = LegOut> + 'a {
     legs.into_iter().map(|leg| {
         let aircraft = private_jets.get(icao_number).expect(icao_number);
@@ -79,8 +82,10 @@ fn transform<'a>(
             end: leg.to().datetime(),
             from_lat: leg.from().latitude(),
             from_lon: leg.from().longitude(),
+            from_airport: flights::closest(leg.from().pos(), airports).name,
             to_lat: leg.to().latitude(),
             to_lon: leg.to().longitude(),
+            to_airport: flights::closest(leg.to().pos(), airports).name,
             distance: leg.distance(),
             duration: leg.duration().as_seconds_f64() / 60.0 / 60.0,
             commercial_emissions_kg: flights::emissions(
@@ -164,6 +169,7 @@ async fn etl_task(
     month: time::Date,
     private_jets: &HashMap<Arc<str>, Aircraft>,
     models: &AircraftModels,
+    airports: &[Airport],
     client: Option<&flights::fs_s3::ContainerClient>,
 ) -> Result<(), Box<dyn Error>> {
     // extract
@@ -174,6 +180,7 @@ async fn etl_task(
         flights::legs(positions.into_iter()),
         &private_jets,
         &models,
+        &airports,
     );
     // load
     write(&icao_number, month, legs, client.unwrap()).await
@@ -181,10 +188,10 @@ async fn etl_task(
 
 async fn aggregate(
     private_jets: Vec<Aircraft>,
+    models: &AircraftModels,
+    airports: &[Airport],
     client: &flights::fs_s3::ContainerClient,
 ) -> Result<(), Box<dyn Error>> {
-    let models = flights::load_private_jet_models()?;
-
     let private_jets = private_jets
         .into_iter()
         .map(|a| (a.icao_number.clone(), a))
@@ -214,13 +221,7 @@ async fn aggregate(
     let mut metadata = HashMap::<i32, Metadata>::new();
     for (year, completed) in by_year {
         let tasks = completed.iter().map(|(icao_number, date)| async move {
-            let r = read::<LegOut>(icao_number, *date, client).await;
-            if let Err(_) = r {
-                etl_task(icao_number, *date, private_jets, models, Some(client)).await?;
-                return read::<LegOut>(icao_number, *date, client).await;
-            } else {
-                r
-            }
+            read::<LegOut>(icao_number, *date, client).await
         });
 
         log::info!("Gettings all legs for year={year}");
@@ -240,7 +241,7 @@ async fn aggregate(
             Metadata {
                 icao_months_to_process: private_jets.len() * 12,
                 icao_months_processed: completed.len(),
-                url: format!("https://fra1.digitaloceanspaces.com/{key}"),
+                url: format!("https://private-jets.fra1.digitaloceanspaces.com/{key}"),
             },
         );
     }
@@ -263,8 +264,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let client = flights::fs_s3::client(cli.access_key, cli.secret_access_key).await;
 
     let models = flights::load_private_jet_models()?;
+    let airports = flights::airports_cached().await?;
 
-    let months = (2020..2024).cartesian_product(1..=12u8).count();
+    let months = (2019..2024).cartesian_product(1..=12u8).count();
     let private_jets = private_jets(Some(&client)).await?;
     let relevant_jets = private_jets
         .clone()
@@ -302,9 +304,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let client = Some(&client);
     let relevant_jets = &relevant_jets;
     let models = &models;
+    let airports = &airports;
 
     let tasks = todo.into_iter().map(|(icao_number, month)| async move {
-        etl_task(icao_number, *month, &relevant_jets, &models, client).await
+        etl_task(
+            icao_number,
+            *month,
+            &relevant_jets,
+            &models,
+            &airports,
+            client,
+        )
+        .await
     });
 
     let _ = futures::stream::iter(tasks)
@@ -312,5 +323,5 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .try_collect::<Vec<_>>()
         .await?;
 
-    aggregate(private_jets, client.unwrap()).await
+    aggregate(private_jets, &models, &airports, client.unwrap()).await
 }

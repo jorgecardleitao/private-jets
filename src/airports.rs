@@ -36,7 +36,7 @@ pub async fn airports_cached() -> Result<Vec<Airport>, Box<dyn std::error::Error
             let record: Airport = r.unwrap();
             record
         })
-        .filter(|airport| airport.type_ != "heliport")
+        .filter(|airport| airport.type_ == "medium_airport" || airport.type_ == "large_airport")
         .collect::<Vec<_>>();
 
     Ok(data)
