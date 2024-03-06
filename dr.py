@@ -137,8 +137,8 @@ COPY (
             , SUM(flying_time_hour) AS "flying_time_hour"
             , SUM(distance_km) AS "distance_km"
             , SUM(emissions_kg) AS "emissions_kg"
-            , COUNT(*) AS "legs"
-            , SUM("short_legs") AS "short_legs"
+            , SUM(legs) AS "legs"
+            , SUM(short_legs) AS "short_legs"
         FROM 'legs'
         GROUP BY year
     )
