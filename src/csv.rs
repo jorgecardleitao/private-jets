@@ -12,7 +12,7 @@ pub fn load<D: for<'de> Deserialize<'de>, PK: Fn(D) -> (String, D)>(
     let data = std::fs::read(path)?;
 
     let mut rdr = csv::ReaderBuilder::new()
-        .delimiter(b'\t')
+        .delimiter(b',')
         .from_reader(std::io::Cursor::new(data));
     let data = rdr
         .deserialize()
