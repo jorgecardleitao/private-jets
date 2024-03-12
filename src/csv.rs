@@ -11,17 +11,26 @@ pub fn load<D: for<'de> Deserialize<'de>, PK: Fn(D) -> (String, D)>(
 ) -> Result<HashMap<String, D>, Box<dyn Error>> {
     let data = std::fs::read(path)?;
 
-    let mut rdr = csv::ReaderBuilder::new()
+    let data = deserialize(&data).map(map).collect();
+    Ok(data)
+}
+
+pub fn serialize(items: impl Iterator<Item = impl serde::Serialize>) -> Vec<u8> {
+    let mut wtr = csv::Writer::from_writer(vec![]);
+    for leg in items {
+        wtr.serialize(leg).unwrap()
+    }
+    wtr.into_inner().unwrap()
+}
+
+pub fn deserialize<'a, D: serde::de::DeserializeOwned + 'a>(
+    data: &'a [u8],
+) -> impl Iterator<Item = D> + 'a {
+    let rdr = csv::ReaderBuilder::new()
         .delimiter(b',')
         .from_reader(std::io::Cursor::new(data));
-    let data = rdr
-        .deserialize()
-        .into_iter()
-        .map(|r| {
-            let record: D = r.unwrap();
-            record
-        })
-        .map(map)
-        .collect();
-    Ok(data)
+    rdr.into_deserialize().into_iter().map(|r| {
+        let record: D = r.unwrap();
+        record
+    })
 }

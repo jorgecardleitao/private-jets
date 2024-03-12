@@ -1,10 +1,10 @@
 #[forbid(unsafe_code)]
-mod aircraft_db;
+pub mod aircraft;
 mod aircraft_models;
 mod aircraft_owners;
 mod airports;
 mod country;
-mod csv;
+pub mod csv;
 mod emissions;
 pub(crate) mod fs;
 pub mod fs_s3;
@@ -15,7 +15,6 @@ mod owners;
 mod private_emissions;
 mod trace_month;
 
-pub use aircraft_db::*;
 pub use aircraft_models::*;
 pub use aircraft_owners::*;
 pub use airports::*;
