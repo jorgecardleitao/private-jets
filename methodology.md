@@ -81,12 +81,14 @@ flight in first class.
 
 Details are available in the source code, [src/emissions.rs](./src/emissions.rs).
 
-### M-6: Consumption of private jet
+### M-6: Consumption of private jet model
 
 This was performed by a human, and consisted:
 * access websites of companies that sell private jets
 * extract the consumption in gallons per hour (GPH) of each private jet model
-* store it in a table with the jet's model, GPH, source and date of extraction, at [`./src/consumption.csv`](./src/consumption.csv).
+* store it in a table with the jet's model, GPH, source and date of extraction, at [`./src/models.csv`](./src/models.csv).
+* When multiple GPHs are reported, e.g. due to models variants or conflicting sources,
+  the average over all sources was used. This is done automatically.
 
 ### M-7: Emissions of a private jet over a leg
 

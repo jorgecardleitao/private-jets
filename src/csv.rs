@@ -1,14 +1,14 @@
-use std::{collections::HashMap, error::Error};
+use std::{collections::HashMap, error::Error, hash::Hash};
 
 use serde::Deserialize;
 
 /// Loads a CSV from disk into a HashMap based on the primary key of the type
 /// # Error
 /// Errors if the file cannot be read
-pub fn load<D: for<'de> Deserialize<'de>, PK: Fn(D) -> (String, D)>(
+pub(crate) fn load<H: Hash + Eq, D: for<'de> Deserialize<'de>, PK: Fn(D) -> (H, D)>(
     path: &str,
     map: PK,
-) -> Result<HashMap<String, D>, Box<dyn Error>> {
+) -> Result<HashMap<H, D>, Box<dyn Error>> {
     let data = std::fs::read(path)?;
 
     let data = deserialize(&data).map(map).collect();
