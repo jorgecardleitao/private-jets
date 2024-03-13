@@ -5,11 +5,12 @@ use std::{
 };
 
 use clap::Parser;
-use flights::{Aircraft, AircraftModels, Airport, BlobStorageProvider, Leg};
+use flights::{aircraft, AircraftModels, Airport, BlobStorageProvider, Leg};
 use futures::{StreamExt, TryStreamExt};
 use itertools::Itertools;
 use serde::{de::DeserializeOwned, Serialize};
 use simple_logger::SimpleLogger;
+use time::macros::date;
 
 static DATABASE_ROOT: &'static str = "leg/v1/";
 static DATABASE: &'static str = "leg/v1/data/";
@@ -69,7 +70,7 @@ async fn write_csv<B: BlobStorageProvider>(
 fn transform<'a>(
     icao_number: &'a Arc<str>,
     legs: Vec<Leg>,
-    private_jets: &'a HashMap<Arc<str>, Aircraft>,
+    private_jets: &'a HashMap<Arc<str>, aircraft::Aircraft>,
     models: &'a AircraftModels,
     airports: &'a [Airport],
 ) -> impl Iterator<Item = LegOut> + 'a {
@@ -136,14 +137,13 @@ async fn read<D: DeserializeOwned>(
 
 async fn private_jets(
     client: Option<&flights::fs_s3::ContainerClient>,
-) -> Result<Vec<Aircraft>, Box<dyn std::error::Error>> {
+) -> Result<Vec<aircraft::Aircraft>, Box<dyn std::error::Error>> {
     // load datasets to memory
-    let aircrafts = flights::load_aircrafts(client).await?;
+    let aircrafts = aircraft::read(date!(2023 - 11 - 06), client).await?;
     let models = flights::load_private_jet_models()?;
 
     Ok(aircrafts
         .into_iter()
-        // its primary use is to be a private jet
         .filter_map(|(_, a)| models.contains_key(&a.model).then_some(a))
         .collect())
 }
@@ -167,7 +167,7 @@ struct Cli {
 async fn etl_task(
     icao_number: &Arc<str>,
     month: time::Date,
-    private_jets: &HashMap<Arc<str>, Aircraft>,
+    private_jets: &HashMap<Arc<str>, aircraft::Aircraft>,
     models: &AircraftModels,
     airports: &[Airport],
     client: Option<&flights::fs_s3::ContainerClient>,
@@ -187,7 +187,7 @@ async fn etl_task(
 }
 
 async fn aggregate(
-    private_jets: Vec<Aircraft>,
+    private_jets: Vec<aircraft::Aircraft>,
     models: &AircraftModels,
     airports: &[Airport],
     client: &flights::fs_s3::ContainerClient,

@@ -1,12 +1,16 @@
+//! Contains the implementation to extract the database of all aircrafts available in ADS-B exchange
+//! The database contains "current" status.
 use std::error::Error;
-/// Contains the implementation to extract the database of all aircrafts available in ADS-B exchange
 use std::{collections::HashMap, sync::Arc};
 
 use async_recursion::async_recursion;
 use reqwest;
 use serde::{Deserialize, Serialize};
 use serde_json;
+use time::Date;
 
+use crate::csv;
+use crate::fs::BlobStorageProvider;
 use crate::{fs, fs_s3, CountryIcaoRanges};
 
 /// [`HashMap`] between tail number (e.g. "OY-TWM") and an [`Aircraft`]
@@ -27,17 +31,17 @@ pub struct Aircraft {
     pub country: Option<Arc<str>>,
 }
 
-static DATABASE: &'static str = "db-20231106";
-
-fn cache_file_path(prefix: &str) -> String {
-    format!("{DATABASE}/{prefix}.json")
+fn file_path(date: Date) -> String {
+    format!("aircraft/db/date={date}/data.csv")
 }
 
 fn url(prefix: &str) -> String {
-    format!("https://globe.adsbexchange.com/{DATABASE}/{prefix}.js")
+    format!("https://globe.adsbexchange.com/db-current/{prefix}.js")
 }
 
-async fn aircrafts(prefix: &str) -> Result<Vec<u8>, reqwest::Error> {
+/// Returns the current aircrafts from adsbexchange.com
+/// on a specific prefix of ICAO.
+async fn get_db_current(prefix: &str) -> Result<Vec<u8>, reqwest::Error> {
     Ok(reqwest::get(url(prefix))
         .await?
         .bytes()
@@ -46,27 +50,10 @@ async fn aircrafts(prefix: &str) -> Result<Vec<u8>, reqwest::Error> {
 }
 
 /// Returns a map between tail number (e.g. "OYTWM": "45D2ED")
-/// Caches to disk or remote storage the first time it is executed
-async fn aircrafts_prefixed(
+async fn db_current(
     prefix: String,
-    client: Option<&fs_s3::ContainerClient>,
 ) -> Result<(String, HashMap<String, Vec<Option<String>>>), String> {
-    let blob_name = cache_file_path(&prefix);
-    let fetch = aircrafts(&prefix);
-
-    let data = match client {
-        Some(client) => fs::cached(&blob_name, fetch, client, fs::CacheAction::ReadFetchWrite)
-            .await
-            .map_err(|e| e.to_string())?,
-        None => fs::cached(
-            &blob_name,
-            fetch,
-            &fs::LocalDisk,
-            fs::CacheAction::ReadFetchWrite,
-        )
-        .await
-        .map_err(|e| e.to_string())?,
-    };
+    let data = get_db_current(&prefix).await.map_err(|e| e.to_string())?;
 
     Ok((
         prefix,
@@ -77,7 +64,6 @@ async fn aircrafts_prefixed(
 #[async_recursion]
 async fn children<'a: 'async_recursion>(
     entries: &mut HashMap<String, Vec<Option<String>>>,
-    client: Option<&'a fs_s3::ContainerClient>,
 ) -> Result<Vec<(String, HashMap<String, Vec<Option<String>>>)>, String> {
     let Some(entries) = entries.remove("children") else {
         return Ok(Default::default());
@@ -87,51 +73,42 @@ async fn children<'a: 'async_recursion>(
         entries
             .into_iter()
             .map(|x| x.unwrap())
-            .map(|x| aircrafts_prefixed(x, client)),
+            .map(|x| db_current(x)),
     )
     .await
     .map_err(|e| e.to_string())?;
 
     // recurse over all children
-    let mut _children = futures::future::try_join_all(
-        entries
-            .iter_mut()
-            .map(|entry| children(&mut entry.1, client)),
-    )
-    .await?;
+    let mut _children =
+        futures::future::try_join_all(entries.iter_mut().map(|entry| children(&mut entry.1)))
+            .await?;
 
     entries.extend(_children.into_iter().flatten());
     Ok(entries)
 }
 
-/// Returns [`Aircrafts`] known in [ADS-B exchange](https://globe.adsbexchange.com) as of 2023-11-06.
+/// Returns [`Aircrafts`] known in [ADS-B exchange](https://globe.adsbexchange.com) as of now.
 /// It returns ~0.5m aircrafts
 /// # Implementation
 /// This function is idempotent but not pure: it caches every https request either to disk or remote storage
 /// to not penalize adsbexchange.com
-pub async fn load_aircrafts(
-    client: Option<&fs_s3::ContainerClient>,
-) -> Result<Aircrafts, Box<dyn Error>> {
+async fn extract_aircrafts() -> Result<Vec<Aircraft>, Box<dyn Error>> {
     let country_ranges = CountryIcaoRanges::new();
 
     let prefixes = (b'A'..=b'F').chain(b'0'..b'9');
     let prefixes = prefixes.map(|x| std::str::from_utf8(&[x]).unwrap().to_string());
 
-    let mut entries =
-        futures::future::try_join_all(prefixes.map(|x| aircrafts_prefixed(x, client))).await?;
+    let mut entries = futures::future::try_join_all(prefixes.map(|x| db_current(x))).await?;
 
-    let mut _children = futures::future::try_join_all(
-        entries
-            .iter_mut()
-            .map(|entry| children(&mut entry.1, client)),
-    )
-    .await?;
+    let mut _children =
+        futures::future::try_join_all(entries.iter_mut().map(|entry| children(&mut entry.1)))
+            .await?;
 
     entries.extend(_children.into_iter().flatten());
 
     Ok(entries
         .into_iter()
-        .fold(HashMap::default(), |mut acc, (prefix, values)| {
+        .fold(vec![], |mut acc, (prefix, values)| {
             let items = values
                 .into_iter()
                 .map(|(k, v)| (format!("{prefix}{k}"), v))
@@ -141,20 +118,56 @@ pub async fn load_aircrafts(
                     let model = std::mem::take(&mut data[3])?;
                     let country = country_ranges.country(&icao_number).unwrap();
 
-                    Some((
-                        tail_number.clone(),
-                        Aircraft {
-                            icao_number: icao_number.to_ascii_lowercase().into(),
-                            tail_number,
-                            type_designator,
-                            model,
-                            country: country.cloned(),
-                        },
-                    ))
+                    Some(Aircraft {
+                        icao_number: icao_number.to_ascii_lowercase().into(),
+                        tail_number,
+                        type_designator,
+                        model,
+                        country: country.cloned(),
+                    })
                 });
             acc.extend(items);
             acc
         }))
+}
+
+async fn load(
+    aircraft: Vec<Aircraft>,
+    blob_name: &str,
+    client: Option<&fs_s3::ContainerClient>,
+) -> Result<(), Box<dyn Error>> {
+    let contents = csv::serialize(aircraft.into_iter());
+    match client {
+        Some(client) => client.put(blob_name, contents).await?,
+        None => fs::LocalDisk.put(blob_name, contents).await?,
+    };
+    Ok(())
+}
+
+pub async fn etl_aircrafts(client: Option<&fs_s3::ContainerClient>) -> Result<(), Box<dyn Error>> {
+    let now = time::OffsetDateTime::now_utc().date();
+    let blob_name = file_path(now);
+    let aircraft = extract_aircrafts().await?;
+    load(aircraft, &blob_name, client).await
+}
+
+pub async fn read(
+    date: Date,
+    client: Option<&fs_s3::ContainerClient>,
+) -> Result<Aircrafts, String> {
+    let path = file_path(date);
+    let data = match client {
+        Some(client) => client.maybe_get(&path).await.map_err(|e| e.to_string())?,
+        None => fs::LocalDisk
+            .maybe_get(&path)
+            .await
+            .map_err(|e| e.to_string())?,
+    };
+    let data = data.ok_or_else(|| format!("File {path} does not exist"))?;
+
+    Ok(super::csv::deserialize(&data)
+        .map(|x: Aircraft| (x.tail_number.clone(), x))
+        .collect())
 }
 
 #[cfg(test)]
@@ -163,15 +176,8 @@ mod test {
 
     #[tokio::test]
     async fn work() {
-        assert_eq!(
-            aircrafts_prefixed("A0".to_string(), None)
-                .await
-                .unwrap()
-                .1
-                .len(),
-            24465
-        );
-        // although important, this is an expensive call to run on every test => only run ad-hoc
-        //assert_eq!(aircrafts().unwrap().len(), 463747);
+        assert!(db_current("A0".to_string()).await.unwrap().1.len() > 20000);
+
+        //assert!(extract_aircrafts().await.unwrap().len() > 400000);
     }
 }

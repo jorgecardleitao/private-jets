@@ -3,8 +3,9 @@ use std::error::Error;
 use clap::Parser;
 use simple_logger::SimpleLogger;
 
+use flights::aircraft;
+use flights::load_private_jet_models;
 use flights::BlobStorageProvider;
-use flights::{load_aircrafts, load_private_jet_models};
 
 #[derive(clap::ValueEnum, Debug, Clone)]
 enum Backend {
@@ -15,6 +16,19 @@ enum Backend {
 const ABOUT: &'static str = r#"Exports the database of all worldwide aircrafts whose primary use is to be a private jet to "data.csv"
 and its description at `description.md` (in disk).
 If `access_key` and `secret_access_key` is provided, data is written to the public blob storage instead.
+"#;
+
+const SPECIFICATION: &'static str = r#"This dataset was created according to
+[this methodology](https://github.com/jorgecardleitao/private-jets/blob/main/methodology.md).
+
+It contains 3 columns:
+* `icao_number`: The transponder identifier
+* `tail_number`: The tail number of the aircraft
+* `model`: The icao number of the aircraft type. It is only one of the ones
+  identified as private jet according to the methodology.
+* `country`: The country (ISO 3166) of registration
+
+Both `icao_number` and `tail_number` are unique keys (independently).
 "#;
 
 #[derive(Parser, Debug)]
@@ -48,33 +62,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
         (Backend::Remote, _, _) => Some(flights::fs_s3::anonymous_client().await),
     };
 
+    // create db of all aircrafts as of now
+    aircraft::etl_aircrafts(client.as_ref()).await?;
+
     // load datasets to memory
-    let aircrafts = load_aircrafts(client.as_ref()).await?;
+    let date = time::OffsetDateTime::now_utc().date();
+    let aircrafts = aircraft::read(date, client.as_ref()).await?;
     let models = load_private_jet_models()?;
 
     let private_jets = aircrafts
         .values()
         // its primary use is to be a private jet
-        .filter(|a| models.contains_key(&a.model))
-        .collect::<Vec<_>>();
+        .filter(|a| models.contains_key(&a.model));
 
-    let mut wtr = csv::Writer::from_writer(vec![]);
-    for jet in private_jets {
-        wtr.serialize(jet).unwrap()
-    }
-    let data_csv = wtr.into_inner().unwrap();
-    let specification_md = r#"This dataset was created according to
-[this methodology](https://github.com/jorgecardleitao/private-jets/blob/main/methodology.md).
-
-It contains 3 columns:
-* `icao_number`: The transponder identifier
-* `tail_number`: The tail number of the aircraft
-* `model`: The icao number of the aircraft type. It is only one of the ones
-  identified as private jet according to the methodology.
-* `country`: The country (ISO 3166) of registration
-
-Both `icao_number` and `tail_number` are unique keys (independently).
-"#;
+    let data_csv = flights::csv::serialize(private_jets);
 
     if client.as_ref().map(|c| c.can_put()).unwrap_or(false) {
         let client = client.unwrap();
@@ -82,12 +83,12 @@ Both `icao_number` and `tail_number` are unique keys (independently).
         client
             .put(
                 "private_jets/description.md",
-                specification_md.as_bytes().to_vec(),
+                SPECIFICATION.as_bytes().to_vec(),
             )
             .await?;
     } else {
         std::fs::write("data.csv", data_csv)?;
-        std::fs::write("description.md", specification_md.as_bytes())?;
+        std::fs::write("description.md", SPECIFICATION.as_bytes())?;
     }
     Ok(())
 }

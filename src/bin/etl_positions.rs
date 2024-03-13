@@ -4,8 +4,9 @@ use clap::Parser;
 use futures::StreamExt;
 use itertools::Itertools;
 use simple_logger::SimpleLogger;
+use time::macros::date;
 
-use flights::{existing_months_positions, Aircraft};
+use flights::{aircraft, existing_months_positions};
 
 const ABOUT: &'static str = r#"Builds the database of all private jet positions from 2023"#;
 
@@ -26,20 +27,20 @@ struct Cli {
 async fn private_jets(
     client: Option<&flights::fs_s3::ContainerClient>,
     country: Option<&str>,
-) -> Result<Vec<Aircraft>, Box<dyn std::error::Error>> {
+) -> Result<Vec<aircraft::Aircraft>, Box<dyn std::error::Error>> {
     // load datasets to memory
-    let aircrafts = flights::load_aircrafts(client).await?;
+    let aircrafts = aircraft::read(date!(2023 - 11 - 06), client).await?;
     let models = flights::load_private_jet_models()?;
 
     Ok(aircrafts
         .into_iter()
         // its primary use is to be a private jet
-        .filter(|(_, a)| {
+        .filter_map(|(_, a)| models.contains_key(&a.model).then_some(a))
+        .filter(|a| {
             country
                 .map(|country| a.country.as_deref() == Some(country))
                 .unwrap_or(true)
         })
-        .filter_map(|(_, a)| models.contains_key(&a.model).then_some(a))
         .collect())
 }
 

@@ -26,20 +26,10 @@ jobs:
           files: lcov.info
           fail_ci_if_error: true
 
-  run:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust
-        run: rustup toolchain install stable
-      - uses: Swatinem/rust-cache@v2
-      - name: Run etl
-        run: cargo run --features="build-binary" --bin etl_private_jets
-
   build-and-publish-binaries:
     permissions: write-all
     name: Publish binaries (${{ matrix.target }})
-    needs: [run]
+    needs: [test]
     if: github.event_name == 'release'
     runs-on: ubuntu-latest
     strategy:

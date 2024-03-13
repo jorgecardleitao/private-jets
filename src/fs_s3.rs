@@ -79,7 +79,7 @@ async fn put(client: &ContainerClient, blob_name: &str, content: Vec<u8>) -> Res
     let content_type = blob_name
         .ends_with(".json")
         .then_some("application/json")
-        .unwrap_or("application/csv");
+        .unwrap_or("text/csv");
 
     client
         .client
