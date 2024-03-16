@@ -4,7 +4,7 @@ use futures::{StreamExt, TryStreamExt};
 use time::Date;
 
 use super::Position;
-use crate::{cached_aircraft_positions, fs, fs_s3, BlobStorageProvider};
+use crate::{cached_aircraft_positions, fs, BlobStorageProvider};
 
 static DATABASE: &'static str = "position/";
 
@@ -66,7 +66,7 @@ fn get_month(current: &time::Date) -> (time::Date, time::Date) {
 pub async fn month_positions(
     month: time::Date,
     icao_number: &str,
-    client: Option<&fs_s3::ContainerClient>,
+    client: Option<&dyn BlobStorageProvider>,
 ) -> Result<Vec<Position>, std::io::Error> {
     log::info!("month_positions({month},{icao_number})");
     assert_eq!(month.day(), 1);
@@ -84,7 +84,7 @@ pub async fn month_positions(
         Ok(bytes)
     };
 
-    let r = fs::cached_call(&blob_name, fetch, action, client).await?;
+    let r = fs::cached_call(&blob_name, fetch, client, action).await?;
     Ok(serde_json::from_slice(&r)?)
 }
 
@@ -98,7 +98,7 @@ pub async fn aircraft_positions(
     from: Date,
     to: Date,
     icao_number: &str,
-    client: Option<&fs_s3::ContainerClient>,
+    client: Option<&dyn BlobStorageProvider>,
 ) -> Result<Vec<Position>, Box<dyn Error>> {
     let dates = super::DateIter {
         from,
@@ -119,7 +119,7 @@ pub async fn aircraft_positions(
 
     let positions = futures::stream::iter(tasks)
         // limit concurrent tasks
-        .buffered(1)
+        .buffered(200)
         .try_collect::<Vec<_>>()
         .await?;
 
@@ -133,9 +133,9 @@ pub async fn aircraft_positions(
 }
 
 /// Returns the set of (icao number, month) that exist in the container prefixed by `dataset`
-pub async fn existing<B: BlobStorageProvider>(
+pub async fn existing(
     prefix: &str,
-    client: &B,
+    client: &dyn BlobStorageProvider,
 ) -> Result<HashSet<(Arc<str>, time::Date)>, std::io::Error> {
     Ok(client
         .list(prefix)

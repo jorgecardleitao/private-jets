@@ -8,7 +8,7 @@ use time::Date;
 use time::OffsetDateTime;
 
 use super::Position;
-use crate::{fs, fs_s3};
+use crate::{fs, BlobStorageProvider};
 
 fn last_2(icao: &str) -> &str {
     let bytes = icao.as_bytes();
@@ -119,13 +119,13 @@ async fn globe_history(icao: &str, date: &time::Date) -> Result<Vec<u8>, std::io
 async fn globe_history_cached(
     icao: &str,
     date: &time::Date,
-    client: Option<&fs_s3::ContainerClient>,
+    client: Option<&dyn BlobStorageProvider>,
 ) -> Result<Vec<u8>, std::io::Error> {
     let blob_name = cache_file_path(icao, date);
     let action = fs::CacheAction::from_date(&date);
     let fetch = globe_history(&icao, date);
 
-    Ok(fs::cached_call(&blob_name, fetch, action, client).await?)
+    Ok(fs::cached_call(&blob_name, fetch, client, action).await?)
 }
 
 fn compute_trace(data: &[u8]) -> Result<(f64, Vec<serde_json::Value>), std::io::Error> {
@@ -133,13 +133,17 @@ fn compute_trace(data: &[u8]) -> Result<(f64, Vec<serde_json::Value>), std::io::
     let Some(obj) = value.as_object_mut() else {
         return Ok((0.0, vec![]));
     };
-    let timestamp = obj.get("timestamp").unwrap().as_f64().unwrap();
+    let Some(timestamp) = obj.get("timestamp") else {
+        return Ok((0.0, vec![]));
+    };
+    let timestamp = timestamp.as_f64().unwrap();
     let Some(obj) = obj.get_mut("trace") else {
         return Ok((0.0, vec![]));
     };
     let Some(trace) = obj.as_array_mut() else {
         return Ok((0.0, vec![]));
     };
+
     Ok((timestamp, std::mem::take(trace)))
 }
 
@@ -158,7 +162,7 @@ fn compute_trace(data: &[u8]) -> Result<(f64, Vec<serde_json::Value>), std::io::
 async fn trace_cached(
     icao: &str,
     date: &time::Date,
-    client: Option<&fs_s3::ContainerClient>,
+    client: Option<&dyn BlobStorageProvider>,
 ) -> Result<(f64, Vec<serde_json::Value>), std::io::Error> {
     compute_trace(&globe_history_cached(icao, date, client).await?)
 }
@@ -202,7 +206,7 @@ fn compute_positions(start_trace: (f64, Vec<serde_json::Value>)) -> impl Iterato
 pub async fn positions(
     icao_number: &str,
     date: time::Date,
-    client: Option<&fs_s3::ContainerClient>,
+    client: Option<&dyn BlobStorageProvider>,
 ) -> Result<impl Iterator<Item = Position>, std::io::Error> {
     trace_cached(icao_number, &date, client)
         .await
@@ -213,7 +217,7 @@ pub(crate) async fn cached_aircraft_positions(
     from: Date,
     to: Date,
     icao_number: &str,
-    client: Option<&fs_s3::ContainerClient>,
+    client: Option<&dyn BlobStorageProvider>,
 ) -> Result<Vec<Position>, std::io::Error> {
     let dates = super::DateIter {
         from,

@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use flights::Leg;
+use flights::{BlobStorageProvider, Leg};
 use time::{
     macros::{date, datetime},
     Date,
@@ -71,7 +71,7 @@ async fn legs(
     from: Date,
     to: Date,
     icao_number: &str,
-    client: Option<&flights::fs_s3::ContainerClient>,
+    client: Option<&dyn BlobStorageProvider>,
 ) -> Result<Vec<Leg>, Box<dyn Error>> {
     let positions = flights::aircraft_positions(from, to, icao_number, client).await?;
     Ok(flights::legs(positions.into_iter()))

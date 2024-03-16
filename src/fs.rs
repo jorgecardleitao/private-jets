@@ -76,16 +76,15 @@ impl CacheAction {
 /// Returns the data in `blob_name` from `provider`.
 /// # Implementation
 /// This function is idempotent but not pure.
-pub async fn cached<E, P, F>(
+pub async fn cached<E, F>(
     blob_name: &str,
     fetch: F,
-    provider: &P,
+    provider: &dyn BlobStorageProvider,
     action: CacheAction,
 ) -> Result<Vec<u8>, std::io::Error>
 where
     E: std::error::Error + Send + Sync + 'static,
     F: futures::Future<Output = Result<Vec<u8>, E>>,
-    P: BlobStorageProvider,
 {
     match action {
         CacheAction::FetchWrite => miss(blob_name, fetch, provider, action).await,
@@ -105,16 +104,15 @@ where
 /// Returns the result of fetch.
 /// # Implementation
 /// This function is idempotent and pure.
-async fn miss<E, P, F>(
+pub async fn miss<E, F>(
     blob_name: &str,
     fetch: F,
-    provider: &P,
+    provider: &dyn BlobStorageProvider,
     action: CacheAction,
 ) -> Result<Vec<u8>, std::io::Error>
 where
     E: std::error::Error + Send + Sync + 'static,
     F: futures::Future<Output = Result<Vec<u8>, E>>,
-    P: BlobStorageProvider,
 {
     log::info!("{blob_name} - cache miss");
     let contents = fetch.await.map_err(std::io::Error::other)?;
@@ -133,12 +131,10 @@ where
 pub(crate) async fn cached_call<F: futures::Future<Output = Result<Vec<u8>, std::io::Error>>>(
     blob_name: &str,
     fetch: F,
+    client: Option<&dyn BlobStorageProvider>,
     action: crate::fs::CacheAction,
-    client: Option<&impl BlobStorageProvider>,
 ) -> Result<Vec<u8>, std::io::Error> {
-    let Some(client) = client else {
-        return Ok(crate::fs::cached(&blob_name, fetch, &crate::fs::LocalDisk, action).await?);
-    };
+    let client = client.unwrap_or(&crate::fs::LocalDisk);
 
     let Some(data) = client.maybe_get(blob_name).await? else {
         if !client.can_put() {
