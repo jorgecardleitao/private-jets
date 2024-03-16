@@ -125,7 +125,7 @@ async fn globe_history_cached(
     let action = fs::CacheAction::from_date(&date);
     let fetch = globe_history(&icao, date);
 
-    Ok(fs_s3::cached_call(&blob_name, fetch, action, client).await?)
+    Ok(fs::cached_call(&blob_name, fetch, action, client).await?)
 }
 
 fn compute_trace(data: &[u8]) -> Result<(f64, Vec<serde_json::Value>), std::io::Error> {

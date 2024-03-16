@@ -71,7 +71,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .collect::<HashSet<_>>();
     log::info!("required : {}", required.len());
 
-    let completed = existing_months_positions(&client).await?;
+    let completed = HashSet::new(); //existing_months_positions(&client).await?;
     log::info!("completed: {}", completed.len());
     let mut todo = required.difference(&completed).collect::<Vec<_>>();
     todo.sort_unstable_by_key(|(icao, date)| (date, icao));
@@ -83,7 +83,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     futures::stream::iter(tasks)
         // limit concurrent tasks
-        .buffered(10)
+        .buffered(200)
         // continue if error
         .map(|r| {
             if let Err(e) = r {

@@ -80,12 +80,12 @@ pub async fn month_positions(
         let mut positions = cached_aircraft_positions(from, to, icao_number, client).await?;
         positions.sort_unstable_by_key(|p| p.datetime());
         let mut bytes: Vec<u8> = Vec::new();
-        serde_json::to_writer(&mut bytes, &positions).map_err(std::io::Error::other)?;
+        serde_json::to_writer(&mut bytes, &positions)?;
         Ok(bytes)
     };
 
-    let r = fs_s3::cached_call(&blob_name, fetch, action, client).await?;
-    serde_json::from_slice(&r).map_err(std::io::Error::other)
+    let r = fs::cached_call(&blob_name, fetch, action, client).await?;
+    Ok(serde_json::from_slice(&r)?)
 }
 
 /// Returns a list of positions within two dates ordered by timestamp
@@ -136,7 +136,7 @@ pub async fn aircraft_positions(
 pub async fn existing<B: BlobStorageProvider>(
     prefix: &str,
     client: &B,
-) -> Result<HashSet<(Arc<str>, time::Date)>, B::Error> {
+) -> Result<HashSet<(Arc<str>, time::Date)>, std::io::Error> {
     Ok(client
         .list(prefix)
         .await?
@@ -148,7 +148,7 @@ pub async fn existing<B: BlobStorageProvider>(
 /// Returns the set of (icao, month) that exists in the db
 pub async fn existing_months_positions<B: BlobStorageProvider>(
     client: &B,
-) -> Result<HashSet<(Arc<str>, time::Date)>, B::Error> {
+) -> Result<HashSet<(Arc<str>, time::Date)>, std::io::Error> {
     existing(DATABASE, client).await
 }
 

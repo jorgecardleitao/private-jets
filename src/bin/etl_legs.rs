@@ -319,9 +319,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     });
 
     let _ = futures::stream::iter(tasks)
-        .buffered(20)
-        .try_collect::<Vec<_>>()
-        .await?;
+        .buffered(50)
+        .collect::<Vec<_>>()
+        .await;
 
     aggregate(private_jets, &models, &airports, client.unwrap()).await
 }
