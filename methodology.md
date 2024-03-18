@@ -26,7 +26,7 @@ The methodology used to support this solution is the follow:
 This is performed automatically by the solution and consists
 in extracting the database of all aircrafts in https://globe.adsbexchange.com.
 
-Details are available in the source code, [src/aircraft_db.rs](./src/aircraft_db.rs).
+Details are available in the source code, [src/aircraft.rs](./src/aircraft.rs).
 
 ### M-2: Identify aircraft types whose primary use is to be a private use
 
