@@ -2,8 +2,10 @@ use std::error::Error;
 
 use clap::Parser;
 use simple_logger::SimpleLogger;
+use time::macros::date;
 use tinytemplate::TinyTemplate;
 
+use crate::aircraft::Aircrafts;
 use flights::*;
 
 static TEMPLATE: &str = include_str!(concat!(
@@ -82,7 +84,7 @@ async fn flight_date(
     owners: &Owners,
     aircraft_owners: &AircraftOwners,
     aircrafts: &Aircrafts,
-    client: Option<&fs_s3::ContainerClient>,
+    client: Option<&dyn BlobStorageProvider>,
 ) -> Result<Vec<Event>, Box<dyn Error>> {
     let models = load_private_jet_models()?;
     let airports = airports_cached().await?;
@@ -190,10 +192,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
         (Backend::Remote, _, _) => Some(flights::fs_s3::anonymous_client().await),
     };
+    let client = client.as_ref().map(|x| x as &dyn BlobStorageProvider);
 
     let owners = load_owners()?;
     let aircraft_owners = load_aircraft_owners()?;
-    let aircrafts = load_aircrafts(client.as_ref()).await?;
+    let aircrafts = aircraft::read(date!(2023 - 11 - 06), client).await?;
 
     let dane_emissions_kg = Fact {
         claim: 5100,
@@ -207,7 +210,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         &owners,
         &aircraft_owners,
         &aircrafts,
-        client.as_ref(),
+        client,
     )
     .await?;
 
