@@ -153,7 +153,7 @@ pub async fn etl_aircrafts(client: Option<&fs_s3::ContainerClient>) -> Result<()
 
 pub async fn read(
     date: Date,
-    client: Option<&fs_s3::ContainerClient>,
+    client: Option<&dyn BlobStorageProvider>,
 ) -> Result<Aircrafts, String> {
     let path = file_path(date);
     let data = match client {

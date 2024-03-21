@@ -93,11 +93,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
         (Backend::Remote, _, _) => Some(flights::fs_s3::anonymous_client().await),
     };
+    let client = client.as_ref().map(|x| x as &dyn BlobStorageProvider);
 
     // load datasets to memory
     let owners = load_owners()?;
     let aircraft_owners = load_aircraft_owners()?;
-    let aircrafts = load_aircrafts(client.as_ref()).await?;
+    let aircrafts = aircraft::read(date!(2023 - 11 - 06), client).await?;
 
     let from = cli.from;
     let to = cli.to.unwrap_or(time::OffsetDateTime::now_utc().date());

@@ -43,7 +43,7 @@ struct Metadata {
 }
 
 async fn write_json(
-    client: &impl BlobStorageProvider,
+    client: &dyn BlobStorageProvider,
     d: impl Serialize,
     key: &str,
 ) -> Result<(), Box<dyn Error>> {
@@ -53,11 +53,11 @@ async fn write_json(
     Ok(client.put(key, bytes).await?)
 }
 
-async fn write_csv<B: BlobStorageProvider>(
+async fn write_csv(
     items: impl Iterator<Item = impl Serialize>,
     key: &str,
-    client: &B,
-) -> Result<(), B::Error> {
+    client: &dyn BlobStorageProvider,
+) -> Result<(), std::io::Error> {
     let mut wtr = csv::Writer::from_writer(vec![]);
     for leg in items {
         wtr.serialize(leg).unwrap()
@@ -106,7 +106,7 @@ async fn write(
     icao_number: &Arc<str>,
     month: time::Date,
     legs: impl Iterator<Item = impl Serialize>,
-    client: &impl BlobStorageProvider,
+    client: &dyn BlobStorageProvider,
 ) -> Result<(), Box<dyn Error>> {
     let key = format!(
         "{DATABASE}icao_number={icao_number}/month={}/data.csv",
@@ -121,7 +121,7 @@ async fn write(
 async fn read<D: DeserializeOwned>(
     icao_number: &Arc<str>,
     month: time::Date,
-    client: &impl BlobStorageProvider,
+    client: &dyn BlobStorageProvider,
 ) -> Result<Vec<D>, Box<dyn Error>> {
     let key = format!(
         "{DATABASE}icao_number={icao_number}/month={}/data.csv",
@@ -170,7 +170,7 @@ async fn etl_task(
     private_jets: &HashMap<Arc<str>, aircraft::Aircraft>,
     models: &AircraftModels,
     airports: &[Airport],
-    client: Option<&flights::fs_s3::ContainerClient>,
+    client: Option<&dyn BlobStorageProvider>,
 ) -> Result<(), Box<dyn Error>> {
     // extract
     let positions = flights::month_positions(month, &icao_number, client).await?;
@@ -190,7 +190,7 @@ async fn aggregate(
     private_jets: Vec<aircraft::Aircraft>,
     models: &AircraftModels,
     airports: &[Airport],
-    client: &flights::fs_s3::ContainerClient,
+    client: &dyn BlobStorageProvider,
 ) -> Result<(), Box<dyn Error>> {
     let private_jets = private_jets
         .into_iter()
@@ -301,7 +301,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     todo.sort_unstable_by_key(|(icao, date)| (date, icao));
     log::info!("todo     : {}", todo.len());
 
-    let client = Some(&client);
+    let client = Some(&client as &dyn BlobStorageProvider);
     let relevant_jets = &relevant_jets;
     let models = &models;
     let airports = &airports;
@@ -319,9 +319,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     });
 
     let _ = futures::stream::iter(tasks)
-        .buffered(20)
-        .try_collect::<Vec<_>>()
-        .await?;
+        .buffered(50)
+        .collect::<Vec<_>>()
+        .await;
 
     aggregate(private_jets, &models, &airports, client.unwrap()).await
 }

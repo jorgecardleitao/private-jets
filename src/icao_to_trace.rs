@@ -8,7 +8,7 @@ use time::Date;
 use time::OffsetDateTime;
 
 use super::Position;
-use crate::{fs, fs_s3};
+use crate::{fs, BlobStorageProvider};
 
 fn last_2(icao: &str) -> &str {
     let bytes = icao.as_bytes();
@@ -119,13 +119,32 @@ async fn globe_history(icao: &str, date: &time::Date) -> Result<Vec<u8>, std::io
 async fn globe_history_cached(
     icao: &str,
     date: &time::Date,
-    client: Option<&fs_s3::ContainerClient>,
+    client: Option<&dyn BlobStorageProvider>,
 ) -> Result<Vec<u8>, std::io::Error> {
     let blob_name = cache_file_path(icao, date);
     let action = fs::CacheAction::from_date(&date);
     let fetch = globe_history(&icao, date);
 
-    Ok(fs_s3::cached_call(&blob_name, fetch, action, client).await?)
+    Ok(fs::cached_call(&blob_name, fetch, client, action).await?)
+}
+
+fn compute_trace(data: &[u8]) -> Result<(f64, Vec<serde_json::Value>), std::io::Error> {
+    let mut value = serde_json::from_slice::<serde_json::Value>(&data)?;
+    let Some(obj) = value.as_object_mut() else {
+        return Ok((0.0, vec![]));
+    };
+    let Some(timestamp) = obj.get("timestamp") else {
+        return Ok((0.0, vec![]));
+    };
+    let timestamp = timestamp.as_f64().unwrap();
+    let Some(obj) = obj.get_mut("trace") else {
+        return Ok((0.0, vec![]));
+    };
+    let Some(trace) = obj.as_array_mut() else {
+        return Ok((0.0, vec![]));
+    };
+
+    Ok((timestamp, std::mem::take(trace)))
 }
 
 /// Returns the trace of the icao number of a given day from https://adsbexchange.com.
@@ -140,24 +159,46 @@ async fn globe_history_cached(
 /// # Implementation
 /// Because these are historical values, this function caches them the first time it is used
 /// by the two arguments
-pub async fn trace_cached(
+async fn trace_cached(
     icao: &str,
     date: &time::Date,
-    client: Option<&fs_s3::ContainerClient>,
-) -> Result<Vec<serde_json::Value>, std::io::Error> {
-    let data = globe_history_cached(icao, date, client).await?;
+    client: Option<&dyn BlobStorageProvider>,
+) -> Result<(f64, Vec<serde_json::Value>), std::io::Error> {
+    compute_trace(&globe_history_cached(icao, date, client).await?)
+}
 
-    let mut value = serde_json::from_slice::<serde_json::Value>(&data)?;
-    let Some(obj) = value.as_object_mut() else {
-        return Ok(vec![]);
-    };
-    let Some(obj) = obj.get_mut("trace") else {
-        return Ok(vec![]);
-    };
-    let Some(trace) = obj.as_array_mut() else {
-        return Ok(vec![]);
-    };
-    Ok(std::mem::take(trace))
+fn compute_positions(start_trace: (f64, Vec<serde_json::Value>)) -> impl Iterator<Item = Position> {
+    use time::ext::NumericalDuration;
+
+    let (start, trace) = start_trace;
+    let start = OffsetDateTime::from_unix_timestamp(start as i64).unwrap();
+
+    trace.into_iter().filter_map(move |entry| {
+        let delta = entry[0].as_f64().unwrap().seconds();
+        let datetime = start + delta;
+        let latitude = entry[1].as_f64().unwrap();
+        let longitude = entry[2].as_f64().unwrap();
+        entry[3]
+            .as_str()
+            .and_then(|x| {
+                (x == "ground").then_some(Position {
+                    datetime,
+                    latitude,
+                    longitude,
+                    altitude: None,
+                })
+            })
+            .or_else(|| {
+                entry[3].as_f64().and_then(|altitude| {
+                    Some(Position {
+                        datetime,
+                        latitude,
+                        longitude,
+                        altitude: Some(altitude),
+                    })
+                })
+            })
+    })
 }
 
 /// Returns an iterator of [`Position`] over the trace of `icao` on day `date` according
@@ -165,47 +206,18 @@ pub async fn trace_cached(
 pub async fn positions(
     icao_number: &str,
     date: time::Date,
-    client: Option<&fs_s3::ContainerClient>,
+    client: Option<&dyn BlobStorageProvider>,
 ) -> Result<impl Iterator<Item = Position>, std::io::Error> {
-    use time::ext::NumericalDuration;
     trace_cached(icao_number, &date, client)
         .await
-        .map(move |trace| {
-            trace.into_iter().filter_map(move |entry| {
-                let time_seconds = entry[0].as_f64().unwrap();
-                let time = time::Time::MIDNIGHT + time_seconds.seconds();
-                let datetime = OffsetDateTime::new_utc(date.clone(), time);
-                let latitude = entry[1].as_f64().unwrap();
-                let longitude = entry[2].as_f64().unwrap();
-                entry[3]
-                    .as_str()
-                    .and_then(|x| {
-                        (x == "ground").then_some(Position {
-                            datetime,
-                            latitude,
-                            longitude,
-                            altitude: None,
-                        })
-                    })
-                    .or_else(|| {
-                        entry[3].as_f64().and_then(|altitude| {
-                            Some(Position {
-                                datetime,
-                                latitude,
-                                longitude,
-                                altitude: Some(altitude),
-                            })
-                        })
-                    })
-            })
-        })
+        .map(compute_positions)
 }
 
 pub(crate) async fn cached_aircraft_positions(
     from: Date,
     to: Date,
     icao_number: &str,
-    client: Option<&fs_s3::ContainerClient>,
+    client: Option<&dyn BlobStorageProvider>,
 ) -> Result<Vec<Position>, std::io::Error> {
     let dates = super::DateIter {
         from,
@@ -230,3 +242,24 @@ pub(crate) async fn cached_aircraft_positions(
 }
 
 pub use crate::trace_month::*;
+
+#[cfg(test)]
+mod test {
+    use time::macros::date;
+
+    use super::*;
+
+    /// Compare against https://globe.adsbexchange.com/?icao=45860d&showTrace=2019-01-04&leg=1
+    #[tokio::test]
+    async fn work() {
+        let data = globe_history("45860d", &date!(2019 - 01 - 04))
+            .await
+            .unwrap();
+        let first = compute_positions(compute_trace(&data).unwrap())
+            .next()
+            .unwrap();
+        assert_eq!(first.datetime.hour(), 6);
+        assert_eq!(first.datetime.minute(), 54);
+        assert_eq!(first.grounded(), true);
+    }
+}

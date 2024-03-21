@@ -177,29 +177,36 @@ pub async fn anonymous_client() -> ContainerClient {
 
 #[async_trait::async_trait]
 impl BlobStorageProvider for ContainerClient {
-    type Error = Error;
-
     #[must_use]
-    async fn maybe_get(&self, blob_name: &str) -> Result<Option<Vec<u8>>, Self::Error> {
-        if exists(self, blob_name).await? {
-            Ok(Some(get(&self, blob_name).await?))
+    async fn maybe_get(&self, blob_name: &str) -> Result<Option<Vec<u8>>, std::io::Error> {
+        if exists(self, blob_name)
+            .await
+            .map_err(std::io::Error::other)?
+        {
+            Ok(Some(
+                get(&self, blob_name).await.map_err(std::io::Error::other)?,
+            ))
         } else {
             Ok(None)
         }
     }
 
     #[must_use]
-    async fn put(&self, blob_name: &str, contents: Vec<u8>) -> Result<(), Self::Error> {
-        put(&self, blob_name, contents).await
+    async fn put(&self, blob_name: &str, contents: Vec<u8>) -> Result<(), std::io::Error> {
+        put(&self, blob_name, contents)
+            .await
+            .map_err(std::io::Error::other)
     }
 
     #[must_use]
-    async fn delete(&self, blob_name: &str) -> Result<(), Self::Error> {
-        delete(&self, blob_name).await
+    async fn delete(&self, blob_name: &str) -> Result<(), std::io::Error> {
+        delete(&self, blob_name)
+            .await
+            .map_err(std::io::Error::other)
     }
 
     #[must_use]
-    async fn list(&self, prefix: &str) -> Result<Vec<String>, Self::Error> {
+    async fn list(&self, prefix: &str) -> Result<Vec<String>, std::io::Error> {
         Ok(self
             .client
             .list_objects_v2()
@@ -209,7 +216,7 @@ impl BlobStorageProvider for ContainerClient {
             .send()
             .try_collect()
             .await
-            .map_err(|e| Error::from(e.to_string()))?
+            .map_err(std::io::Error::other)?
             .into_iter()
             .map(|response| {
                 response
@@ -225,39 +232,4 @@ impl BlobStorageProvider for ContainerClient {
     fn can_put(&self) -> bool {
         self.can_put
     }
-}
-
-/// * read from remote
-/// * if not found and can't write to remote => read disk and write to disk
-/// * if not found and can write to remote => fetch and write
-pub(crate) async fn cached_call<F: futures::Future<Output = Result<Vec<u8>, std::io::Error>>>(
-    blob_name: &str,
-    fetch: F,
-    action: crate::fs::CacheAction,
-    client: Option<&ContainerClient>,
-) -> Result<Vec<u8>, std::io::Error> {
-    let Some(client) = client else {
-        return Ok(
-            crate::fs::cached(&blob_name, fetch, &crate::fs::LocalDisk, action)
-                .await
-                .map_err(std::io::Error::other)?,
-        );
-    };
-
-    let Some(data) = client
-        .maybe_get(blob_name)
-        .await
-        .map_err(std::io::Error::other)?
-    else {
-        return Ok(if !client.can_put() {
-            crate::fs::cached(&blob_name, fetch, &crate::fs::LocalDisk, action)
-                .await
-                .map_err(std::io::Error::other)?
-        } else {
-            crate::fs::cached(&blob_name, fetch, client, action)
-                .await
-                .map_err(std::io::Error::other)?
-        });
-    };
-    Ok(data)
 }
