@@ -6,7 +6,7 @@ use itertools::Itertools;
 use simple_logger::SimpleLogger;
 use time::macros::date;
 
-use flights::{aircraft, existing_months_positions, BlobStorageProvider};
+use flights::{aircraft, list_months_positions, BlobStorageProvider};
 
 const ABOUT: &'static str = r#"Builds the database of all private jet positions from 2023"#;
 
@@ -71,7 +71,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .collect::<HashSet<_>>();
     log::info!("required : {}", required.len());
 
-    let completed = existing_months_positions(&client).await?;
+    let completed = list_months_positions(&client).await?;
     log::info!("completed: {}", completed.len());
     let mut todo = required.difference(&completed).collect::<Vec<_>>();
     todo.sort_unstable_by_key(|(icao, date)| (date, icao));
@@ -79,7 +79,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let tasks = todo
         .into_iter()
-        .map(|(icao_number, month)| flights::month_positions(*month, icao_number, &client));
+        .map(|(icao_number, month)| flights::month_positions(icao_number, *month, &client));
 
     futures::stream::iter(tasks)
         // limit concurrent tasks

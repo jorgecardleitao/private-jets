@@ -146,7 +146,7 @@ async fn case_45c824_2023_12_12() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn fs_s3() -> Result<(), Box<dyn Error>> {
+async fn gets_db_positions() -> Result<(), Box<dyn Error>> {
     let client = flights::fs_s3::anonymous_client().await;
 
     let _ = flights::positions("459cd3", date!(2020 - 01 - 01), &client).await?;
@@ -167,5 +167,13 @@ async fn loads() -> Result<(), Box<dyn Error>> {
     let _ = flights::load_aircraft_owners()?;
     let _ = flights::load_private_jet_models()?;
     let _ = flights::load_owners()?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn gets_db_month() -> Result<(), Box<dyn Error>> {
+    let client = flights::fs_s3::anonymous_client().await;
+
+    let _ = flights::get_month_positions("459cd3", date!(2020 - 01 - 01), &client).await?;
     Ok(())
 }
