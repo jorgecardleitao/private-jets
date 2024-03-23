@@ -25,7 +25,7 @@ struct Cli {
 }
 
 async fn private_jets(
-    client: Option<&dyn BlobStorageProvider>,
+    client: &dyn BlobStorageProvider,
     country: Option<&str>,
 ) -> Result<Vec<aircraft::Aircraft>, Box<dyn std::error::Error>> {
     // load datasets to memory
@@ -62,7 +62,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             time::Date::from_calendar_date(year, time::Month::try_from(month).unwrap(), 1)
                 .expect("day 1 never errors")
         });
-    let private_jets = private_jets(Some(&client), cli.country.as_deref()).await?;
+    let private_jets = private_jets(&client, cli.country.as_deref()).await?;
     log::info!("jets     : {}", private_jets.len());
     let required = private_jets
         .into_iter()
@@ -79,7 +79,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let tasks = todo
         .into_iter()
-        .map(|(icao_number, month)| flights::month_positions(*month, icao_number, Some(&client)));
+        .map(|(icao_number, month)| flights::month_positions(*month, icao_number, &client));
 
     futures::stream::iter(tasks)
         // limit concurrent tasks

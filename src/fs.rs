@@ -131,11 +131,9 @@ where
 pub(crate) async fn cached_call<F: futures::Future<Output = Result<Vec<u8>, std::io::Error>>>(
     blob_name: &str,
     fetch: F,
-    client: Option<&dyn BlobStorageProvider>,
+    client: &dyn BlobStorageProvider,
     action: crate::fs::CacheAction,
 ) -> Result<Vec<u8>, std::io::Error> {
-    let client = client.unwrap_or(&crate::fs::LocalDisk);
-
     let Some(data) = client.maybe_get(blob_name).await? else {
         if !client.can_put() {
             return crate::fs::cached(&blob_name, fetch, &crate::fs::LocalDisk, action).await;

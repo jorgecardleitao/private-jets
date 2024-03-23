@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use flights::{BlobStorageProvider, Leg};
+use flights::{BlobStorageProvider, Leg, LocalDisk};
 use time::{
     macros::{date, datetime},
     Date,
@@ -11,7 +11,7 @@ use time::{
 /// https://globe.adsbexchange.com/?icao=45d2ed&lat=54.128&lon=9.185&zoom=5.0&showTrace=2023-10-13
 #[tokio::test]
 async fn acceptance_legs() -> Result<(), Box<dyn Error>> {
-    let positions = flights::positions("45d2ed", date!(2023 - 10 - 13), None).await?;
+    let positions = flights::positions("45d2ed", date!(2023 - 10 - 13), &LocalDisk).await?;
     let legs = flights::legs(positions);
 
     assert_eq!(legs.len(), 2);
@@ -59,7 +59,7 @@ fn acceptance_test_emissions() {
 
 #[tokio::test]
 async fn legs_() -> Result<(), Box<dyn Error>> {
-    let positions = flights::positions("459cd3", date!(2023 - 11 - 17), None).await?;
+    let positions = flights::positions("459cd3", date!(2023 - 11 - 17), &LocalDisk).await?;
     let legs = flights::legs(positions);
 
     // same as ads-b computes: https://globe.adsbexchange.com/?icao=459cd3&lat=53.265&lon=8.038&zoom=6.5&showTrace=2023-11-17
@@ -71,7 +71,7 @@ async fn legs(
     from: Date,
     to: Date,
     icao_number: &str,
-    client: Option<&dyn BlobStorageProvider>,
+    client: &dyn BlobStorageProvider,
 ) -> Result<Vec<Leg>, Box<dyn Error>> {
     let positions = flights::aircraft_positions(from, to, icao_number, client).await?;
     Ok(flights::legs(positions.into_iter()))
@@ -81,7 +81,13 @@ async fn legs(
 /// https://globe.adsbexchange.com/?icao=458d90&lat=53.265&lon=8.038&zoom=6.5&showTrace=2023-07-21
 #[tokio::test]
 async fn ads_b_lost_on_ground() -> Result<(), Box<dyn Error>> {
-    let legs = legs(date!(2023 - 07 - 21), date!(2023 - 07 - 23), "458d90", None).await?;
+    let legs = legs(
+        date!(2023 - 07 - 21),
+        date!(2023 - 07 - 23),
+        "458d90",
+        &LocalDisk,
+    )
+    .await?;
     assert_eq!(legs.len(), 6);
     Ok(())
 }
@@ -90,7 +96,13 @@ async fn ads_b_lost_on_ground() -> Result<(), Box<dyn Error>> {
 /// https://globe.adsbexchange.com/?icao=459257&showTrace=2023-12-17
 #[tokio::test]
 async fn case_459257_2023_12_17() -> Result<(), Box<dyn Error>> {
-    let legs = legs(date!(2023 - 12 - 17), date!(2023 - 12 - 20), "459257", None).await?;
+    let legs = legs(
+        date!(2023 - 12 - 17),
+        date!(2023 - 12 - 20),
+        "459257",
+        &LocalDisk,
+    )
+    .await?;
     assert_eq!(legs.len(), 4);
     Ok(())
 }
@@ -100,7 +112,13 @@ async fn case_459257_2023_12_17() -> Result<(), Box<dyn Error>> {
 /// https://globe.adsbexchange.com/?icao=45dd84&lat=9.613&lon=22.035&zoom=3.8&showTrace=2023-12-08
 #[tokio::test]
 async fn case_45dd84_2023_12_06() -> Result<(), Box<dyn Error>> {
-    let legs = legs(date!(2023 - 12 - 06), date!(2023 - 12 - 09), "45dd84", None).await?;
+    let legs = legs(
+        date!(2023 - 12 - 06),
+        date!(2023 - 12 - 09),
+        "45dd84",
+        &LocalDisk,
+    )
+    .await?;
     assert_eq!(legs.len(), 3);
     let day = 24.0 * 60.0 * 60.0;
     assert!(legs[0].duration().as_seconds_f32() < day);
@@ -111,7 +129,13 @@ async fn case_45dd84_2023_12_06() -> Result<(), Box<dyn Error>> {
 
 #[tokio::test]
 async fn case_45c824_2023_12_12() -> Result<(), Box<dyn Error>> {
-    let legs = legs(date!(2023 - 12 - 12), date!(2023 - 12 - 16), "45c824", None).await?;
+    let legs = legs(
+        date!(2023 - 12 - 12),
+        date!(2023 - 12 - 16),
+        "45c824",
+        &LocalDisk,
+    )
+    .await?;
 
     assert_eq!(legs.len(), 3);
     let day = 24.0 * 60.0 * 60.0;
@@ -125,7 +149,7 @@ async fn case_45c824_2023_12_12() -> Result<(), Box<dyn Error>> {
 async fn fs_s3() -> Result<(), Box<dyn Error>> {
     let client = flights::fs_s3::anonymous_client().await;
 
-    let _ = flights::positions("459cd3", date!(2020 - 01 - 01), Some(&client)).await?;
+    let _ = flights::positions("459cd3", date!(2020 - 01 - 01), &client).await?;
     Ok(())
 }
 

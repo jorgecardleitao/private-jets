@@ -84,7 +84,7 @@ async fn flight_date(
     owners: &Owners,
     aircraft_owners: &AircraftOwners,
     aircrafts: &Aircrafts,
-    client: Option<&dyn BlobStorageProvider>,
+    client: &dyn BlobStorageProvider,
 ) -> Result<Vec<Event>, Box<dyn Error>> {
     let models = load_private_jet_models()?;
     let airports = airports_cached().await?;
@@ -192,7 +192,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
         (Backend::Remote, _, _) => Some(flights::fs_s3::anonymous_client().await),
     };
-    let client = client.as_ref().map(|x| x as &dyn BlobStorageProvider);
+    let client = client
+        .as_ref()
+        .map(|x| x as &dyn BlobStorageProvider)
+        .unwrap_or(&LocalDisk);
 
     let owners = load_owners()?;
     let aircraft_owners = load_aircraft_owners()?;

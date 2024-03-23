@@ -2,9 +2,11 @@ use std::error::Error;
 
 use clap::Parser;
 use simple_logger::SimpleLogger;
+use time::macros::date;
 
 use flights::{
-    emissions, load_aircraft_owners, load_aircrafts, load_owners, Aircraft, Class, Company, Fact,
+    aircraft, aircraft::Aircraft, emissions, load_aircraft_owners, load_owners,
+    BlobStorageProvider, Class, Company, Fact, LocalDisk,
 };
 
 #[derive(serde::Serialize)]
@@ -93,7 +95,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
         (Backend::Remote, _, _) => Some(flights::fs_s3::anonymous_client().await),
     };
-    let client = client.as_ref().map(|x| x as &dyn BlobStorageProvider);
+    let client = client
+        .as_ref()
+        .map(|x| x as &dyn BlobStorageProvider)
+        .unwrap_or(&LocalDisk);
 
     // load datasets to memory
     let owners = load_owners()?;
@@ -125,7 +130,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let icao = &aircraft.icao_number;
     log::info!("ICAO number: {}", icao);
 
-    let positions = flights::aircraft_positions(from, to, icao, client.as_ref()).await?;
+    let positions = flights::aircraft_positions(from, to, icao, client).await?;
 
     let legs = flights::legs(positions.into_iter());
     log::info!("number_of_legs: {}", legs.len());
