@@ -1,4 +1,3 @@
-use futures::{StreamExt, TryStreamExt};
 use rand::Rng;
 use reqwest::header;
 use reqwest::{self, StatusCode};
@@ -213,32 +212,26 @@ pub async fn positions(
         .map(compute_positions)
 }
 
-pub(crate) async fn cached_aircraft_positions(
+pub(crate) fn cached_aircraft_positions<'a>(
+    icao_number: &'a str,
     from: Date,
     to: Date,
-    icao_number: &str,
-    client: &dyn BlobStorageProvider,
-) -> Result<Vec<Position>, std::io::Error> {
-    let dates = super::DateIter {
+    client: &'a dyn BlobStorageProvider,
+) -> impl Iterator<
+    Item = impl futures::future::Future<Output = Result<Vec<Position>, std::io::Error>> + 'a,
+> + 'a {
+    super::DateIter {
         from,
         to,
         increment: time::Duration::days(1),
-    };
-
-    let tasks = dates.map(|date| async move {
+    }
+    .map(move |date| async move {
         Result::<_, std::io::Error>::Ok(
             positions(icao_number, date, client)
                 .await?
                 .collect::<Vec<_>>(),
         )
-    });
-
-    futures::stream::iter(tasks)
-        // limit concurrent tasks
-        .buffered(5)
-        .try_collect::<Vec<_>>()
-        .await
-        .map(|x| x.into_iter().flatten().collect())
+    })
 }
 
 pub use crate::trace_month::*;

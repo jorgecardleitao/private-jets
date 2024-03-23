@@ -173,7 +173,7 @@ async fn etl_task(
     client: &dyn BlobStorageProvider,
 ) -> Result<(), Box<dyn Error>> {
     // extract
-    let positions = flights::month_positions(month, &icao_number, client).await?;
+    let positions = flights::get_month_positions(&icao_number, month, client).await?;
     // transform
     let legs = transform(
         &icao_number,
@@ -197,7 +197,7 @@ async fn aggregate(
         .map(|a| (a.icao_number.clone(), a))
         .collect::<HashMap<_, _>>();
 
-    let completed = flights::existing(DATABASE, client)
+    let completed = flights::list(DATABASE, client)
         .await?
         .into_iter()
         .filter(|(icao, _)| private_jets.contains_key(icao))
@@ -284,14 +284,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let required = relevant_jets.len() * months;
     log::info!("required : {}", required);
 
-    let ready = flights::existing_months_positions(client)
+    let ready = flights::list_months_positions(client)
         .await?
         .into_iter()
         .filter(|(icao, _)| relevant_jets.contains_key(icao))
         .collect::<HashSet<_>>();
     log::info!("ready    : {}", ready.len());
 
-    let completed = flights::existing(DATABASE, client)
+    let completed = flights::list(DATABASE, client)
         .await?
         .into_iter()
         .filter(|(icao, _)| relevant_jets.contains_key(icao))

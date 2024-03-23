@@ -108,20 +108,18 @@ impl Iterator for DateIter {
 #[cfg(test)]
 mod test {
     use super::*;
+    use time::macros::date;
 
     #[test]
     fn work() {
         assert_eq!(
             DateIter {
-                from: time::Date::from_calendar_date(2022, time::Month::January, 1).unwrap(),
-                to: time::Date::from_calendar_date(2022, time::Month::January, 3).unwrap(),
+                from: date!(2022 - 01 - 01),
+                to: date!(2022 - 01 - 03),
                 increment: time::Duration::days(1)
             }
             .collect::<Vec<_>>(),
-            vec![
-                time::Date::from_calendar_date(2022, time::Month::January, 1).unwrap(),
-                time::Date::from_calendar_date(2022, time::Month::January, 2).unwrap()
-            ]
+            vec![date!(2022 - 01 - 01), date!(2022 - 01 - 02)]
         );
     }
 }
