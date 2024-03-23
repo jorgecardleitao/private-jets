@@ -1,77 +1,47 @@
-use std::fmt::Display;
+use std::io::Error;
 
 use aws_credential_types::provider::ProvideCredentials;
 use aws_sdk_s3::{
-    config::Credentials, error::SdkError, operation::head_object::HeadObjectError,
+    config::Credentials, error::SdkError, operation::get_object::GetObjectError,
     primitives::ByteStream, types::ObjectCannedAcl,
 };
 
 use crate::fs::BlobStorageProvider;
-
-#[derive(Clone, Debug)]
-pub struct Error(String);
-
-impl Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-impl std::error::Error for Error {}
-
-impl From<String> for Error {
-    fn from(value: String) -> Self {
-        Error(value)
-    }
-}
-
 pub struct ContainerClient {
     pub client: aws_sdk_s3::Client,
     pub bucket: String,
     can_put: bool,
 }
 
-/// Returns whether the blob exists
-async fn exists(client: &ContainerClient, blob_name: &str) -> Result<bool, Error> {
-    let head_object_output = client
-        .client
-        .head_object()
-        .bucket(&client.bucket)
-        .key(blob_name)
-        .send()
-        .await;
-
-    match head_object_output {
-        Ok(_) => Ok(true),
-        Err(err) => match &err {
-            SdkError::ServiceError(e) => {
-                if matches!(e.err(), HeadObjectError::NotFound(_)) {
-                    Ok(false)
-                } else {
-                    Err(format!("{err:?}").into())
-                }
-            }
-            _ => Err(format!("{err:?}").into()),
-        },
-    }
-}
-
-async fn get(client: &ContainerClient, blob_name: &str) -> Result<Vec<u8>, Error> {
-    let object = client
+async fn get(client: &ContainerClient, blob_name: &str) -> Result<Option<Vec<u8>>, Error> {
+    let maybe_object = client
         .client
         .get_object()
         .bucket(&client.bucket)
         .key(blob_name)
         .send()
-        .await
-        .map_err(|e| Error::from(format!("{e:?}")))?;
+        .await;
+
+    let object = match maybe_object {
+        Err(err) => match err {
+            SdkError::ServiceError(ref e) => {
+                if matches!(e.err(), GetObjectError::NoSuchKey(_)) {
+                    return Ok(None);
+                } else {
+                    return Err(Error::other(err));
+                }
+            }
+            _ => return Err(Error::other(err)),
+        },
+        Ok(x) => x,
+    };
 
     object
         .body
         .collect()
         .await
-        .map(|x| x.into_bytes().to_vec())
-        .map_err(|e| format!("{e:?}").into())
+        .map(|x| Some(x.into_bytes().to_vec()))
+        .map_err(Error::other)
 }
 
 async fn put(client: &ContainerClient, blob_name: &str, content: Vec<u8>) -> Result<(), Error> {
@@ -91,7 +61,7 @@ async fn put(client: &ContainerClient, blob_name: &str, content: Vec<u8>) -> Res
         .content_type(content_type)
         .send()
         .await
-        .map_err(|e| Error::from(format!("{e:?}")))
+        .map_err(Error::other)
         .map(|_| ())
 }
 
@@ -103,7 +73,7 @@ async fn delete(client: &ContainerClient, blob_name: &str) -> Result<(), Error> 
         .key(blob_name)
         .send()
         .await
-        .map_err(|e| Error::from(format!("{e:?}")))
+        .map_err(Error::other)
         .map(|_| ())
 }
 
@@ -179,16 +149,7 @@ pub async fn anonymous_client() -> ContainerClient {
 impl BlobStorageProvider for ContainerClient {
     #[must_use]
     async fn maybe_get(&self, blob_name: &str) -> Result<Option<Vec<u8>>, std::io::Error> {
-        if exists(self, blob_name)
-            .await
-            .map_err(std::io::Error::other)?
-        {
-            Ok(Some(
-                get(&self, blob_name).await.map_err(std::io::Error::other)?,
-            ))
-        } else {
-            Ok(None)
-        }
+        get(&self, blob_name).await.map_err(std::io::Error::other)
     }
 
     #[must_use]
@@ -231,5 +192,36 @@ impl BlobStorageProvider for ContainerClient {
 
     fn can_put(&self) -> bool {
         self.can_put
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[tokio::test]
+    async fn get_ok() {
+        let client = anonymous_client().await;
+        assert!(client
+            .maybe_get("leg/v1/status.json")
+            .await
+            .unwrap()
+            .is_some());
+    }
+
+    #[tokio::test]
+    async fn get_not_ok() {
+        let client = anonymous_client().await;
+        assert!(client
+            .maybe_get("leg/v1/invalid_basdasdasdasdas.json")
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn list_ok() {
+        let client = anonymous_client().await;
+        assert!(client.list("leg/v1/all/year=2019/").await.unwrap().len() > 0);
     }
 }
