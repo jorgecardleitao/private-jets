@@ -11,7 +11,7 @@ use time::Date;
 
 use crate::csv;
 use crate::fs::BlobStorageProvider;
-use crate::{fs, fs_s3, CountryIcaoRanges};
+use crate::CountryIcaoRanges;
 
 /// [`HashMap`] between tail number (e.g. "OY-TWM") and an [`Aircraft`]
 pub type Aircrafts = HashMap<String, Aircraft>;
@@ -134,35 +134,23 @@ async fn extract_aircrafts() -> Result<Vec<Aircraft>, Box<dyn Error>> {
 async fn load(
     aircraft: Vec<Aircraft>,
     blob_name: &str,
-    client: Option<&fs_s3::ContainerClient>,
+    client: &dyn BlobStorageProvider,
 ) -> Result<(), Box<dyn Error>> {
     let contents = csv::serialize(aircraft.into_iter());
-    match client {
-        Some(client) => client.put(blob_name, contents).await?,
-        None => fs::LocalDisk.put(blob_name, contents).await?,
-    };
+    client.put(blob_name, contents).await?;
     Ok(())
 }
 
-pub async fn etl_aircrafts(client: Option<&fs_s3::ContainerClient>) -> Result<(), Box<dyn Error>> {
+pub async fn etl_aircrafts(client: &dyn BlobStorageProvider) -> Result<(), Box<dyn Error>> {
     let now = time::OffsetDateTime::now_utc().date();
     let blob_name = file_path(now);
     let aircraft = extract_aircrafts().await?;
     load(aircraft, &blob_name, client).await
 }
 
-pub async fn read(
-    date: Date,
-    client: Option<&dyn BlobStorageProvider>,
-) -> Result<Aircrafts, String> {
+pub async fn read(date: Date, client: &dyn BlobStorageProvider) -> Result<Aircrafts, String> {
     let path = file_path(date);
-    let data = match client {
-        Some(client) => client.maybe_get(&path).await.map_err(|e| e.to_string())?,
-        None => fs::LocalDisk
-            .maybe_get(&path)
-            .await
-            .map_err(|e| e.to_string())?,
-    };
+    let data = client.maybe_get(&path).await.map_err(|e| e.to_string())?;
     let data = data.ok_or_else(|| format!("File {path} does not exist"))?;
 
     Ok(super::csv::deserialize(&data)

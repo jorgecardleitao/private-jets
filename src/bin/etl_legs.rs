@@ -136,7 +136,7 @@ async fn read<D: DeserializeOwned>(
 }
 
 async fn private_jets(
-    client: Option<&flights::fs_s3::ContainerClient>,
+    client: &dyn BlobStorageProvider,
 ) -> Result<Vec<aircraft::Aircraft>, Box<dyn std::error::Error>> {
     // load datasets to memory
     let aircrafts = aircraft::read(date!(2023 - 11 - 06), client).await?;
@@ -170,7 +170,7 @@ async fn etl_task(
     private_jets: &HashMap<Arc<str>, aircraft::Aircraft>,
     models: &AircraftModels,
     airports: &[Airport],
-    client: Option<&dyn BlobStorageProvider>,
+    client: &dyn BlobStorageProvider,
 ) -> Result<(), Box<dyn Error>> {
     // extract
     let positions = flights::month_positions(month, &icao_number, client).await?;
@@ -183,7 +183,7 @@ async fn etl_task(
         &airports,
     );
     // load
-    write(&icao_number, month, legs, client.unwrap()).await
+    write(&icao_number, month, legs, client).await
 }
 
 async fn aggregate(
@@ -262,12 +262,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
 
     let client = flights::fs_s3::client(cli.access_key, cli.secret_access_key).await;
+    let client = &client;
 
     let models = flights::load_private_jet_models()?;
     let airports = flights::airports_cached().await?;
 
     let months = (2019..2024).cartesian_product(1..=12u8).count();
-    let private_jets = private_jets(Some(&client)).await?;
+    let private_jets = private_jets(client).await?;
     let relevant_jets = private_jets
         .clone()
         .into_iter()
@@ -283,14 +284,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let required = relevant_jets.len() * months;
     log::info!("required : {}", required);
 
-    let ready = flights::existing_months_positions(&client)
+    let ready = flights::existing_months_positions(client)
         .await?
         .into_iter()
         .filter(|(icao, _)| relevant_jets.contains_key(icao))
         .collect::<HashSet<_>>();
     log::info!("ready    : {}", ready.len());
 
-    let completed = flights::existing(DATABASE, &client)
+    let completed = flights::existing(DATABASE, client)
         .await?
         .into_iter()
         .filter(|(icao, _)| relevant_jets.contains_key(icao))
@@ -301,7 +302,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     todo.sort_unstable_by_key(|(icao, date)| (date, icao));
     log::info!("todo     : {}", todo.len());
 
-    let client = Some(&client as &dyn BlobStorageProvider);
     let relevant_jets = &relevant_jets;
     let models = &models;
     let airports = &airports;
@@ -323,5 +323,5 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .collect::<Vec<_>>()
         .await;
 
-    aggregate(private_jets, &models, &airports, client.unwrap()).await
+    aggregate(private_jets, &models, &airports, client).await
 }

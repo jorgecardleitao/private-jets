@@ -119,7 +119,7 @@ async fn globe_history(icao: &str, date: &time::Date) -> Result<Vec<u8>, std::io
 async fn globe_history_cached(
     icao: &str,
     date: &time::Date,
-    client: Option<&dyn BlobStorageProvider>,
+    client: &dyn BlobStorageProvider,
 ) -> Result<Vec<u8>, std::io::Error> {
     let blob_name = cache_file_path(icao, date);
     let action = fs::CacheAction::from_date(&date);
@@ -162,7 +162,7 @@ fn compute_trace(data: &[u8]) -> Result<(f64, Vec<serde_json::Value>), std::io::
 async fn trace_cached(
     icao: &str,
     date: &time::Date,
-    client: Option<&dyn BlobStorageProvider>,
+    client: &dyn BlobStorageProvider,
 ) -> Result<(f64, Vec<serde_json::Value>), std::io::Error> {
     compute_trace(&globe_history_cached(icao, date, client).await?)
 }
@@ -206,7 +206,7 @@ fn compute_positions(start_trace: (f64, Vec<serde_json::Value>)) -> impl Iterato
 pub async fn positions(
     icao_number: &str,
     date: time::Date,
-    client: Option<&dyn BlobStorageProvider>,
+    client: &dyn BlobStorageProvider,
 ) -> Result<impl Iterator<Item = Position>, std::io::Error> {
     trace_cached(icao_number, &date, client)
         .await
@@ -217,7 +217,7 @@ pub(crate) async fn cached_aircraft_positions(
     from: Date,
     to: Date,
     icao_number: &str,
-    client: Option<&dyn BlobStorageProvider>,
+    client: &dyn BlobStorageProvider,
 ) -> Result<Vec<Position>, std::io::Error> {
     let dates = super::DateIter {
         from,

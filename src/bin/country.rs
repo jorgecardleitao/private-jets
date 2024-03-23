@@ -4,10 +4,12 @@ use clap::Parser;
 use futures::{StreamExt, TryStreamExt};
 use num_format::{Locale, ToFormattedString};
 use simple_logger::SimpleLogger;
+use time::macros::date;
 
 use flights::{
-    airports_cached, closest, emissions, leg_co2e_kg, leg_per_person, load_aircrafts,
-    load_private_jet_models, AircraftModels, Class, Fact, Leg, Position,
+    aircraft, airports_cached, closest, emissions, leg_co2e_kg, leg_per_person,
+    load_private_jet_models, AircraftModels, BlobStorageProvider, Class, Fact, Leg, LocalDisk,
+    Position,
 };
 use time::Date;
 
@@ -216,7 +218,7 @@ async fn legs(
     to: Date,
     icao_number: &str,
     location: Option<Location>,
-    client: Option<&flights::fs_s3::ContainerClient>,
+    client: &dyn BlobStorageProvider,
 ) -> Result<Vec<Leg>, Box<dyn Error>> {
     let positions = flights::aircraft_positions(from, to, icao_number, client).await?;
 
@@ -283,9 +285,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
         (Backend::Remote, _, _) => Some(flights::fs_s3::anonymous_client().await),
     };
+    let client = client
+        .as_ref()
+        .map(|x| x as &dyn BlobStorageProvider)
+        .unwrap_or(&LocalDisk);
 
     // load datasets to memory
-    let aircrafts = load_aircrafts(client.as_ref()).await?;
+    let aircrafts = aircraft::read(date!(2023 - 11 - 06), client).await?;
     let models = load_private_jet_models()?;
     let airports = airports_cached().await?;
 
@@ -304,7 +310,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let from_date = from.to_string();
     let to_date = to.to_string();
 
-    let client = client.as_ref();
     let legs = private_jets.iter().map(|(_, aircraft)| async {
         legs(from, to, &aircraft.icao_number, cli.location, client)
             .await

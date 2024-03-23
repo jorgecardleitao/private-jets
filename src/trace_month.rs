@@ -66,7 +66,7 @@ fn get_month(current: &time::Date) -> (time::Date, time::Date) {
 pub async fn month_positions(
     month: time::Date,
     icao_number: &str,
-    client: Option<&dyn BlobStorageProvider>,
+    client: &dyn BlobStorageProvider,
 ) -> Result<Vec<Position>, std::io::Error> {
     log::info!("month_positions({month},{icao_number})");
     assert_eq!(month.day(), 1);
@@ -98,7 +98,7 @@ pub async fn aircraft_positions(
     from: Date,
     to: Date,
     icao_number: &str,
-    client: Option<&dyn BlobStorageProvider>,
+    client: &dyn BlobStorageProvider,
 ) -> Result<Vec<Position>, Box<dyn Error>> {
     let dates = super::DateIter {
         from,

@@ -1,6 +1,7 @@
 use std::error::Error;
 
 use clap::Parser;
+use flights::LocalDisk;
 use simple_logger::SimpleLogger;
 
 use flights::aircraft;
@@ -61,13 +62,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
         (Backend::Remote, _, _) => Some(flights::fs_s3::anonymous_client().await),
     };
+    let client = client
+        .as_ref()
+        .map(|x| x as &dyn BlobStorageProvider)
+        .unwrap_or(&LocalDisk);
 
     // create db of all aircrafts as of now
-    aircraft::etl_aircrafts(client.as_ref()).await?;
+    aircraft::etl_aircrafts(client).await?;
 
     // load datasets to memory
     let date = time::OffsetDateTime::now_utc().date();
-    let aircrafts = aircraft::read(date, client.as_ref()).await?;
+    let aircrafts = aircraft::read(date, client).await?;
     let models = load_private_jet_models()?;
 
     let private_jets = aircrafts
@@ -77,8 +82,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let data_csv = flights::csv::serialize(private_jets);
 
-    if client.as_ref().map(|c| c.can_put()).unwrap_or(false) {
-        let client = client.unwrap();
+    if client.can_put() {
         client.put("private_jets/all.csv", data_csv).await?;
         client
             .put(
