@@ -164,6 +164,11 @@ async fn airports() -> Result<(), Box<dyn Error>> {
 
 #[tokio::test]
 async fn loads() -> Result<(), Box<dyn Error>> {
+    let _ = flights::aircraft::read(
+        date!(2023 - 11 - 06),
+        &flights::fs_s3::anonymous_client().await,
+    )
+    .await?;
     let _ = flights::load_aircraft_owners()?;
     let _ = flights::load_private_jet_models()?;
     let _ = flights::load_owners()?;
