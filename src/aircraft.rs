@@ -41,19 +41,15 @@ fn url(prefix: &str) -> String {
 
 /// Returns the current aircrafts from adsbexchange.com
 /// on a specific prefix of ICAO.
-async fn get_db_current(prefix: &str) -> Result<Vec<u8>, reqwest::Error> {
-    Ok(reqwest::get(url(prefix))
-        .await?
-        .bytes()
-        .await
-        .map(|x| x.into())?)
-}
-
-/// Returns a map between tail number (e.g. "OYTWM": "45D2ED")
 async fn db_current(
     prefix: String,
 ) -> Result<(String, HashMap<String, Vec<Option<String>>>), String> {
-    let data = get_db_current(&prefix).await.map_err(|e| e.to_string())?;
+    let data = reqwest::get(url(&prefix))
+        .await
+        .map_err(|e| e.to_string())?
+        .bytes()
+        .await
+        .map_err(|e| e.to_string())?;
 
     Ok((
         prefix,
@@ -90,13 +86,17 @@ async fn children<'a: 'async_recursion>(
 /// Returns [`Aircrafts`] known in [ADS-B exchange](https://globe.adsbexchange.com) as of now.
 /// It returns ~0.5m aircrafts
 /// # Implementation
-/// This function is idempotent but not pure: it caches every https request either to disk or remote storage
-/// to not penalize adsbexchange.com
+/// This function is not pure: the result depends on adsbexchange.com's current state.
 async fn extract_aircrafts() -> Result<Vec<Aircraft>, Box<dyn Error>> {
-    let country_ranges = CountryIcaoRanges::new();
-
     let prefixes = (b'A'..=b'F').chain(b'0'..b'9');
     let prefixes = prefixes.map(|x| std::str::from_utf8(&[x]).unwrap().to_string());
+    extract_aircrafts_prefix(prefixes).await
+}
+
+async fn extract_aircrafts_prefix(
+    prefixes: impl Iterator<Item = String>,
+) -> Result<Vec<Aircraft>, Box<dyn Error>> {
+    let country_ranges = CountryIcaoRanges::new();
 
     let mut entries = futures::future::try_join_all(prefixes.map(|x| db_current(x))).await?;
 
@@ -166,6 +166,19 @@ mod test {
     async fn work() {
         assert!(db_current("A0".to_string()).await.unwrap().1.len() > 20000);
 
+        assert!(
+            extract_aircrafts_prefix(["A00".to_string()].into_iter())
+                .await
+                .unwrap()
+                .len()
+                > 1000
+        );
+
         //assert!(extract_aircrafts().await.unwrap().len() > 400000);
+    }
+
+    #[tokio::test]
+    async fn load_works() {
+        load(vec![], "tst.csv", &crate::LocalDisk).await.unwrap();
     }
 }
