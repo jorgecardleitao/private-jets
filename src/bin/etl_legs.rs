@@ -136,7 +136,7 @@ async fn read<D: DeserializeOwned>(
 }
 
 async fn private_jets(
-    client: Option<&flights::fs_s3::ContainerClient>,
+    client: Option<&dyn BlobStorageProvider>,
 ) -> Result<Vec<aircraft::Aircraft>, Box<dyn std::error::Error>> {
     // load datasets to memory
     let aircrafts = aircraft::read(date!(2023 - 11 - 06), client).await?;

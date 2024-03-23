@@ -6,7 +6,7 @@ use itertools::Itertools;
 use simple_logger::SimpleLogger;
 use time::macros::date;
 
-use flights::{aircraft, existing_months_positions};
+use flights::{aircraft, existing_months_positions, BlobStorageProvider};
 
 const ABOUT: &'static str = r#"Builds the database of all private jet positions from 2023"#;
 
@@ -25,7 +25,7 @@ struct Cli {
 }
 
 async fn private_jets(
-    client: Option<&flights::fs_s3::ContainerClient>,
+    client: Option<&dyn BlobStorageProvider>,
     country: Option<&str>,
 ) -> Result<Vec<aircraft::Aircraft>, Box<dyn std::error::Error>> {
     // load datasets to memory
