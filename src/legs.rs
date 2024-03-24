@@ -25,14 +25,6 @@ impl Leg {
         self.to().datetime() - self.from().datetime()
     }
 
-    pub fn maximum_altitude(&self) -> f64 {
-        self.positions
-            .iter()
-            .map(|p| p.altitude() as u32)
-            .max()
-            .unwrap() as f64
-    }
-
     pub fn from(&self) -> &Position {
         self.positions.first().unwrap()
     }
@@ -105,4 +97,19 @@ pub fn legs(positions: impl Iterator<Item = Position>) -> Vec<Leg> {
         // ignore legs that are too short, as they are likely noise
         .filter(|leg| leg.distance() > 3.0)
         .collect()
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn positions() {
+        assert_eq!(Leg { positions: vec![] }.positions(), &[]);
+    }
+
+    #[test]
+    fn empty_leg() {
+        assert_eq!(all_legs(vec![].into_iter()).len(), 0);
+    }
 }
