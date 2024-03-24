@@ -103,11 +103,7 @@ async fn globe_history(icao: &str, date: &time::Date) -> Result<Vec<u8>, std::io
         )
         .into_bytes())
     } else {
-        response
-            .text()
-            .await
-            .map_err(std::io::Error::other)
-            .map(|x| x.into())
+        Err(std::io::Error::other(response.text().await.map_err(std::io::Error::other)?).into())
     }
 }
 
@@ -128,9 +124,6 @@ async fn globe_history_cached(
 }
 
 fn compute_trace(data: &[u8]) -> Result<(f64, Vec<serde_json::Value>), std::io::Error> {
-    if data.len() == 0 {
-        return Ok((0.0, vec![]));
-    };
     let mut value = serde_json::from_slice::<serde_json::Value>(&data)?;
     let Some(obj) = value.as_object_mut() else {
         return Ok((0.0, vec![]));
@@ -261,7 +254,6 @@ mod test {
 
     #[tokio::test]
     async fn edge_cases() {
-        assert_eq!(compute_trace(b"").unwrap().1.len(), 0);
         assert_eq!(compute_trace(b"[]").unwrap().1.len(), 0);
         assert_eq!(compute_trace(b"{}").unwrap().1.len(), 0);
         assert_eq!(compute_trace(b"{\"timestamp\": 1.0}").unwrap().1.len(), 0);
