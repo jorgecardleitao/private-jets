@@ -258,4 +258,19 @@ mod test {
         assert_eq!(first.datetime.minute(), 54);
         assert_eq!(first.grounded(), true);
     }
+
+    #[tokio::test]
+    async fn edge_cases() {
+        assert_eq!(compute_trace(b"").unwrap().1.len(), 0);
+        assert_eq!(compute_trace(b"[]").unwrap().1.len(), 0);
+        assert_eq!(compute_trace(b"{}").unwrap().1.len(), 0);
+        assert_eq!(compute_trace(b"{\"timestamp\": 1.0}").unwrap().1.len(), 0);
+        assert_eq!(
+            compute_trace(b"{\"timestamp\": 1.0, \"trace\": {}}")
+                .unwrap()
+                .1
+                .len(),
+            0
+        );
+    }
 }

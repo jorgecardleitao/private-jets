@@ -86,6 +86,17 @@ async fn flight_date(
     aircrafts: &Aircrafts,
     client: &dyn BlobStorageProvider,
 ) -> Result<Vec<Event>, Box<dyn Error>> {
+    let aircraft = aircrafts
+        .get(tail_number)
+        .ok_or_else(|| Into::<Box<dyn Error>>::into("Aircraft transponder number"))?;
+    let icao = &aircraft.icao_number;
+    log::info!("transponder number: {}", icao);
+
+    let positions = positions(icao, date, client).await?;
+    let legs = legs(positions);
+
+    log::info!("Number of legs: {}", legs.len());
+
     let models = load_private_jet_models()?;
     let airports = airports_cached().await?;
     let aircraft_owner = aircraft_owners
@@ -102,21 +113,10 @@ async fn flight_date(
         date: aircraft_owner.date.clone(),
     };
 
-    let aircraft = aircrafts
-        .get(tail_number)
-        .ok_or_else(|| Into::<Box<dyn Error>>::into("Aircraft transponder number"))?;
-    let icao = &aircraft.icao_number;
-    log::info!("transponder number: {}", icao);
-
     let consumption = models
         .get(&aircraft.model)
         .ok_or_else(|| Into::<Box<dyn Error>>::into("Consumption not found"))?;
     log::info!("Consumption: {} [gallon/h]", consumption.gph);
-
-    let positions = positions(icao, date, client).await?;
-    let legs = legs(positions);
-
-    log::info!("Number of legs: {}", legs.len());
 
     Ok(legs.into_iter().map(|leg| {
         let commercial_emissions_kg = Fact {
