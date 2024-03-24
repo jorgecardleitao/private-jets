@@ -136,7 +136,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     log::info!("number_of_legs: {}", legs.len());
     for leg in &legs {
         log::info!(
-            "{},{},{},{},{},{},{},{},{}",
+            "{},{},{},{},{},{},{},{}",
             leg.from().datetime(),
             leg.from().latitude(),
             leg.from().longitude(),
@@ -145,7 +145,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
             leg.to().latitude(),
             leg.to().longitude(),
             leg.to().altitude(),
-            leg.maximum_altitude(),
         );
     }
 
