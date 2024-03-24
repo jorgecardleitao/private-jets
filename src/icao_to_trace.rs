@@ -44,10 +44,6 @@ fn cache_file_path(icao: &str, date: &time::Date) -> String {
     format!("{DATABASE}/{date}/trace_full_{icao}.json")
 }
 
-fn to_io_err(error: reqwest::Error) -> std::io::Error {
-    std::io::Error::new(std::io::ErrorKind::Other, error)
-}
-
 async fn globe_history(icao: &str, date: &time::Date) -> Result<Vec<u8>, std::io::Error> {
     log::info!("globe_history({icao},{date})");
     let referer =
@@ -89,9 +85,13 @@ async fn globe_history(icao: &str, date: &time::Date) -> Result<Vec<u8>, std::io
         .headers(headers)
         .send()
         .await
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        .map_err(std::io::Error::other)?;
     if response.status() == StatusCode::OK {
-        Ok(response.bytes().await.map_err(to_io_err)?.to_vec())
+        Ok(response
+            .bytes()
+            .await
+            .map_err(std::io::Error::other)?
+            .to_vec())
     } else if response.status() == StatusCode::NOT_FOUND {
         Ok(format!(
             r#"{{
@@ -103,11 +103,11 @@ async fn globe_history(icao: &str, date: &time::Date) -> Result<Vec<u8>, std::io
         )
         .into_bytes())
     } else {
-        Err(std::io::Error::new::<String>(
-            std::io::ErrorKind::Other,
-            response.text().await.map_err(to_io_err)?,
-        )
-        .into())
+        response
+            .text()
+            .await
+            .map_err(std::io::Error::other)
+            .map(|x| x.into())
     }
 }
 
@@ -128,6 +128,9 @@ async fn globe_history_cached(
 }
 
 fn compute_trace(data: &[u8]) -> Result<(f64, Vec<serde_json::Value>), std::io::Error> {
+    if data.len() == 0 {
+        return Ok((0.0, vec![]));
+    };
     let mut value = serde_json::from_slice::<serde_json::Value>(&data)?;
     let Some(obj) = value.as_object_mut() else {
         return Ok((0.0, vec![]));

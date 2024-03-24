@@ -74,12 +74,12 @@ pub async fn month_positions(
     let fetch = async {
         // fetch all positions for the month for icao
         let tasks = cached_aircraft_positions(icao_number, month, to, client);
-        let mut positions: Vec<Position> = futures::stream::iter(tasks)
+        let mut positions = futures::stream::iter(tasks)
             // limit concurrent tasks
             .buffered(5)
             .try_collect::<Vec<_>>()
             .await
-            .map(|x| x.into_iter().flatten().collect())?;
+            .map(|x| x.into_iter().flatten().collect::<Vec<_>>())?;
 
         // sort them
         positions.sort_unstable_by_key(|p| p.datetime());
