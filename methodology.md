@@ -68,8 +68,8 @@ Condition 2. is used to mitigate the risk that ADS-B receivers sometimes
 do not receive an aircraft's signal when the aircraft is at low altitude.
 Condition 3. is used to mitigate situations where the aircraft enters regions
 of low ADS-B coverage (e.g. central Africa) while flying and then returns flying
-(sometimes days later), which should be intepreted as the aircraft being flying for the whole
-time.
+(sometimes days later), which should not be intepreted as the aircraft flying
+for the whole time.
 
 ![explain.drawio.png](./explain.drawio.png)
 
