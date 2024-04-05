@@ -124,6 +124,9 @@ async fn globe_history_cached(
 }
 
 fn compute_trace(data: &[u8]) -> Result<(f64, Vec<serde_json::Value>), std::io::Error> {
+    if data.is_empty() {
+        return Ok((0.0, vec![]));
+    }
     let mut value = serde_json::from_slice::<serde_json::Value>(&data)?;
     let Some(obj) = value.as_object_mut() else {
         return Ok((0.0, vec![]));
@@ -254,6 +257,8 @@ mod test {
 
     #[tokio::test]
     async fn edge_cases() {
+        // https://globe.adsbexchange.com/globe_history/2022/10/21/traces/23/trace_full_a7e823.json
+        assert_eq!(compute_trace(b"").unwrap().1.len(), 0);
         assert_eq!(compute_trace(b"[]").unwrap().1.len(), 0);
         assert_eq!(compute_trace(b"{}").unwrap().1.len(), 0);
         assert_eq!(compute_trace(b"{\"timestamp\": 1.0}").unwrap().1.len(), 0);
