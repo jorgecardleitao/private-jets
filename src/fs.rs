@@ -59,6 +59,7 @@ impl BlobStorageProvider for LocalDisk {
 pub enum CacheAction {
     ReadFetchWrite,
     ReadFetch,
+    #[allow(dead_code)]
     FetchWrite,
 }
 
