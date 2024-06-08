@@ -20,6 +20,11 @@ impl Leg {
         self.from().distace(&self.to())
     }
 
+    /// The total two-dimensional length of the leg in km
+    pub fn length(&self) -> f64 {
+        self.positions.windows(2).map(|w| w[0].distace(&w[1])).sum()
+    }
+
     /// Leg duration
     pub fn duration(&self) -> time::Duration {
         self.to().datetime() - self.from().datetime()

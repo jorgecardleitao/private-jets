@@ -38,10 +38,11 @@ aws-config = { version = "1.1.4", features = ["behavior-version-latest"] }
 aws-sdk-s3 = "*"
 aws-credential-types = "*"
 
+itertools = { version = "*" }
+
 clap = { version = "4.4.6", features = ["derive"], optional = true }
 tokio = { version="1.0", features=["rt", "macros", "rt-multi-thread"], optional = true }
 tinytemplate = { version = "1.1", optional = true }
-itertools = { version = "*", optional = true }
 num-format = { version = "*", optional = true }
 simple_logger = { version = "*", optional = true }
 
@@ -53,7 +54,6 @@ build-binary = [
     "clap",
     "tokio",
     "tinytemplate",
-    "itertools",
     "num-format",
     "simple_logger",
 ]

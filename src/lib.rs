@@ -9,10 +9,13 @@ mod emissions;
 pub(crate) mod fs;
 pub mod fs_s3;
 mod icao_to_trace;
+pub mod io;
 mod legs;
 mod model;
 mod owners;
 mod private_emissions;
+mod private_jets_in_time;
+pub mod serde;
 mod trace_month;
 
 pub use aircraft_models::*;
@@ -26,9 +29,10 @@ pub use legs::*;
 pub use model::*;
 pub use owners::*;
 pub use private_emissions::*;
+pub use private_jets_in_time::private_jets_in_month;
 
 /// A position of an aircraft
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, ::serde::Serialize, ::serde::Deserialize)]
 pub struct Position {
     #[serde(with = "time::serde::rfc3339")]
     datetime: time::OffsetDateTime,
