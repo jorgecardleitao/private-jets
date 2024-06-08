@@ -55,9 +55,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let client = flights::fs_s3::client(cli.access_key, cli.secret_access_key).await;
 
-    let months = (2019..2024)
+    let now = time::OffsetDateTime::now_utc().date();
+    let months = (2024..2025)
         .rev()
         .cartesian_product(1..=12u8)
+        .filter(|(year, month)| year <= &now.year() && month < &(now.month() as u8))
         .map(|(year, month)| {
             time::Date::from_calendar_date(year, time::Month::try_from(month).unwrap(), 1)
                 .expect("day 1 never errors")

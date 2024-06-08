@@ -267,7 +267,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let models = flights::load_private_jet_models()?;
     let airports = flights::airports_cached().await?;
 
-    let months = (2019..2024).cartesian_product(1..=12u8).count();
+    let now = time::OffsetDateTime::now_utc().date();
+    let months = (2024..2025)
+        .cartesian_product(1..=12u8)
+        .filter(|(year, month)| year <= &now.year() && month < &(now.month() as u8))
+        .count();
     let private_jets = private_jets(client).await?;
     let relevant_jets = private_jets
         .clone()
