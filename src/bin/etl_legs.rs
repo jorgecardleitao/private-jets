@@ -52,11 +52,7 @@ async fn write_csv(
     key: &str,
     client: &dyn BlobStorageProvider,
 ) -> Result<(), std::io::Error> {
-    let mut wtr = csv::Writer::from_writer(vec![]);
-    for leg in items {
-        wtr.serialize(leg).unwrap()
-    }
-    let data_csv = wtr.into_inner().unwrap();
+    let data_csv = flights::csv::serialize(items);
     client.put(&key, data_csv).await?;
     Ok(())
 }
@@ -235,9 +231,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let client = &client;
 
     let required =
-        flights::private_jets_in_month((2019..2024).rev(), maybe_country, client).await?;
+        flights::private_jets_in_month((2019..2025).rev(), maybe_country, client).await?;
 
     log::info!("required : {}", required.len());
+
+    let completed = list(client).await?.into_iter().collect::<HashSet<_>>();
+    log::info!("completed: {}", completed.len());
 
     let ready = flights::list_months_positions(client)
         .await?
@@ -245,13 +244,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .filter(|key| required.contains(key))
         .collect::<HashSet<_>>();
     log::info!("ready    : {}", ready.len());
-
-    let completed = list(client)
-        .await?
-        .into_iter()
-        .filter(|key| required.contains(key))
-        .collect::<HashSet<_>>();
-    log::info!("completed: {}", completed.len());
 
     let mut todo = ready.difference(&completed).collect::<Vec<_>>();
     todo.sort_unstable_by_key(|(icao, date)| (date, icao));

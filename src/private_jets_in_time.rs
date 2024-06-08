@@ -54,10 +54,16 @@ pub async fn private_jets_in_month(
         .collect::<HashMap<_, _>>();
 
     // set of all months for requested years
-    let months = years.cartesian_product(1..=12u8).map(|(year, month)| {
-        time::Date::from_calendar_date(year, time::Month::try_from(month).unwrap(), 1)
-            .expect("day 1 never errors")
-    });
+    let now = time::OffsetDateTime::now_utc().date();
+    let now =
+        time::Date::from_calendar_date(now.year(), now.month(), 1).expect("day 1 never errors");
+    let months = years
+        .cartesian_product(1..=12u8)
+        .map(|(year, month)| {
+            time::Date::from_calendar_date(year, time::Month::try_from(month).unwrap(), 1)
+                .expect("day 1 never errors")
+        })
+        .filter(|month| month < &now);
 
     // for each month, get the list of private jets closest from the start of month
     let private_jets = months
