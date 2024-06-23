@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::sync::Arc;
 
 use clap::Parser;
 use simple_logger::SimpleLogger;
@@ -69,7 +70,7 @@ struct Cli {
 
     /// The tail number
     #[arg(long)]
-    tail_number: String,
+    tail_number: Arc<str>,
     /// A date in format `yyyy-mm-dd`
     #[arg(long, value_parser = parse_date)]
     from: time::Date,
@@ -114,7 +115,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .ok_or_else(|| Into::<Box<dyn Error>>::into("Aircraft ICAO number not found"))?
         .clone();
     let aircraft_owner = aircraft_owners
-        .get(tail_number)
+        .get(tail_number.as_ref())
         .ok_or_else(|| Into::<Box<dyn Error>>::into("Owner of tail number not found"))?;
     log::info!("Aircraft owner: {}", aircraft_owner.owner);
     let company = owners

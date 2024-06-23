@@ -14,7 +14,7 @@ static TEMPLATE: &str = include_str!(concat!(
 ));
 static TEMPLATE_NAME: &'static str = "t";
 
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[derive(::serde::Serialize, ::serde::Deserialize, Debug)]
 pub struct Event {
     pub tail_number: String,
     pub owner: Fact<Company>,
@@ -28,7 +28,7 @@ pub struct Event {
     pub source_date: String,
 }
 
-#[derive(serde::Serialize)]
+#[derive(::serde::Serialize)]
 pub struct Context {
     pub event: Event,
     pub dane_emissions_kg: Fact<usize>,
