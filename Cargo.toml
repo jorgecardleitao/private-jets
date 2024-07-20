@@ -42,8 +42,6 @@ itertools = { version = "*" }
 
 clap = { version = "4.4.6", features = ["derive"], optional = true }
 tokio = { version="1.0", features=["rt", "macros", "rt-multi-thread"], optional = true }
-tinytemplate = { version = "1.1", optional = true }
-num-format = { version = "*", optional = true }
 simple_logger = { version = "*", optional = true }
 
 [dev-dependencies]
@@ -53,8 +51,6 @@ tokio = {version="1.0", features=["rt", "macros", "rt-multi-thread"]}
 build-binary = [
     "clap",
     "tokio",
-    "tinytemplate",
-    "num-format",
     "simple_logger",
 ]
 
@@ -67,17 +63,5 @@ name = "etl_positions"
 required-features = ["build-binary"]
 
 [[bin]]
-name = "etl_private_jets"
-required-features = ["build-binary"]
-
-[[bin]]
-name = "period"
-required-features = ["build-binary"]
-
-[[bin]]
-name = "country"
-required-features = ["build-binary"]
-
-[[bin]]
-name = "single_day"
+name = "etl_aircrafts"
 required-features = ["build-binary"]

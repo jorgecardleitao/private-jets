@@ -1,10 +1,8 @@
-use std::{collections::HashSet, error::Error};
+use std::error::Error;
 
 use clap::Parser;
 use futures::StreamExt;
 use simple_logger::SimpleLogger;
-
-use flights::list_months_positions;
 
 const ABOUT: &'static str = r#"Builds the database of all private jet positions since 2019"#;
 
@@ -38,15 +36,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     log::info!("required : {}", required.len());
 
-    let completed = list_months_positions(&client).await?;
+    let completed = flights::icao_to_trace::list_months_positions(&client).await?;
     log::info!("completed: {}", completed.len());
     let mut todo = required.difference(&completed).collect::<Vec<_>>();
     todo.sort_unstable_by_key(|(icao_number, date)| (date, icao_number));
     log::info!("todo     : {}", todo.len());
 
-    let tasks = todo
-        .into_iter()
-        .map(|(icao_number, month)| flights::month_positions(icao_number, *month, &client));
+    let tasks = todo.into_iter().map(|(icao_number, month)| {
+        flights::icao_to_trace::month_positions(icao_number, *month, &client)
+    });
 
     futures::stream::iter(tasks)
         // limit concurrent tasks

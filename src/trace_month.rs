@@ -4,15 +4,13 @@ use futures::{StreamExt, TryStreamExt};
 use time::Date;
 
 use super::Position;
-use crate::{cached_aircraft_positions, fs, BlobStorageProvider};
+use crate::{fs, icao_to_trace::cached_aircraft_positions};
 
 static DATABASE: &'static str = "position/";
 
 fn pk_to_blob_name(icao: &str, date: time::Date) -> String {
-    format!(
-        "{DATABASE}icao_number={icao}/month={}/data.json",
-        crate::serde::month_to_part(date)
-    )
+    let month = crate::serde::month_to_part(date);
+    format!("{DATABASE}icao_number={icao}/month={month}/data.json",)
 }
 
 fn blob_name_to_pk(blob: &str) -> (Arc<str>, time::Date) {
@@ -43,7 +41,7 @@ fn first_of_next_month(month: &time::Date) -> time::Date {
 pub async fn month_positions(
     icao_number: &str,
     month: time::Date,
-    client: &dyn BlobStorageProvider,
+    client: &dyn fs::BlobStorageProvider,
 ) -> Result<Vec<Position>, std::io::Error> {
     log::info!("month_positions({icao_number},{month})");
     assert_eq!(month.day(), 1);
@@ -83,7 +81,7 @@ pub async fn aircraft_positions(
     from: Date,
     to: Date,
     icao_number: &str,
-    client: &dyn BlobStorageProvider,
+    client: &dyn fs::BlobStorageProvider,
 ) -> Result<Vec<Position>, Box<dyn Error>> {
     let dates = super::DateIter {
         from,
@@ -120,7 +118,7 @@ pub async fn aircraft_positions(
 /// Returns the set of (icao number, month) that exist in the container prefixed by `prefix`
 async fn list(
     prefix: &str,
-    client: &dyn BlobStorageProvider,
+    client: &dyn fs::BlobStorageProvider,
 ) -> Result<HashSet<(Arc<str>, time::Date)>, std::io::Error> {
     Ok(client
         .list(prefix)
@@ -135,7 +133,7 @@ async fn list(
 pub async fn get_month_positions(
     icao_number: &str,
     month: time::Date,
-    client: &dyn BlobStorageProvider,
+    client: &dyn fs::BlobStorageProvider,
 ) -> Result<Vec<Position>, std::io::Error> {
     log::info!("get_months_positions({icao_number},{month})");
     assert_eq!(month.day(), 1);
@@ -150,7 +148,7 @@ pub async fn get_month_positions(
 
 /// Returns the set of (icao, month) that exists in the db
 pub async fn list_months_positions(
-    client: &dyn BlobStorageProvider,
+    client: &dyn fs::BlobStorageProvider,
 ) -> Result<HashSet<(Arc<str>, time::Date)>, std::io::Error> {
     list(DATABASE, client).await
 }

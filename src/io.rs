@@ -1,6 +1,6 @@
 use serde::de::DeserializeOwned;
 
-use crate::BlobStorageProvider;
+use crate::fs::BlobStorageProvider;
 
 pub async fn get_csv<D: DeserializeOwned>(
     key: &str,

@@ -7,11 +7,12 @@ use std::{
 use itertools::Itertools;
 use time::macros::date;
 
-use crate::BlobStorageProvider;
+use crate::fs::BlobStorageProvider;
 
-/// Returns the complete set of (month, icao_number) for a given set of years and (optionally) countries.
-/// This fetches the set of aircrafts available in the database in time, and joins (in time)
-/// with the set of months in the requested years, effectively building the (time-dependent) dataset of all private jets.
+/// Returns the (time-dependent) dataset of all private jets.
+///
+/// Returns the set of (month, icao_number) for a given set of years and (optionally) countries.
+/// This fetches the set of aircrafts available in the database in time, and joins (in time) with the set of months in the requested years.
 ///
 /// ## Background
 /// The set of aircrafts at a given point in time changes, as aircrafts are registered and deregistered to
@@ -28,18 +29,19 @@ pub async fn private_jets_in_month(
     maybe_country: Option<&str>,
     client: &dyn BlobStorageProvider,
 ) -> Result<HashSet<(Arc<str>, time::Date)>, Box<dyn Error>> {
-    let models = crate::load_private_jet_models()?;
+    let models = crate::aircraft_models::load_private_jet_models()?;
     let aircrafts = crate::aircraft::read_all(client).await?;
 
-    // filter for private jet models and optionally country
+    // set of icao numbers that are private jets, for each date
     let private_jets = aircrafts
         .into_iter()
-        .map(|(month, a)| {
+        .map(|(date, a)| {
             (
-                month,
+                date,
                 // wrap in arc since we will point to this from from multiple months
                 Arc::new(
                     a.into_iter()
+                        // filter for private jet models and optionally country
                         .filter(|(_, a)| models.contains_key(&a.model))
                         .filter(|(_, a)| {
                             maybe_country

@@ -3,6 +3,7 @@
 [![Coverage](https://codecov.io/gh/jorgecardleitao/private-jets/graph/badge.svg?token=DT7C376OKH)](https://codecov.io/gh/jorgecardleitao/private-jets)
 
 This repository contains a CLI application to analyze flights of private jets.
+See [`methodology.md`](./methodology.md) for details of what it does and where data is available for consumption.
 
 It is supported by an S3 Blob storage container for caching data, thereby
 reducing its impact to [https://adsbexchange.com/](https://adsbexchange.com/).
@@ -26,14 +27,11 @@ All cached data is available on S3 blob storage at endpoint
 
 and has anonymous and public read permissions.
 
-## How to use
-
-This repository contains both a Rust library and a set of [`examples/`](./examples) used
-to perform actual calculations. To use one of such examples:
+## Getting starter
 
 1. Install Rust
-2. run `cargo run --features="build-binary" --bin single_day -- --tail-number "OY-GFS" --date "2023-10-20"`
-3. open `OY-GFS_2023-10-20_0.md`
+2. run `cargo run --features="build-binary" --release --bin etl_aircrafts`
+3. open `database/aircraft/db/date=<today date>/data.csv`
 
 Step 2. has an optional arguments, `--access-key`, `--secret-access-key`, specifying
 credentials to write to the remote storate, as opposed to disk.
@@ -54,15 +52,8 @@ that preserves data integrity.
 ### Examples:
 
 ```bash
-# Story about Danish private jets that flew to Davos between two dates
-cargo run --features="build-binary" --bin country -- --from=2024-01-13 --to=2024-01-21 --country=denmark --location=davos
-# Story about Danish private jets that flew between two dates
-cargo run --features="build-binary" --bin country -- --from=2024-01-13 --to=2024-01-21 --country=denmark
-# Story about Portuguese private jets that flew between two dates
-cargo run --features="build-binary" --bin country -- --from=2024-01-13 --to=2024-01-21 --country=portugal
-
-# Story about German private jets that flew in 2023, where secret is on a file
-cargo run --features="build-binary" --bin country -- --from=2023-01-01 --to=2024-01-01 --country=germany --access-key=DO00AUDGL32QLFKV8CEP --secret-access-key=$(cat secrets.txt)
+# Create new snapshot of database of all aircrafts
+cargo run --features="build-binary" --release --bin etl_aircrafts -- --access-key=DO00AUDGL32QLFKV8CEP --secret-access-key=$(cat secrets.txt)
 
 # Build database of positions `[2020, 2023]`
 cargo run --features="build-binary" --release --bin etl_positions -- --access-key=DO00AUDGL32QLFKV8CEP --secret-access-key=$(cat secrets.txt)
@@ -74,14 +65,3 @@ cargo run --features="build-binary" --release --bin etl_legs -- --access-key=DO0
 # they are available at
 # https://private-jets.fra1.digitaloceanspaces.com/leg/v1/data/icao_number={icao}/month={year}-{month}/data.csv
 ```
-
-## Methodology
-
-The methodology used to extract information is available at [`methodology.md`](./methodology.md).
-
-## Generated datasets
-
-### Set of worldwide aicrafts whose primary use is to be a private jet:
-
-* [Data](https://private-jets.fra1.digitaloceanspaces.com/private_jets/2023/11/06/data.csv)
-* [Description](https://private-jets.fra1.digitaloceanspaces.com/private_jets/2023/11/06/description.md)

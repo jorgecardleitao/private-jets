@@ -5,27 +5,38 @@ use std::{
 };
 
 use clap::Parser;
-use flights::{BlobStorageProvider, Leg};
 use futures::{StreamExt, TryStreamExt};
 use serde::{de::DeserializeOwned, Serialize};
 use simple_logger::SimpleLogger;
+
+use flights::{fs::BlobStorageProvider, Position};
 
 static DATABASE_ROOT: &'static str = "leg/v2/";
 static DATABASE: &'static str = "leg/v2/data/";
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct LegOut {
+    /// The ICAO number
     icao_number: Arc<str>,
+    /// The start timestamp
     #[serde(with = "time::serde::rfc3339")]
     start: time::OffsetDateTime,
+    /// The start latitude
     start_lat: f64,
+    /// The start longitude
     start_lon: f64,
+    /// The start altitude in feet
     start_altitude: f64,
+    /// The end timestamp
     #[serde(with = "time::serde::rfc3339")]
     end: time::OffsetDateTime,
+    /// The end latitude
     end_lat: f64,
+    /// The end longitude
     end_lon: f64,
+    /// The end altitude in feet
     end_altitude: f64,
+    /// The total two-dimensional length of the leg in km
     length: f64,
 }
 
@@ -57,8 +68,11 @@ async fn write_csv(
     Ok(())
 }
 
-fn transform<'a>(icao_number: &'a Arc<str>, legs: Vec<Leg>) -> impl Iterator<Item = LegOut> + 'a {
-    legs.into_iter().map(|leg| LegOut {
+fn transform<'a>(
+    icao_number: &'a Arc<str>,
+    positions: Vec<Position>,
+) -> impl Iterator<Item = LegOut> + 'a {
+    flights::legs::legs(positions.into_iter()).map(|leg| LegOut {
         icao_number: icao_number.clone(),
         start: leg.from().datetime(),
         start_lat: leg.from().latitude(),
@@ -94,14 +108,12 @@ async fn read<D: DeserializeOwned>(
 }
 
 fn pk_to_blob_name(icao: &str, month: time::Date) -> String {
-    format!(
-        "{DATABASE}month={}/icao_number={icao}/data.json",
-        flights::serde::month_to_part(month)
-    )
+    let month = flights::serde::month_to_part(month);
+    format!("{DATABASE}month={month}/icao_number={icao}/data.csv")
 }
 
 fn blob_name_to_pk(blob: &str) -> (Arc<str>, time::Date) {
-    let keys = flights::serde::hive_to_map(&blob[DATABASE.len()..blob.len() - "data.json".len()]);
+    let keys = flights::serde::hive_to_map(&blob[DATABASE.len()..blob.len() - "data.csv".len()]);
     let icao = *keys.get("icao_number").unwrap();
     let date = *keys.get("month").unwrap();
     (icao.into(), flights::serde::parse_month(date))
@@ -141,9 +153,10 @@ async fn etl_task(
     client: &dyn BlobStorageProvider,
 ) -> Result<(), Box<dyn Error>> {
     // extract
-    let positions = flights::get_month_positions(&icao_number, month, client).await?;
+    let positions =
+        flights::icao_to_trace::get_month_positions(&icao_number, month, client).await?;
     // transform
-    let legs = transform(&icao_number, flights::legs(positions.into_iter()));
+    let legs = transform(&icao_number, positions);
     // load
     write(&icao_number, month, legs, client).await
 }
@@ -230,6 +243,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let client = flights::fs_s3::client(cli.access_key, cli.secret_access_key).await;
     let client = &client;
 
+    log::info!("deleting");
+    futures::stream::iter(
+        client
+            .list(DATABASE)
+            .await?
+            .into_iter()
+            .map(|blob| async move { client.delete(&blob).await }),
+    )
+    .buffered(200)
+    .collect::<Vec<_>>()
+    .await;
+    log::info!("deleted");
+
     let required =
         flights::private_jets_in_month((2019..2025).rev(), maybe_country, client).await?;
 
@@ -238,7 +264,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let completed = list(client).await?.into_iter().collect::<HashSet<_>>();
     log::info!("completed: {}", completed.len());
 
-    let ready = flights::list_months_positions(client)
+    let ready = flights::icao_to_trace::list_months_positions(client)
         .await?
         .into_iter()
         .filter(|key| required.contains(key))

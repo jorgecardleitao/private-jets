@@ -7,7 +7,7 @@ use time::Date;
 use time::OffsetDateTime;
 
 use super::Position;
-use crate::{fs, BlobStorageProvider};
+use crate::fs;
 
 fn last_2(icao: &str) -> &str {
     let bytes = icao.as_bytes();
@@ -114,7 +114,7 @@ async fn globe_history(icao: &str, date: &time::Date) -> Result<Vec<u8>, std::io
 async fn globe_history_cached(
     icao: &str,
     date: &time::Date,
-    client: &dyn BlobStorageProvider,
+    client: &dyn fs::BlobStorageProvider,
 ) -> Result<Vec<u8>, std::io::Error> {
     let blob_name = cache_file_path(icao, date);
     let action = fs::CacheAction::from_date(&date);
@@ -160,7 +160,7 @@ fn compute_trace(data: &[u8]) -> Result<(f64, Vec<serde_json::Value>), std::io::
 async fn trace_cached(
     icao: &str,
     date: &time::Date,
-    client: &dyn BlobStorageProvider,
+    client: &dyn fs::BlobStorageProvider,
 ) -> Result<(f64, Vec<serde_json::Value>), std::io::Error> {
     compute_trace(&globe_history_cached(icao, date, client).await?)
 }
@@ -200,11 +200,11 @@ fn compute_positions(start_trace: (f64, Vec<serde_json::Value>)) -> impl Iterato
 }
 
 /// Returns an iterator of [`Position`] over the trace of `icao` on day `date` according
-/// to the [methodology `M-3`](../methodology.md).
+/// to the [methodology `M-daily-adsb`](../methodology.md).
 pub async fn positions(
     icao_number: &str,
     date: time::Date,
-    client: &dyn BlobStorageProvider,
+    client: &dyn fs::BlobStorageProvider,
 ) -> Result<impl Iterator<Item = Position>, std::io::Error> {
     trace_cached(icao_number, &date, client)
         .await
@@ -215,7 +215,7 @@ pub(crate) fn cached_aircraft_positions<'a>(
     icao_number: &'a str,
     from: Date,
     to: Date,
-    client: &'a dyn BlobStorageProvider,
+    client: &'a dyn fs::BlobStorageProvider,
 ) -> impl Iterator<
     Item = impl futures::future::Future<Output = Result<Vec<Position>, std::io::Error>> + 'a,
 > + 'a {

@@ -20,8 +20,8 @@ pub struct AircraftModel {
 
 /// Returns the set of all [`AircraftModel`] in `src/models.csv`,
 /// corresponding to aircraft types whose primary use is to be a private jet
-/// according to the [methodology `M-2`](../methodology.md).
-/// The gph of each model is the average over all sources as per [methodology `M-6`](../methodology.md).
+/// according to the [methodology `M-models-for-private-use`](../methodology.md).
+/// The gph of each model is the average over all sources as per [methodology `M-average-consumption`](../methodology.md).
 /// # Error
 /// Errors if the file cannot be read
 pub fn load_private_jet_models() -> Result<AircraftModels, Box<dyn Error>> {

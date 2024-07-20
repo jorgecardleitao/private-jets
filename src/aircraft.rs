@@ -10,9 +10,9 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use time::Date;
 
+use crate::country::CountryIcaoRanges;
 use crate::csv;
 use crate::fs::BlobStorageProvider;
-use crate::CountryIcaoRanges;
 
 static DATABASE: &'static str = "aircraft/db/";
 
@@ -35,7 +35,7 @@ pub struct Aircraft {
 }
 
 fn pk_to_blob_name(date: &time::Date) -> String {
-    format!("{DATABASE}date={date}/data.csv",)
+    format!("{DATABASE}date={date}/data.csv")
 }
 
 fn blob_name_to_pk(blob: &str) -> time::Date {
@@ -227,11 +227,11 @@ mod test {
             country: Some("UK".into()),
         };
         let date = date!(2023 - 01 - 01);
-        load(vec![original.clone()], &date, &crate::LocalDisk)
+        load(vec![original.clone()], &date, &crate::fs::LocalDisk)
             .await
             .unwrap();
 
-        let data = read_all(&crate::LocalDisk).await.unwrap();
+        let data = read_all(&crate::fs::LocalDisk).await.unwrap();
 
         let expected = HashMap::from([(
             date,
