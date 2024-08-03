@@ -14,14 +14,6 @@ pub mod serde;
 mod trace_month;
 
 pub use private_jets_in_time::private_jets_in_month;
-/*
-pub use aircraft_models::*;
-pub(crate) use country::CountryIcaoRanges;
-pub use icao_to_trace::*;
-pub use legs::*;
-pub use model::*;
-
- */
 
 /// A position of an aircraft
 #[derive(Debug, Clone, PartialEq, ::serde::Serialize, ::serde::Deserialize)]

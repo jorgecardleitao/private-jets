@@ -9,7 +9,7 @@ use futures::{StreamExt, TryStreamExt};
 use serde::{de::DeserializeOwned, Serialize};
 use simple_logger::SimpleLogger;
 
-use flights::{fs::BlobStorageProvider, Position};
+use flights::{aircraft::Aircraft, fs::BlobStorageProvider, Position};
 
 static DATABASE_ROOT: &'static str = "leg/v2/";
 static DATABASE: &'static str = "leg/v2/data/";
@@ -18,6 +18,10 @@ static DATABASE: &'static str = "leg/v2/data/";
 struct LegOut {
     /// The ICAO number
     icao_number: Arc<str>,
+    /// The tail number
+    tail_number: Arc<str>,
+    /// The aircraft model
+    aircraft_model: Arc<str>,
     /// The start timestamp
     #[serde(with = "time::serde::rfc3339")]
     start: time::OffsetDateTime,
@@ -70,10 +74,13 @@ async fn write_csv(
 
 fn transform<'a>(
     icao_number: &'a Arc<str>,
+    aircraft: &'a Aircraft,
     positions: Vec<Position>,
 ) -> impl Iterator<Item = LegOut> + 'a {
     flights::legs::legs(positions.into_iter()).map(|leg| LegOut {
         icao_number: icao_number.clone(),
+        tail_number: aircraft.tail_number.clone().into(),
+        aircraft_model: aircraft.model.clone().into(),
         start: leg.from().datetime(),
         start_lat: leg.from().latitude(),
         start_lon: leg.from().longitude(),
@@ -131,7 +138,7 @@ async fn list(
         .collect())
 }
 
-const ABOUT: &'static str = r#"Builds the database of all legs"#;
+const ABOUT: &'static str = "Builds the database of all legs";
 
 #[derive(Parser, Debug)]
 #[command(author, version, about = ABOUT)]
@@ -149,6 +156,7 @@ struct Cli {
 
 async fn etl_task(
     icao_number: &Arc<str>,
+    aircraft: &Aircraft,
     month: time::Date,
     client: &dyn BlobStorageProvider,
 ) -> Result<(), Box<dyn Error>> {
@@ -156,19 +164,20 @@ async fn etl_task(
     let positions =
         flights::icao_to_trace::get_month_positions(&icao_number, month, client).await?;
     // transform
-    let legs = transform(&icao_number, positions);
+    let legs = transform(&icao_number, aircraft, positions);
     // load
     write(&icao_number, month, legs, client).await
 }
 
 async fn aggregate(
-    required: HashSet<(Arc<str>, time::Date)>,
+    required: HashMap<(Arc<str>, time::Date), Arc<Aircraft>>,
     client: &dyn BlobStorageProvider,
 ) -> Result<(), Box<dyn Error>> {
-    let completed = list(client)
-        .await?
+    let all_completed = list(client).await?;
+
+    let completed = all_completed
         .into_iter()
-        .filter(|key| required.contains(key))
+        .filter(|key| required.contains_key(key))
         .collect::<HashSet<_>>();
 
     // group completed by year
@@ -186,12 +195,12 @@ async fn aggregate(
     let required_by_year =
         required
             .into_iter()
-            .fold(HashMap::<i32, HashSet<_>>::new(), |mut acc, v| {
+            .fold(HashMap::<i32, usize>::new(), |mut acc, (v, _)| {
                 acc.entry(v.1.year())
                     .and_modify(|entries| {
-                        entries.insert(v.clone());
+                        *entries += 1;
                     })
-                    .or_insert(HashSet::from([v]));
+                    .or_insert(0);
                 acc
             });
 
@@ -217,7 +226,7 @@ async fn aggregate(
         metadata.insert(
             year,
             Metadata {
-                icao_months_to_process: required_by_year.get(&year).unwrap().len(),
+                icao_months_to_process: *required_by_year.get(&year).unwrap(),
                 icao_months_processed: completed.len(),
                 url: format!("https://private-jets.fra1.digitaloceanspaces.com/{key}"),
             },
@@ -261,13 +270,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     log::info!("required : {}", required.len());
 
-    let completed = list(client).await?.into_iter().collect::<HashSet<_>>();
+    let completed = HashSet::new(); //;list(client).await?.into_iter().collect::<HashSet<_>>();
     log::info!("completed: {}", completed.len());
 
     let ready = flights::icao_to_trace::list_months_positions(client)
         .await?
         .into_iter()
-        .filter(|key| required.contains(key))
+        .filter(|key| required.contains_key(key))
         .collect::<HashSet<_>>();
     log::info!("ready    : {}", ready.len());
 
@@ -275,9 +284,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     todo.sort_unstable_by_key(|(icao, date)| (date, icao));
     log::info!("todo     : {}", todo.len());
 
-    let tasks = todo
-        .into_iter()
-        .map(|(icao_number, month)| async move { etl_task(icao_number, *month, client).await });
+    let tasks = todo.into_iter().map(|icao_month| async {
+        let aircraft = required.get(icao_month).expect("limited to required above");
+        let (icao_number, month) = icao_month;
+        etl_task(icao_number, aircraft, *month, client).await
+    });
 
     let _ = futures::stream::iter(tasks)
         .buffered(50)

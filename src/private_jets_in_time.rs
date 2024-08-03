@@ -1,13 +1,9 @@
-use std::{
-    collections::{HashMap, HashSet},
-    error::Error,
-    sync::Arc,
-};
+use std::{collections::HashMap, error::Error, sync::Arc};
 
 use itertools::Itertools;
 use time::macros::date;
 
-use crate::fs::BlobStorageProvider;
+use crate::{aircraft::Aircraft, fs::BlobStorageProvider};
 
 /// Returns the (time-dependent) dataset of all private jets.
 ///
@@ -28,7 +24,7 @@ pub async fn private_jets_in_month(
     years: impl Iterator<Item = i32>,
     maybe_country: Option<&str>,
     client: &dyn BlobStorageProvider,
-) -> Result<HashSet<(Arc<str>, time::Date)>, Box<dyn Error>> {
+) -> Result<HashMap<(Arc<str>, time::Date), Arc<Aircraft>>, Box<dyn Error>> {
     let models = crate::aircraft_models::load_private_jet_models()?;
     let aircrafts = crate::aircraft::read_all(client).await?;
 
@@ -48,8 +44,8 @@ pub async fn private_jets_in_month(
                                 .map(|country| a.country.as_deref() == Some(country))
                                 .unwrap_or(true)
                         })
-                        .map(|(_, a)| a.icao_number.clone())
-                        .collect::<HashSet<_>>(),
+                        .map(|(_, a)| (a.icao_number.clone(), Arc::new(a.clone())))
+                        .collect::<HashMap<_, _>>(),
                 ),
             )
         })
@@ -79,11 +75,10 @@ pub async fn private_jets_in_month(
                 .get(&closest_set)
                 .unwrap()
                 .iter()
-                .cloned()
-                .map(move |icao| (icao, month.clone()))
+                .map(move |(icao, aircraft)| ((icao.clone(), month.clone()), aircraft.clone()))
         })
         .flatten()
-        .collect::<HashSet<_>>();
+        .collect::<HashMap<_, _>>();
 
     Ok(private_jets)
 }
