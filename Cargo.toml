@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 # process JSON from https
 serde = { version = "1.0", features = ["derive", "rc"] }
-serde_json = { version = "1.0", features = ["std"], default_features = false }
+serde_json = { version = "1.0", features = ["std"], default-features = false }
 
 # perform requests to the internet
 reqwest = {version="0.12", features = ["gzip"]}
@@ -14,16 +14,16 @@ reqwest-retry = "0.5.0"
 reqwest-middleware = "0.3.0"
 
 # create random string for cookies
-rand = {version="*", default_features = false, features = ["std", "std_rng", "getrandom"]}
+rand = {version="*", default-features = false, features = ["std", "std_rng", "getrandom"]}
 
 # to perform time-based calculations
-time = {version="*", default_features = false, features = ["formatting", "parsing", "macros", "serde", "serde-well-known"]}
+time = {version="*", default-features = false, features = ["formatting", "parsing", "macros", "serde", "serde-well-known"]}
 
 # compute distances between geo-points
-geoutils = {version="*", default_features = false}
+geoutils = {version="*", default-features = false}
 
 # read airport names
-csv = {version="*", default_features = false}
+csv = {version="*", default-features = false}
 
 # async utilities
 async-trait = "*"
