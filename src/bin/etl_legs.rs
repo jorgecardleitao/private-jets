@@ -42,6 +42,8 @@ struct LegOut {
     end_altitude: f64,
     /// The total two-dimensional length of the leg in km
     length: f64,
+    /// The time above 30.000 feet
+    hours_above_30000: f64,
 }
 
 #[derive(serde::Serialize)]
@@ -90,6 +92,15 @@ fn transform<'a>(
         end_lon: leg.to().longitude(),
         end_altitude: leg.to().altitude(),
         length: leg.length(),
+        hours_above_30000: leg
+            .positions()
+            .windows(2)
+            .filter_map(|w| {
+                (w[0].altitude() > 30000.0 && w[1].altitude() > 30000.0).then(|| {
+                    (w[1].datetime() - w[0].datetime()).whole_seconds() as f64 / 60.0 / 60.0
+                })
+            })
+            .sum::<f64>(),
     })
 }
 
@@ -252,27 +263,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let client = flights::fs_s3::client(cli.access_key, cli.secret_access_key).await;
     let client = &client;
 
-    log::info!("deleting");
-    futures::stream::iter(
-        client
-            .list(DATABASE)
-            .await?
-            .into_iter()
-            .map(|blob| async move { client.delete(&blob).await }),
-    )
-    .buffered(200)
-    .collect::<Vec<_>>()
-    .await;
-    log::info!("deleted");
-
+    log::info!("computing required tasks...");
     let required =
         flights::private_jets_in_month((2019..2025).rev(), maybe_country, client).await?;
-
     log::info!("required : {}", required.len());
 
-    let completed = HashSet::new(); //;list(client).await?.into_iter().collect::<HashSet<_>>();
+    log::info!("computing completed tasks...");
+    let completed = list(client).await?.into_iter().collect::<HashSet<_>>();
     log::info!("completed: {}", completed.len());
 
+    log::info!("computing ready tasks...");
     let ready = flights::icao_to_trace::list_months_positions(client)
         .await?
         .into_iter()
@@ -284,6 +284,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     todo.sort_unstable_by_key(|(icao, date)| (date, icao));
     log::info!("todo     : {}", todo.len());
 
+    log::info!("executing todos...");
     let tasks = todo.into_iter().map(|icao_month| async {
         let aircraft = required.get(icao_month).expect("limited to required above");
         let (icao_number, month) = icao_month;
@@ -294,6 +295,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .buffered(50)
         .collect::<Vec<_>>()
         .await;
+    log::info!("todos completed");
 
+    log::info!("aggregating...");
     aggregate(required, client).await
 }
