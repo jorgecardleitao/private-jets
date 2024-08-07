@@ -21,7 +21,7 @@ fn blob_name_to_pk(blob: &str) -> (Arc<str>, time::Date) {
 }
 
 /// Returns the first day of the next month
-fn first_of_next_month(month: &time::Date) -> time::Date {
+pub fn first_of_next_month(month: &time::Date) -> time::Date {
     let next_month = month.month().next();
     (next_month == time::Month::January)
         .then(|| {

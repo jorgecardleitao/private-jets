@@ -13,6 +13,7 @@ mod private_jets_in_time;
 pub mod serde;
 mod trace_month;
 
+pub use aircraft_models::load_private_jet_models;
 pub use private_jets_in_time::private_jets_in_month;
 
 /// A position of an aircraft

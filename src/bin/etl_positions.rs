@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::{collections::HashSet, error::Error};
 
 use clap::Parser;
 use futures::StreamExt;
@@ -33,6 +33,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let required =
         flights::private_jets_in_month((2019..2025).rev(), cli.country.as_deref(), &client).await?;
+
+    let required = required.keys().cloned().collect::<HashSet<_>>();
 
     log::info!("required : {}", required.len());
 

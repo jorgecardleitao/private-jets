@@ -44,6 +44,8 @@ struct LegOut {
     length: f64,
     /// The time above 30.000 feet
     hours_above_30000: f64,
+    /// The time above 40.000 feet
+    hours_above_40000: f64,
 }
 
 #[derive(serde::Serialize)]
@@ -97,6 +99,15 @@ fn transform<'a>(
             .windows(2)
             .filter_map(|w| {
                 (w[0].altitude() > 30000.0 && w[1].altitude() > 30000.0).then(|| {
+                    (w[1].datetime() - w[0].datetime()).whole_seconds() as f64 / 60.0 / 60.0
+                })
+            })
+            .sum::<f64>(),
+        hours_above_40000: leg
+            .positions()
+            .windows(2)
+            .filter_map(|w| {
+                (w[0].altitude() > 40000.0 && w[1].altitude() > 40000.0).then(|| {
                     (w[1].datetime() - w[0].datetime()).whole_seconds() as f64 / 60.0 / 60.0
                 })
             })
@@ -269,7 +280,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     log::info!("required : {}", required.len());
 
     log::info!("computing completed tasks...");
-    let completed = list(client).await?.into_iter().collect::<HashSet<_>>();
+    let completed = HashSet::new(); //list(client).await?.into_iter().collect::<HashSet<_>>();
     log::info!("completed: {}", completed.len());
 
     log::info!("computing ready tasks...");

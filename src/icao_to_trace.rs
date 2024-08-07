@@ -111,7 +111,7 @@ async fn globe_history(icao: &str, date: &time::Date) -> Result<Vec<u8>, std::io
 /// Caches the first time it is executed
 /// Caching is skipped if `date` is either today (UTC) or in the future
 /// as the global history is only available at the end of the day
-async fn globe_history_cached(
+pub async fn globe_history_cached(
     icao: &str,
     date: &time::Date,
     client: &dyn fs::BlobStorageProvider,
