@@ -6,10 +6,15 @@ use std::{
 
 use clap::Parser;
 use futures::{StreamExt, TryStreamExt};
+use itertools::Itertools;
 use serde::{de::DeserializeOwned, Serialize};
 use simple_logger::SimpleLogger;
 
-use flights::{aircraft::Aircraft, fs::BlobStorageProvider, Position};
+use flights::{
+    aircraft::{Aircraft, Aircrafts},
+    fs::BlobStorageProvider,
+    Position,
+};
 
 static DATABASE_ROOT: &'static str = "leg/v2/";
 static DATABASE: &'static str = "leg/v2/data/";
@@ -192,7 +197,7 @@ async fn etl_task(
 }
 
 async fn aggregate(
-    required: HashMap<(Arc<str>, time::Date), Arc<Aircraft>>,
+    required: HashMap<(Arc<str>, time::Date), Aircraft>,
     client: &dyn BlobStorageProvider,
 ) -> Result<(), Box<dyn Error>> {
     let all_completed = list(client).await?;
@@ -261,6 +266,26 @@ async fn aggregate(
     Ok(())
 }
 
+async fn private_jets(
+    client: &dyn BlobStorageProvider,
+    country: Option<&str>,
+) -> Result<Aircrafts, Box<dyn std::error::Error>> {
+    // load datasets to memory
+    let aircrafts = flights::aircraft::read(time::macros::date!(2023 - 11 - 06), client).await?;
+    let models = flights::load_private_jet_models()?;
+
+    Ok(aircrafts
+        .into_iter()
+        // its primary use is to be a private jet
+        .filter(|(_, a)| models.contains_key(&a.model))
+        .filter(|(_, a)| {
+            country
+                .map(|country| a.country.as_deref() == Some(country))
+                .unwrap_or(true)
+        })
+        .collect())
+}
+
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
     SimpleLogger::new()
@@ -275,8 +300,27 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let client = &client;
 
     log::info!("computing required tasks...");
-    let required =
-        flights::private_jets_in_month((2019..2025).rev(), maybe_country, client).await?;
+    let private_jets = private_jets(client, maybe_country).await?;
+
+    let months = (2019..2024)
+        .cartesian_product(1..=12u8)
+        .map(|(year, month)| {
+            time::Date::from_calendar_date(year, time::Month::try_from(month).unwrap(), 1)
+                .expect("day 1 never errors")
+        })
+        .collect::<Vec<_>>();
+
+    let required = private_jets
+        .into_iter()
+        .map(|(icao, aircraft)| {
+            months
+                .clone()
+                .into_iter()
+                .map(move |date| ((icao.clone(), date), aircraft.clone()))
+        })
+        .flatten()
+        .collect::<HashMap<_, _>>();
+
     log::info!("required : {}", required.len());
 
     log::info!("computing completed tasks...");

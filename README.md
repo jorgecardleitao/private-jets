@@ -8,6 +8,8 @@ See [`methodology.md`](./methodology.md) for details of what it does and where d
 It is supported by an S3 Blob storage container for caching data, thereby
 reducing its impact to [https://adsbexchange.com/](https://adsbexchange.com/).
 
+![Design](./design.drawio.png)
+
 ## Risk and impact
 
 This code performs API calls to [https://adsbexchange.com/](https://adsbexchange.com/),
