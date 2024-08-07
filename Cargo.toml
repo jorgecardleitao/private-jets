@@ -65,7 +65,3 @@ required-features = ["build-binary"]
 [[bin]]
 name = "etl_aircrafts"
 required-features = ["build-binary"]
-
-[[bin]]
-name = "check_ladd"
-required-features = ["build-binary"]

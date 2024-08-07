@@ -27,7 +27,7 @@ All cached data is available on S3 blob storage at endpoint
 
 > `https://private-jets.fra1.digitaloceanspaces.com`
 
-and has anonymous and public read permissions.
+and has anonymous and public read permissions. See [`methodology.md`](./methodology.md) for details.
 
 ## Getting starter
 
@@ -38,14 +38,10 @@ and has anonymous and public read permissions.
 Step 2. has an optional arguments, `--access-key`, `--secret-access-key`, specifying
 credentials to write to the remote storate, as opposed to disk.
 
-Finally, setting `--backend disk` ignores the remote storage altogether and
-only uses disk for caching (resulting in higher cache misses and thus more
-interactions with ADS-B exchange).
-
 In general:
+
 * Use the default parameters when creating ad-hoc stories
 * Use `--access-key` when improving the database with new data.
-* Use `--backend disk` when testing the caching system
 
 As of today, the flag `--access-key` is only available when the code is executed
 from `main`, as writing to the blob storage must be done through a controlled code base

@@ -225,6 +225,12 @@ columns:
   length:
     type: f64
     description: The total actual flown distance in km (always bigger than the great-circle distance between start and end)
+  hours_above_30000:
+    type: f64
+    description: number of hours flown above 30.000 feet
+  hours_above_40000:
+    type: f64
+    description: number of hours flown above 40.000 feet
 constraints:
   - type: uniqueness
     columns: [icao_number, start]
