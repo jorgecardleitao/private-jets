@@ -197,11 +197,11 @@ impl BlobStorageProvider for ContainerClient {
 
 #[cfg(test)]
 mod test {
-    use super::*;
+    use super::BlobStorageProvider;
 
     #[tokio::test]
     async fn get_ok() {
-        let client = anonymous_client().await;
+        let client = super::anonymous_client().await;
         assert!(client
             .maybe_get("leg/v1/status.json")
             .await
@@ -211,7 +211,7 @@ mod test {
 
     #[tokio::test]
     async fn get_not_ok() {
-        let client = anonymous_client().await;
+        let client = super::anonymous_client().await;
         assert!(client
             .maybe_get("leg/v1/invalid_basdasdasdasdas.json")
             .await
@@ -221,12 +221,15 @@ mod test {
 
     #[tokio::test]
     async fn list_ok() {
-        let client = anonymous_client().await;
+        let client = super::anonymous_client().await;
         assert!(client.list("leg/v1/all/year=2019/").await.unwrap().len() > 0);
     }
 
     #[tokio::test]
-    async fn init_client() {
-        let _ = client("".to_string(), "".to_string()).await;
+    async fn client() {
+        let client = super::client("".to_string(), "".to_string()).await;
+
+        assert!(client.put("a", vec![]).await.is_err());
+        assert!(client.delete("a").await.is_err());
     }
 }
