@@ -8,7 +8,6 @@ pub mod fs_s3;
 pub mod icao_to_trace;
 pub mod io;
 pub mod legs;
-mod model;
 mod private_jets_in_time;
 pub mod serde;
 mod trace_month;

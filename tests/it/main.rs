@@ -134,3 +134,14 @@ async fn gets_db_month() -> Result<(), Box<dyn Error>> {
         .await?;
     Ok(())
 }
+
+#[tokio::test]
+async fn number_of_jets() -> Result<(), Box<dyn Error>> {
+    let client = flights::fs_s3::anonymous_client().await;
+
+    let aircraft = flights::private_jets_in_month(2022..2024, None, &client).await?;
+
+    // this number should be constant, as the db of aircrafts does not change in the past
+    assert_eq!(aircraft.len(), 29425 * 24);
+    Ok(())
+}
