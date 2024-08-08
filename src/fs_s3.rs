@@ -224,4 +224,9 @@ mod test {
         let client = anonymous_client().await;
         assert!(client.list("leg/v1/all/year=2019/").await.unwrap().len() > 0);
     }
+
+    #[tokio::test]
+    async fn init_client() {
+        let _ = client("".to_string(), "".to_string()).await;
+    }
 }

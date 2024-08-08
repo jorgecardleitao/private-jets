@@ -115,19 +115,6 @@ pub async fn aircraft_positions(
     Ok(positions)
 }
 
-/// Returns the set of (icao number, month) that exist in the container prefixed by `prefix`
-async fn list(
-    prefix: &str,
-    client: &dyn fs::BlobStorageProvider,
-) -> Result<HashSet<(Arc<str>, time::Date)>, std::io::Error> {
-    Ok(client
-        .list(prefix)
-        .await?
-        .into_iter()
-        .map(|blob| blob_name_to_pk(&blob))
-        .collect())
-}
-
 /// Returns the positions of an aircraft at a given month from the database.
 /// Use [`list_months_positions`] to list which exist.
 pub async fn get_month_positions(
@@ -150,7 +137,12 @@ pub async fn get_month_positions(
 pub async fn list_months_positions(
     client: &dyn fs::BlobStorageProvider,
 ) -> Result<HashSet<(Arc<str>, time::Date)>, std::io::Error> {
-    list(DATABASE, client).await
+    Ok(client
+        .list(DATABASE)
+        .await?
+        .into_iter()
+        .map(|blob| blob_name_to_pk(&blob))
+        .collect())
 }
 
 #[cfg(test)]
