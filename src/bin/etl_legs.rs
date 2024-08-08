@@ -46,6 +46,8 @@ struct LegOut {
     end_lon: f64,
     /// The end altitude in feet
     end_altitude: f64,
+    /// The duration of the flight in hours
+    duration: f64,
     /// The total two-dimensional flown distance of the leg in km
     distance: f64,
     /// The great-circle distance of the leg in km
@@ -104,6 +106,7 @@ fn transform<'a>(
         end_lat: leg.to().latitude(),
         end_lon: leg.to().longitude(),
         end_altitude: leg.to().altitude(),
+        duration: leg.duration().as_seconds_f64() / 60.0 / 60.0,
         distance: leg.distance(),
         great_circle_distance: leg.great_circle_distance(),
         hours_above_30000: leg
@@ -313,6 +316,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     log::info!("computing required tasks...");
     let (private_jets, models) = private_jets(client, maybe_country).await?;
+    let models = &models;
 
     let months = (2019..2024)
         .cartesian_product(1..=12u8)
@@ -335,34 +339,42 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     log::info!("required : {}", required.len());
 
-    log::info!("computing completed tasks...");
-    let completed = HashSet::new(); //list(client).await?.into_iter().collect::<HashSet<_>>();
-    log::info!("completed: {}", completed.len());
+    //log::info!("computing completed tasks...");
+    //let completed = HashSet::new(); //list(client).await?.into_iter().collect::<HashSet<_>>();
+    //log::info!("completed: {}", completed.len());
 
-    log::info!("computing ready tasks...");
-    let ready = flights::icao_to_trace::list_months_positions(client)
-        .await?
-        .into_iter()
-        .filter(|key| required.contains_key(key))
-        .collect::<HashSet<_>>();
-    log::info!("ready    : {}", ready.len());
+    //log::info!("computing ready tasks...");
+    /*let ready = flights::icao_to_trace::list_months_positions(client)
+    .await?
+    .into_iter()
+    .filter(|key| required.contains_key(key))
+    .collect::<HashSet<_>>();*/
+    //let ready = required.iter()
+    //log::info!("ready    : {}", ready.len());
 
-    let mut todo = ready.difference(&completed).collect::<Vec<_>>();
-    todo.sort_unstable_by_key(|(icao, date)| (date, icao));
-    log::info!("todo     : {}", todo.len());
+    //let mut todo = ready.difference(&completed).collect::<Vec<_>>();
+    //todo.sort_unstable_by_key(|(icao, date)| (date, icao));
+    //log::info!("todo     : {}", todo.len());
 
     log::info!("executing todos...");
-    let tasks = todo.into_iter().map(|icao_month| async {
-        let aircraft = required.get(icao_month).expect("limited to required above");
-        let model = models
-            .get(&aircraft.model)
-            .expect("limited to required above");
-        let (_, month) = icao_month;
-        etl_task(aircraft, model, *month, client).await
-    });
+    let tasks = required
+        .clone()
+        .into_iter()
+        .map(|(icao_month, aircraft)| async move {
+            let model = models
+                .get(&aircraft.model)
+                .expect("limited to required above");
+            let (_, month) = icao_month;
+            etl_task(&aircraft, model, month, client).await
+        });
 
     let _ = futures::stream::iter(tasks)
-        .buffered(50)
+        .buffered(400)
+        .map(|r| {
+            if let Err(e) = r {
+                log::error!("{e}");
+            }
+        })
         .collect::<Vec<_>>()
         .await;
     log::info!("todos completed");
