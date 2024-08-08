@@ -147,6 +147,7 @@ pub async fn list_months_positions(
 
 #[cfg(test)]
 mod test {
+    use fs::LocalDisk;
     use time::macros::date;
 
     use super::*;
@@ -171,5 +172,11 @@ mod test {
             first_of_next_month(&date!(2023 - 12 - 01)),
             date!(2024 - 01 - 01)
         );
+    }
+
+    #[tokio::test]
+    async fn list_months_positions() {
+        let a = super::list_months_positions(&LocalDisk).await.unwrap();
+        assert!(a.is_empty())
     }
 }
