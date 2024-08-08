@@ -47,6 +47,8 @@ struct LegOut {
     end_altitude: f64,
     /// The total two-dimensional length of the leg in km
     length: f64,
+    /// The great-circle distance of the leg in km
+    great_circle_distance: f64,
     /// The time above 30.000 feet
     hours_above_30000: f64,
     /// The time above 40.000 feet
@@ -99,6 +101,7 @@ fn transform<'a>(
         end_lon: leg.to().longitude(),
         end_altitude: leg.to().altitude(),
         length: leg.length(),
+        great_circle_distance: leg.great_circle_distance(),
         hours_above_30000: leg
             .positions()
             .windows(2)

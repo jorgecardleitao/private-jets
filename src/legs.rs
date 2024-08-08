@@ -16,7 +16,7 @@ impl Leg {
     }
 
     /// Leg geo distance in km
-    pub fn distance(&self) -> f64 {
+    pub fn great_circle_distance(&self) -> f64 {
         self.from().distace(&self.to())
     }
 
@@ -124,7 +124,7 @@ pub fn legs(positions: impl Iterator<Item = Position>) -> impl Iterator<Item = L
         // ignore legs that are too fast, as they are likely noise
         .filter(|leg| leg.duration() > time::Duration::minutes(5))
         // ignore legs that are too short, as they are likely noise
-        .filter(|leg| leg.distance() > 3.0)
+        .filter(|leg| leg.great_circle_distance() > 3.0)
 }
 
 #[cfg(test)]
