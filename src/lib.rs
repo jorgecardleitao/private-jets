@@ -1,18 +1,18 @@
 #[forbid(unsafe_code)]
 pub mod aircraft;
-mod aircraft_models;
 pub(crate) mod country;
 pub mod csv;
+pub mod emissions;
 pub mod fs;
 pub mod fs_s3;
 pub mod icao_to_trace;
 pub mod io;
 pub mod legs;
+pub mod model;
 mod private_jets_in_time;
 pub mod serde;
 mod trace_month;
 
-pub use aircraft_models::load_private_jet_models;
 pub use private_jets_in_time::private_jets_in_month;
 
 /// A position of an aircraft

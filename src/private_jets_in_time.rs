@@ -27,7 +27,7 @@ pub async fn private_jets_in_month(
     maybe_country: Option<&str>,
     client: &dyn BlobStorageProvider,
 ) -> Result<HashMap<(Arc<str>, time::Date), Arc<Aircraft>>, Box<dyn Error>> {
-    let models = crate::aircraft_models::load_private_jet_models()?;
+    let models = crate::model::load_private_jet_models()?;
     let aircrafts = crate::aircraft::read_all(client).await?;
 
     // set of icao numbers that are private jets, for each date

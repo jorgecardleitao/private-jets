@@ -13,6 +13,7 @@ use simple_logger::SimpleLogger;
 use flights::{
     aircraft::{Aircraft, Aircrafts},
     fs::BlobStorageProvider,
+    model::{load_private_jet_models, AircraftModel, AircraftModels},
     Position,
 };
 
@@ -45,14 +46,16 @@ struct LegOut {
     end_lon: f64,
     /// The end altitude in feet
     end_altitude: f64,
-    /// The total two-dimensional length of the leg in km
-    length: f64,
+    /// The total two-dimensional flown distance of the leg in km
+    distance: f64,
     /// The great-circle distance of the leg in km
     great_circle_distance: f64,
     /// The time above 30.000 feet
     hours_above_30000: f64,
     /// The time above 40.000 feet
     hours_above_40000: f64,
+    /// CO2 emissions in kg
+    co2_emissions: f64,
 }
 
 #[derive(serde::Serialize)]
@@ -86,6 +89,7 @@ async fn write_csv(
 fn transform<'a>(
     icao_number: &'a Arc<str>,
     aircraft: &'a Aircraft,
+    model: &'a AircraftModel,
     positions: Vec<Position>,
 ) -> impl Iterator<Item = LegOut> + 'a {
     flights::legs::legs(positions.into_iter()).map(|leg| LegOut {
@@ -100,7 +104,7 @@ fn transform<'a>(
         end_lat: leg.to().latitude(),
         end_lon: leg.to().longitude(),
         end_altitude: leg.to().altitude(),
-        length: leg.length(),
+        distance: leg.distance(),
         great_circle_distance: leg.great_circle_distance(),
         hours_above_30000: leg
             .positions()
@@ -120,6 +124,7 @@ fn transform<'a>(
                 })
             })
             .sum::<f64>(),
+        co2_emissions: flights::emissions::leg_co2_kg(model.gph.into(), leg.duration()),
     })
 }
 
@@ -185,16 +190,17 @@ struct Cli {
 }
 
 async fn etl_task(
-    icao_number: &Arc<str>,
     aircraft: &Aircraft,
+    model: &AircraftModel,
     month: time::Date,
     client: &dyn BlobStorageProvider,
 ) -> Result<(), Box<dyn Error>> {
+    let icao_number = &aircraft.icao_number;
     // extract
     let positions =
         flights::icao_to_trace::get_month_positions(&icao_number, month, client).await?;
     // transform
-    let legs = transform(&icao_number, aircraft, positions);
+    let legs = transform(&icao_number, aircraft, model, positions);
     // load
     write(&icao_number, month, legs, client).await
 }
@@ -272,21 +278,24 @@ async fn aggregate(
 async fn private_jets(
     client: &dyn BlobStorageProvider,
     country: Option<&str>,
-) -> Result<Aircrafts, Box<dyn std::error::Error>> {
+) -> Result<(Aircrafts, AircraftModels), Box<dyn std::error::Error>> {
     // load datasets to memory
     let aircrafts = flights::aircraft::read(time::macros::date!(2023 - 11 - 06), client).await?;
-    let models = flights::load_private_jet_models()?;
+    let models = load_private_jet_models()?;
 
-    Ok(aircrafts
-        .into_iter()
-        // its primary use is to be a private jet
-        .filter(|(_, a)| models.contains_key(&a.model))
-        .filter(|(_, a)| {
-            country
-                .map(|country| a.country.as_deref() == Some(country))
-                .unwrap_or(true)
-        })
-        .collect())
+    Ok((
+        aircrafts
+            .into_iter()
+            // its primary use is to be a private jet
+            .filter(|(_, a)| models.contains_key(&a.model))
+            .filter(|(_, a)| {
+                country
+                    .map(|country| a.country.as_deref() == Some(country))
+                    .unwrap_or(true)
+            })
+            .collect(),
+        models,
+    ))
 }
 
 #[tokio::main(flavor = "multi_thread")]
@@ -303,7 +312,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let client = &client;
 
     log::info!("computing required tasks...");
-    let private_jets = private_jets(client, maybe_country).await?;
+    let (private_jets, models) = private_jets(client, maybe_country).await?;
 
     let months = (2019..2024)
         .cartesian_product(1..=12u8)
@@ -345,8 +354,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     log::info!("executing todos...");
     let tasks = todo.into_iter().map(|icao_month| async {
         let aircraft = required.get(icao_month).expect("limited to required above");
-        let (icao_number, month) = icao_month;
-        etl_task(icao_number, aircraft, *month, client).await
+        let model = models
+            .get(&aircraft.model)
+            .expect("limited to required above");
+        let (_, month) = icao_month;
+        etl_task(aircraft, model, *month, client).await
     });
 
     let _ = futures::stream::iter(tasks)

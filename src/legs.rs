@@ -21,7 +21,7 @@ impl Leg {
     }
 
     /// The total two-dimensional length of the leg in km
-    pub fn length(&self) -> f64 {
+    pub fn distance(&self) -> f64 {
         self.positions.windows(2).map(|w| w[0].distace(&w[1])).sum()
     }
 
