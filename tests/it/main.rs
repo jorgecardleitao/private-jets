@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use flights::{BlobStorageProvider, Leg, LocalDisk};
+use flights::{fs::BlobStorageProvider, fs::LocalDisk, legs::Leg};
 use time::{
     macros::{date, datetime},
     Date,
@@ -11,8 +11,9 @@ use time::{
 /// https://globe.adsbexchange.com/?icao=45d2ed&lat=54.128&lon=9.185&zoom=5.0&showTrace=2023-10-13
 #[tokio::test]
 async fn acceptance_legs() -> Result<(), Box<dyn Error>> {
-    let positions = flights::positions("45d2ed", date!(2023 - 10 - 13), &LocalDisk).await?;
-    let legs = flights::legs(positions);
+    let positions =
+        flights::icao_to_trace::positions("45d2ed", date!(2023 - 10 - 13), &LocalDisk).await?;
+    let legs = flights::legs::legs(positions).collect::<Vec<_>>();
 
     assert_eq!(legs.len(), 2);
 
@@ -27,43 +28,14 @@ async fn acceptance_legs() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn abs_difference<T: std::ops::Sub<Output = T> + PartialOrd>(x: T, y: T) -> T {
-    if x < y {
-        y - x
-    } else {
-        x - y
-    }
-}
-
-/// Verifies that `emissions` yields the same result as
-/// https://co2.myclimate.org/en/flight_calculators/new
-/// thereby establishing that it correctly implements the calculation at
-/// https://www.myclimate.org/en/information/about-myclimate/downloads/flight-emission-calculator/
-#[test]
-fn acceptance_test_emissions() {
-    let berlin = (52.3650, 13.5010);
-    let brussels = (50.9008, 4.4865);
-
-    let accepted_error = 0.01; // 1%
-
-    // From: Berlin (DE), BER to: Brussels (BE), BRU, One way, Business Class, ca. 600 km, 1 traveller
-    let expected = 0.215 * 1000.0;
-    let emissions = flights::emissions(berlin, brussels, flights::Class::Business);
-    assert!(abs_difference(emissions, expected) / expected < accepted_error);
-
-    // From: Berlin (DE), BER to: Brussels (BE), BRU, One way, First Class, ca. 600 km, 1 traveller
-    let expected = 0.398 * 1000.0;
-    let emissions = flights::emissions(berlin, brussels, flights::Class::First);
-    assert!(abs_difference(emissions, expected) / expected < accepted_error);
-}
-
 #[tokio::test]
 async fn legs_() -> Result<(), Box<dyn Error>> {
-    let positions = flights::positions("459cd3", date!(2023 - 11 - 17), &LocalDisk).await?;
-    let legs = flights::legs(positions);
+    let positions =
+        flights::icao_to_trace::positions("459cd3", date!(2023 - 11 - 17), &LocalDisk).await?;
+    let legs = flights::legs::legs(positions);
 
     // same as ads-b computes: https://globe.adsbexchange.com/?icao=459cd3&lat=53.265&lon=8.038&zoom=6.5&showTrace=2023-11-17
-    assert_eq!(legs.len(), 5);
+    assert_eq!(legs.count(), 5);
     Ok(())
 }
 
@@ -73,11 +45,12 @@ async fn legs(
     icao_number: &str,
     client: &dyn BlobStorageProvider,
 ) -> Result<Vec<Leg>, Box<dyn Error>> {
-    let positions = flights::aircraft_positions(from, to, icao_number, client).await?;
-    Ok(flights::legs(positions.into_iter()))
+    let positions =
+        flights::icao_to_trace::aircraft_positions(from, to, icao_number, client).await?;
+    Ok(flights::legs::legs(positions.into_iter()).collect::<Vec<_>>())
 }
 
-/// Verifies that condition 2. of `M-4` is correctly applied.
+/// Verifies that condition 2. of `M-identify-legs` is correctly applied.
 /// https://globe.adsbexchange.com/?icao=458d90&lat=53.265&lon=8.038&zoom=6.5&showTrace=2023-07-21
 #[tokio::test]
 async fn ads_b_lost_on_ground() -> Result<(), Box<dyn Error>> {
@@ -92,7 +65,7 @@ async fn ads_b_lost_on_ground() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-/// Verifies that condition 2. of `M-4` is correctly applied.
+/// Verifies that condition 2. of `M-identify-legs` is correctly applied.
 /// https://globe.adsbexchange.com/?icao=459257&showTrace=2023-12-17
 #[tokio::test]
 async fn case_459257_2023_12_17() -> Result<(), Box<dyn Error>> {
@@ -107,7 +80,7 @@ async fn case_459257_2023_12_17() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-/// Verifies that condition 3. of `M-4` is correctly applied.
+/// Verifies that condition 3. of `M-identify-legs` is correctly applied.
 /// Case of losing signal for 2 days mid flight while traveling to central Africa.
 /// https://globe.adsbexchange.com/?icao=45dd84&lat=9.613&lon=22.035&zoom=3.8&showTrace=2023-12-08
 #[tokio::test]
@@ -149,29 +122,7 @@ async fn case_45c824_2023_12_12() -> Result<(), Box<dyn Error>> {
 async fn gets_db_positions() -> Result<(), Box<dyn Error>> {
     let client = flights::fs_s3::anonymous_client().await;
 
-    let _ = flights::positions("459cd3", date!(2020 - 01 - 01), &client).await?;
-    Ok(())
-}
-
-#[tokio::test]
-async fn airports() -> Result<(), Box<dyn Error>> {
-    let airports = flights::airports_cached().await?;
-
-    let airport = flights::closest((57.094, 9.854), &airports);
-    assert_eq!(airport.name, "Aalborg Airport");
-    Ok(())
-}
-
-#[tokio::test]
-async fn loads() -> Result<(), Box<dyn Error>> {
-    let _ = flights::aircraft::read(
-        date!(2023 - 11 - 06),
-        &flights::fs_s3::anonymous_client().await,
-    )
-    .await?;
-    let _ = flights::load_aircraft_owners()?;
-    let _ = flights::load_private_jet_models()?;
-    let _ = flights::load_owners()?;
+    let _ = flights::icao_to_trace::positions("459cd3", date!(2020 - 01 - 01), &client).await?;
     Ok(())
 }
 
@@ -179,6 +130,18 @@ async fn loads() -> Result<(), Box<dyn Error>> {
 async fn gets_db_month() -> Result<(), Box<dyn Error>> {
     let client = flights::fs_s3::anonymous_client().await;
 
-    let _ = flights::get_month_positions("459cd3", date!(2020 - 01 - 01), &client).await?;
+    let _ = flights::icao_to_trace::get_month_positions("459cd3", date!(2020 - 01 - 01), &client)
+        .await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn private_jets_in_month() -> Result<(), Box<dyn Error>> {
+    let client = flights::fs_s3::anonymous_client().await;
+
+    let aircraft = flights::private_jets_in_month(2022..2024, None, &client).await?;
+
+    // this number should be constant, as the db of aircrafts does not change in the past
+    assert_eq!(aircraft.len(), 29425 * 24);
     Ok(())
 }

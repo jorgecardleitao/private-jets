@@ -4,45 +4,24 @@ use futures::{StreamExt, TryStreamExt};
 use time::Date;
 
 use super::Position;
-use crate::{cached_aircraft_positions, fs, BlobStorageProvider};
+use crate::{fs, icao_to_trace::cached_aircraft_positions};
 
 static DATABASE: &'static str = "position/";
 
-fn blob_name_to_pk(prefix: &str, blob: &str) -> (Arc<str>, time::Date) {
-    let bla = &blob[prefix.len() + "icao_number=".len()..];
-    let end = bla.find("/").unwrap();
-    let icao = &bla[..end];
-    let date_start = end + "/month=".len();
-    let date = &bla[date_start..date_start + "2024-01".len()];
-    (
-        icao.into(),
-        time::Date::from_calendar_date(
-            date[..4].parse().unwrap(),
-            date[5..7]
-                .parse::<u8>()
-                .expect(&date[5..7])
-                .try_into()
-                .unwrap(),
-            1,
-        )
-        .unwrap(),
-    )
+fn pk_to_blob_name(icao: &str, date: time::Date) -> String {
+    let month = crate::serde::month_to_part(date);
+    format!("{DATABASE}icao_number={icao}/month={month}/data.json",)
 }
 
-/// Returns the ISO 8601 representation of a month ("2023-01")
-pub fn month_to_part(date: &time::Date) -> String {
-    format!("{}-{:02}", date.year(), date.month() as u8)
-}
-
-fn pk_to_blob_name(prefix: &str, icao: &str, date: &time::Date) -> String {
-    format!(
-        "{prefix}icao_number={icao}/month={}/data.json",
-        month_to_part(date)
-    )
+fn blob_name_to_pk(blob: &str) -> (Arc<str>, time::Date) {
+    let mut keys = crate::serde::hive_to_map(&blob[DATABASE.len()..blob.len() - "data.json".len()]);
+    let icao = keys.remove("icao_number").unwrap();
+    let date = keys.remove("month").unwrap();
+    (icao.into(), crate::serde::parse_month(date))
 }
 
 /// Returns the first day of the next month
-fn first_of_next_month(month: &time::Date) -> time::Date {
+pub fn first_of_next_month(month: &time::Date) -> time::Date {
     let next_month = month.month().next();
     (next_month == time::Month::January)
         .then(|| {
@@ -62,11 +41,11 @@ fn first_of_next_month(month: &time::Date) -> time::Date {
 pub async fn month_positions(
     icao_number: &str,
     month: time::Date,
-    client: &dyn BlobStorageProvider,
+    client: &dyn fs::BlobStorageProvider,
 ) -> Result<Vec<Position>, std::io::Error> {
     log::info!("month_positions({icao_number},{month})");
     assert_eq!(month.day(), 1);
-    let blob_name = pk_to_blob_name(DATABASE, &icao_number, &month);
+    let blob_name = pk_to_blob_name(&icao_number, month);
 
     let to = first_of_next_month(&month);
     let action = fs::CacheAction::from_date(&to);
@@ -102,7 +81,7 @@ pub async fn aircraft_positions(
     from: Date,
     to: Date,
     icao_number: &str,
-    client: &dyn BlobStorageProvider,
+    client: &dyn fs::BlobStorageProvider,
 ) -> Result<Vec<Position>, Box<dyn Error>> {
     let dates = super::DateIter {
         from,
@@ -136,29 +115,16 @@ pub async fn aircraft_positions(
     Ok(positions)
 }
 
-/// Returns the set of (icao number, month) that exist in the container prefixed by `dataset`
-pub async fn list(
-    prefix: &str,
-    client: &dyn BlobStorageProvider,
-) -> Result<HashSet<(Arc<str>, time::Date)>, std::io::Error> {
-    Ok(client
-        .list(prefix)
-        .await?
-        .into_iter()
-        .map(|blob| blob_name_to_pk(prefix, &blob))
-        .collect())
-}
-
 /// Returns the positions of an aircraft at a given month from the database.
 /// Use [`list_months_positions`] to list which exist.
 pub async fn get_month_positions(
     icao_number: &str,
     month: time::Date,
-    client: &dyn BlobStorageProvider,
+    client: &dyn fs::BlobStorageProvider,
 ) -> Result<Vec<Position>, std::io::Error> {
     log::info!("get_months_positions({icao_number},{month})");
     assert_eq!(month.day(), 1);
-    let blob_name = pk_to_blob_name(DATABASE, &icao_number, &month);
+    let blob_name = pk_to_blob_name(&icao_number, month);
 
     let r = client
         .maybe_get(&blob_name)
@@ -169,13 +135,19 @@ pub async fn get_month_positions(
 
 /// Returns the set of (icao, month) that exists in the db
 pub async fn list_months_positions(
-    client: &dyn BlobStorageProvider,
+    client: &dyn fs::BlobStorageProvider,
 ) -> Result<HashSet<(Arc<str>, time::Date)>, std::io::Error> {
-    list(DATABASE, client).await
+    Ok(client
+        .list(DATABASE)
+        .await?
+        .into_iter()
+        .map(|blob| blob_name_to_pk(&blob))
+        .collect())
 }
 
 #[cfg(test)]
 mod test {
+    use fs::LocalDisk;
     use time::macros::date;
 
     use super::*;
@@ -185,7 +157,7 @@ mod test {
         let icao: Arc<str> = "aa".into();
         let month = date!(2022 - 02 - 01);
         assert_eq!(
-            blob_name_to_pk(DATABASE, &pk_to_blob_name(DATABASE, icao.as_ref(), &month)),
+            blob_name_to_pk(&pk_to_blob_name(icao.as_ref(), month)),
             (icao, month)
         )
     }
@@ -200,5 +172,11 @@ mod test {
             first_of_next_month(&date!(2023 - 12 - 01)),
             date!(2024 - 01 - 01)
         );
+    }
+
+    #[tokio::test]
+    async fn list_months_positions() {
+        let a = super::list_months_positions(&LocalDisk).await.unwrap();
+        assert!(a.is_empty())
     }
 }

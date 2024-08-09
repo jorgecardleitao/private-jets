@@ -5,34 +5,59 @@ use std::{
 };
 
 use clap::Parser;
-use flights::{aircraft, AircraftModels, Airport, BlobStorageProvider, Leg};
 use futures::{StreamExt, TryStreamExt};
 use itertools::Itertools;
 use serde::{de::DeserializeOwned, Serialize};
 use simple_logger::SimpleLogger;
-use time::macros::date;
 
-static DATABASE_ROOT: &'static str = "leg/v1/";
-static DATABASE: &'static str = "leg/v1/data/";
+use flights::{
+    aircraft::{Aircraft, Aircrafts},
+    fs::BlobStorageProvider,
+    model::{load_private_jet_models, AircraftModel, AircraftModels},
+    Position,
+};
+
+static DATABASE_ROOT: &'static str = "leg/v2/";
+static DATABASE: &'static str = "leg/v2/data/";
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct LegOut {
-    tail_number: String,
-    model: String,
+    /// The ICAO number
+    icao_number: Arc<str>,
+    /// The tail number
+    tail_number: Arc<str>,
+    /// The aircraft model
+    aircraft_model: Arc<str>,
+    /// The start timestamp
     #[serde(with = "time::serde::rfc3339")]
     start: time::OffsetDateTime,
+    /// The start latitude
+    start_lat: f64,
+    /// The start longitude
+    start_lon: f64,
+    /// The start altitude in feet
+    start_altitude: f64,
+    /// The end timestamp
     #[serde(with = "time::serde::rfc3339")]
     end: time::OffsetDateTime,
-    from_lat: f64,
-    from_lon: f64,
-    from_airport: String,
-    to_lat: f64,
-    to_lon: f64,
-    to_airport: String,
-    distance: f64,
+    /// The end latitude
+    end_lat: f64,
+    /// The end longitude
+    end_lon: f64,
+    /// The end altitude in feet
+    end_altitude: f64,
+    /// The duration of the flight in hours
     duration: f64,
-    commercial_emissions_kg: usize,
-    emissions_kg: usize,
+    /// The total two-dimensional flown distance of the leg in km
+    distance: f64,
+    /// The great-circle distance of the leg in km
+    great_circle_distance: f64,
+    /// The time above 30.000 feet
+    hours_above_30000: f64,
+    /// The time above 40.000 feet
+    hours_above_40000: f64,
+    /// CO2 emissions in kg
+    co2_emissions: f64,
 }
 
 #[derive(serde::Serialize)]
@@ -58,97 +83,101 @@ async fn write_csv(
     key: &str,
     client: &dyn BlobStorageProvider,
 ) -> Result<(), std::io::Error> {
-    let mut wtr = csv::Writer::from_writer(vec![]);
-    for leg in items {
-        wtr.serialize(leg).unwrap()
-    }
-    let data_csv = wtr.into_inner().unwrap();
+    let data_csv = flights::csv::serialize(items);
     client.put(&key, data_csv).await?;
     Ok(())
 }
 
 fn transform<'a>(
     icao_number: &'a Arc<str>,
-    legs: Vec<Leg>,
-    private_jets: &'a HashMap<Arc<str>, aircraft::Aircraft>,
-    models: &'a AircraftModels,
-    airports: &'a [Airport],
+    aircraft: &'a Aircraft,
+    model: &'a AircraftModel,
+    positions: Vec<Position>,
 ) -> impl Iterator<Item = LegOut> + 'a {
-    legs.into_iter().map(|leg| {
-        let aircraft = private_jets.get(icao_number).expect(icao_number);
-        LegOut {
-            tail_number: aircraft.tail_number.to_string(),
-            model: aircraft.model.to_string(),
-            start: leg.from().datetime(),
-            end: leg.to().datetime(),
-            from_lat: leg.from().latitude(),
-            from_lon: leg.from().longitude(),
-            from_airport: flights::closest(leg.from().pos(), airports).name,
-            to_lat: leg.to().latitude(),
-            to_lon: leg.to().longitude(),
-            to_airport: flights::closest(leg.to().pos(), airports).name,
-            distance: leg.distance(),
-            duration: leg.duration().as_seconds_f64() / 60.0 / 60.0,
-            commercial_emissions_kg: flights::emissions(
-                leg.from().pos(),
-                leg.to().pos(),
-                flights::Class::First,
-            ) as usize,
-            emissions_kg: flights::leg_co2e_kg(
-                models.get(&aircraft.model).expect(&aircraft.model).gph as f64,
-                leg.duration(),
-            ) as usize,
-        }
+    flights::legs::legs(positions.into_iter()).map(|leg| LegOut {
+        icao_number: icao_number.clone(),
+        tail_number: aircraft.tail_number.clone().into(),
+        aircraft_model: aircraft.model.clone().into(),
+        start: leg.from().datetime(),
+        start_lat: leg.from().latitude(),
+        start_lon: leg.from().longitude(),
+        start_altitude: leg.from().altitude(),
+        end: leg.to().datetime(),
+        end_lat: leg.to().latitude(),
+        end_lon: leg.to().longitude(),
+        end_altitude: leg.to().altitude(),
+        duration: leg.duration().as_seconds_f64() / 60.0 / 60.0,
+        distance: leg.distance(),
+        great_circle_distance: leg.great_circle_distance(),
+        hours_above_30000: leg
+            .positions()
+            .windows(2)
+            .filter_map(|w| {
+                (w[0].altitude() > 30000.0 && w[1].altitude() > 30000.0).then(|| {
+                    (w[1].datetime() - w[0].datetime()).whole_seconds() as f64 / 60.0 / 60.0
+                })
+            })
+            .sum::<f64>(),
+        hours_above_40000: leg
+            .positions()
+            .windows(2)
+            .filter_map(|w| {
+                (w[0].altitude() > 40000.0 && w[1].altitude() > 40000.0).then(|| {
+                    (w[1].datetime() - w[0].datetime()).whole_seconds() as f64 / 60.0 / 60.0
+                })
+            })
+            .sum::<f64>(),
+        co2_emissions: flights::emissions::leg_co2_kg(model.gph.into(), leg.duration()),
     })
 }
 
 async fn write(
-    icao_number: &Arc<str>,
+    icao: &Arc<str>,
     month: time::Date,
     legs: impl Iterator<Item = impl Serialize>,
     client: &dyn BlobStorageProvider,
 ) -> Result<(), Box<dyn Error>> {
-    let key = format!(
-        "{DATABASE}icao_number={icao_number}/month={}/data.csv",
-        flights::month_to_part(&month)
-    );
+    let key = pk_to_blob_name(icao, month);
 
     write_csv(legs, &key, client).await?;
-    log::info!("Written {} {}", icao_number, month);
+    log::info!("Written {} {}", icao, month);
     Ok(())
 }
 
-async fn read<D: DeserializeOwned>(
-    icao_number: &Arc<str>,
+async fn read_u8(
+    icao: &Arc<str>,
     month: time::Date,
     client: &dyn BlobStorageProvider,
-) -> Result<Vec<D>, Box<dyn Error>> {
-    let key = format!(
-        "{DATABASE}icao_number={icao_number}/month={}/data.csv",
-        flights::month_to_part(&month)
-    );
-    let content = client.maybe_get(&key).await?.expect("File to be present");
-
-    csv::Reader::from_reader(&content[..])
-        .deserialize::<D>()
-        .map(|x| Ok(x?))
-        .collect()
+) -> Result<Option<Vec<u8>>, std::io::Error> {
+    log::info!("Read icao={icao} month={month}");
+    client.maybe_get(&pk_to_blob_name(icao, month)).await
 }
 
-async fn private_jets(
-    client: &dyn BlobStorageProvider,
-) -> Result<Vec<aircraft::Aircraft>, Box<dyn std::error::Error>> {
-    // load datasets to memory
-    let aircrafts = aircraft::read(date!(2023 - 11 - 06), client).await?;
-    let models = flights::load_private_jet_models()?;
+fn pk_to_blob_name(icao: &str, month: time::Date) -> String {
+    let month = flights::serde::month_to_part(month);
+    format!("{DATABASE}month={month}/icao_number={icao}/data.csv")
+}
 
-    Ok(aircrafts
+fn blob_name_to_pk(blob: &str) -> (Arc<str>, time::Date) {
+    let keys = flights::serde::hive_to_map(&blob[DATABASE.len()..blob.len() - "data.csv".len()]);
+    let icao = *keys.get("icao_number").unwrap();
+    let date = *keys.get("month").unwrap();
+    (icao.into(), flights::serde::parse_month(date))
+}
+
+/// Returns the set of (icao number, month) that exist in the container prefixed by `prefix`
+async fn list(
+    client: &dyn BlobStorageProvider,
+) -> Result<HashSet<(Arc<str>, time::Date)>, std::io::Error> {
+    Ok(client
+        .list(DATABASE)
+        .await?
         .into_iter()
-        .filter_map(|(_, a)| models.contains_key(&a.model).then_some(a))
+        .map(|blob| blob_name_to_pk(&blob))
         .collect())
 }
 
-const ABOUT: &'static str = r#"Builds the database of all legs"#;
+const ABOUT: &'static str = "Builds the database of all legs";
 
 #[derive(Parser, Debug)]
 #[command(author, version, about = ABOUT)]
@@ -165,71 +194,57 @@ struct Cli {
 }
 
 async fn etl_task(
-    icao_number: &Arc<str>,
+    aircraft: &Aircraft,
+    model: &AircraftModel,
     month: time::Date,
-    private_jets: &HashMap<Arc<str>, aircraft::Aircraft>,
-    models: &AircraftModels,
-    airports: &[Airport],
     client: &dyn BlobStorageProvider,
 ) -> Result<(), Box<dyn Error>> {
+    let icao_number = &aircraft.icao_number;
     // extract
-    let positions = flights::get_month_positions(&icao_number, month, client).await?;
+    let positions =
+        flights::icao_to_trace::get_month_positions(&icao_number, month, client).await?;
     // transform
-    let legs = transform(
-        &icao_number,
-        flights::legs(positions.into_iter()),
-        &private_jets,
-        &models,
-        &airports,
-    );
+    let legs = transform(&icao_number, aircraft, model, positions);
     // load
     write(&icao_number, month, legs, client).await
 }
 
 async fn aggregate(
-    private_jets: Vec<aircraft::Aircraft>,
-    models: &AircraftModels,
-    airports: &[Airport],
+    required: HashMap<(Arc<str>, time::Date), Aircraft>,
     client: &dyn BlobStorageProvider,
 ) -> Result<(), Box<dyn Error>> {
-    let private_jets = private_jets
-        .into_iter()
-        .map(|a| (a.icao_number.clone(), a))
-        .collect::<HashMap<_, _>>();
-
-    let completed = flights::list(DATABASE, client)
-        .await?
-        .into_iter()
-        .filter(|(icao, _)| private_jets.contains_key(icao))
-        .collect::<HashSet<_>>();
-
-    // group completed by year
-    let by_year = completed
-        .into_iter()
-        .fold(HashMap::<i32, HashSet<_>>::new(), |mut acc, v| {
-            acc.entry(v.1.year())
-                .and_modify(|entries| {
-                    entries.insert(v.clone());
-                })
-                .or_insert(HashSet::from([v]));
-            acc
-        });
+    // group by year
+    let required_by_year =
+        required
+            .into_keys()
+            .fold(HashMap::<i32, HashSet<_>>::new(), |mut acc, v| {
+                acc.entry(v.1.year())
+                    .and_modify(|entries| {
+                        entries.insert(v.clone());
+                    })
+                    .or_insert(HashSet::from([v]));
+                acc
+            });
 
     // run tasks by year
-    let private_jets = &private_jets;
-    let models = &models;
     let mut metadata = HashMap::<i32, Metadata>::new();
-    for (year, completed) in by_year {
-        let tasks = completed.iter().map(|(icao_number, date)| async move {
-            read::<LegOut>(icao_number, *date, client).await
-        });
+    for (year, completed) in required_by_year {
+        let tasks = completed
+            .iter()
+            .map(|(icao_number, date)| async move { read_u8(icao_number, *date, client).await });
 
         log::info!("Gettings all legs for year={year}");
         let legs = futures::stream::iter(tasks)
-            .buffered(100)
+            .buffered(1000)
             .try_collect::<Vec<_>>()
             .await?
             .into_iter()
+            .flatten() // drop those that do not exist
+            .map(|content| {
+                flights::csv::deserialize::<LegOut>(&content)
+                    .collect::<Result<Vec<_>, _>>()
+                    .unwrap()
+            })
             .flatten();
 
         log::info!("Writing all legs for year={year}");
@@ -239,7 +254,7 @@ async fn aggregate(
         metadata.insert(
             year,
             Metadata {
-                icao_months_to_process: private_jets.len() * 12,
+                icao_months_to_process: completed.len(),
                 icao_months_processed: completed.len(),
                 url: format!("https://private-jets.fra1.digitaloceanspaces.com/{key}"),
             },
@@ -252,6 +267,29 @@ async fn aggregate(
     Ok(())
 }
 
+async fn private_jets(
+    client: &dyn BlobStorageProvider,
+    country: Option<&str>,
+) -> Result<(Aircrafts, AircraftModels), Box<dyn std::error::Error>> {
+    // load datasets to memory
+    let aircrafts = flights::aircraft::read(time::macros::date!(2023 - 11 - 06), client).await?;
+    let models = load_private_jet_models()?;
+
+    Ok((
+        aircrafts
+            .into_iter()
+            // its primary use is to be a private jet
+            .filter(|(_, a)| models.contains_key(&a.model))
+            .filter(|(_, a)| {
+                country
+                    .map(|country| a.country.as_deref() == Some(country))
+                    .unwrap_or(true)
+            })
+            .collect(),
+        models,
+    ))
+}
+
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
     SimpleLogger::new()
@@ -260,68 +298,63 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .unwrap();
 
     let cli = Cli::parse();
+    let maybe_country = cli.country.as_deref();
 
     let client = flights::fs_s3::client(cli.access_key, cli.secret_access_key).await;
     let client = &client;
 
-    let models = flights::load_private_jet_models()?;
-    let airports = flights::airports_cached().await?;
+    log::info!("computing required tasks...");
+    let (private_jets, models) = private_jets(client, maybe_country).await?;
+    let models = &models;
 
-    let months = (2019..2024).cartesian_product(1..=12u8).count();
-    let private_jets = private_jets(client).await?;
-    let relevant_jets = private_jets
+    let years = 2019..2025;
+    let now = time::OffsetDateTime::now_utc().date();
+    let now =
+        time::Date::from_calendar_date(now.year(), now.month(), 1).expect("day 1 never errors");
+    let months = years
+        .cartesian_product(1..=12u8)
+        .map(|(year, month)| {
+            time::Date::from_calendar_date(year, time::Month::try_from(month).unwrap(), 1)
+                .expect("day 1 never errors")
+        })
+        .filter(|month| month < &now);
+
+    let required = private_jets
+        .into_iter()
+        .map(|(icao, aircraft)| {
+            months
+                .clone()
+                .into_iter()
+                .map(move |date| ((icao.clone(), date), aircraft.clone()))
+        })
+        .flatten()
+        .collect::<HashMap<_, _>>();
+
+    log::info!("required : {}", required.len());
+
+    log::info!("executing required...");
+    let tasks = required
         .clone()
         .into_iter()
-        // in the country
-        .filter(|a| {
-            cli.country
-                .as_deref()
-                .map(|country| a.country.as_deref() == Some(country))
-                .unwrap_or(true)
-        })
-        .map(|a| (a.icao_number.clone(), a))
-        .collect::<HashMap<_, _>>();
-    let required = relevant_jets.len() * months;
-    log::info!("required : {}", required);
-
-    let ready = flights::list_months_positions(client)
-        .await?
-        .into_iter()
-        .filter(|(icao, _)| relevant_jets.contains_key(icao))
-        .collect::<HashSet<_>>();
-    log::info!("ready    : {}", ready.len());
-
-    let completed = flights::list(DATABASE, client)
-        .await?
-        .into_iter()
-        .filter(|(icao, _)| relevant_jets.contains_key(icao))
-        .collect::<HashSet<_>>();
-    log::info!("completed: {}", completed.len());
-
-    let mut todo = ready.difference(&completed).collect::<Vec<_>>();
-    todo.sort_unstable_by_key(|(icao, date)| (date, icao));
-    log::info!("todo     : {}", todo.len());
-
-    let relevant_jets = &relevant_jets;
-    let models = &models;
-    let airports = &airports;
-
-    let tasks = todo.into_iter().map(|(icao_number, month)| async move {
-        etl_task(
-            icao_number,
-            *month,
-            &relevant_jets,
-            &models,
-            &airports,
-            client,
-        )
-        .await
-    });
+        .map(|(icao_month, aircraft)| async move {
+            let model = models
+                .get(&aircraft.model)
+                .expect("limited to required above");
+            let (_, month) = icao_month;
+            etl_task(&aircraft, model, month, client).await
+        });
 
     let _ = futures::stream::iter(tasks)
-        .buffered(50)
+        .buffered(400)
+        .map(|r| {
+            if let Err(e) = r {
+                log::error!("{e}");
+            }
+        })
         .collect::<Vec<_>>()
         .await;
+    log::info!("execution completed");
 
-    aggregate(private_jets, &models, &airports, client).await
+    log::info!("aggregating...");
+    aggregate(required, client).await
 }

@@ -1,34 +1,22 @@
 #[forbid(unsafe_code)]
 pub mod aircraft;
-mod aircraft_models;
-mod aircraft_owners;
-mod airports;
-mod country;
+pub(crate) mod country;
 pub mod csv;
-mod emissions;
-pub(crate) mod fs;
+pub mod emissions;
+pub mod fs;
 pub mod fs_s3;
-mod icao_to_trace;
-mod legs;
-mod model;
-mod owners;
-mod private_emissions;
+pub mod icao_to_trace;
+pub mod io;
+pub mod legs;
+pub mod model;
+mod private_jets_in_time;
+pub mod serde;
 mod trace_month;
 
-pub use aircraft_models::*;
-pub use aircraft_owners::*;
-pub use airports::*;
-pub(crate) use country::CountryIcaoRanges;
-pub use emissions::*;
-pub use fs::{BlobStorageProvider, LocalDisk};
-pub use icao_to_trace::*;
-pub use legs::*;
-pub use model::*;
-pub use owners::*;
-pub use private_emissions::*;
+pub use private_jets_in_time::private_jets_in_month;
 
 /// A position of an aircraft
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, ::serde::Serialize, ::serde::Deserialize)]
 pub struct Position {
     #[serde(with = "time::serde::rfc3339")]
     datetime: time::OffsetDateTime,
