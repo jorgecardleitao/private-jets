@@ -11,19 +11,21 @@ This document describes the general methodology used by this solution.
 * ICAO number: an identifier (e.g. `4596B2`) set on the transponder
 * ADS-B event: a signal emitted by a ADS-B transponder of an aircraft containing the ICAO number, time and position (including altitude)
 * ADS-B receiver: a device that receives / listens to ADS-B signals
-* [adsbexchange](https://globe.adsbexchange.com): a commercial platform used to aggregate real time ADS-B signals listened by receivers worldwide
+* [adsbexchange](https://globe.adsbexchange.com): a commercial platform that aggregates real time ADS-B signals listened by receivers worldwide
 * leg: a continuous sequence of ADS-B positions in time where the aircraft is flying
 
 ## Assumptions
 
-* At any given point in time, an aircraft is assigned a unique a tail number (e.g. `OY-EUR`).
-* At any given point in time, an aircraft is assigned a unique ICAO number (e.g. `4596B2`).
-* At any given point in time, there is a one-to-one relationship between the assigned ICAO number and the assigned assigned tail number (`OY-EUR <-> 4596B2`).
-* At any given point in time, [adsbexchange](https://globe.adsbexchange.com) contains the current set of aircrafts with:
+At any given point in time:
+
+* an aircraft is assigned a unique a tail number (e.g. `OY-EUR`).
+* an aircraft is assigned a unique ICAO number (e.g. `4596B2`).
+* there is a one-to-one relationship between the assigned ICAO number and the assigned assigned tail number (`OY-EUR <-> 4596B2`).
+* [adsbexchange](https://globe.adsbexchange.com) contains the current set of aircrafts with:
   * tail number
   * ICAO number
   * Model name
-* At any given point in time, a flying aircraft has its ADS-B transponder turned on.
+* a flying aircraft has its ADS-B transponder turned on.
 * [adsbexchange](https://globe.adsbexchange.com) maintains and operates the historical datasets of ADS-B signals received in the platform.
 
 ## Design
@@ -33,6 +35,8 @@ This document describes the general methodology used by this solution.
 * All data provided by this solution is:
   * be publicly available via https and s3 protocols (S3 endpoint `fra1.digitaloceanspaces.com`, bucket `private-jets`)
   * be serialized in computer and human-readable formats (`csv` or `json`)
+
+![Design](./design.drawio.png)
 
 ## Methodology
 
@@ -198,6 +202,12 @@ columns:
   icao_number:
     type: string
     description: The ICAO number (e.g. 4596b2)
+  tail_number:
+    type: string
+    description: The tail number associated to this ICAO number
+  aircraft_model:
+    type: string
+    description: The aircraft model associated to this ICAO number
   start:
     type: string
     description: The datetime of the start of the leg in rfc3339 in UTC
@@ -222,15 +232,24 @@ columns:
   end_altitude:
     type: f64
     description: The altitude at the end of the leg in feet
-  length:
+  duration:
     type: f64
-    description: The total actual flown distance in km (always bigger than the great-circle distance between start and end)
+    description: The duration of the leg in hours
+  distance:
+    type: f64
+    description: The total actual flown distance in km
+  great_circle_distance:
+    type: f64
+    description: The great circle distance between the start and end of the leg in km
   hours_above_30000:
     type: f64
     description: number of hours flown above 30.000 feet
   hours_above_40000:
     type: f64
     description: number of hours flown above 40.000 feet
+  co2_emissions:
+    type: f64
+    description: CO2 emissions in kg
 constraints:
   - type: uniqueness
     columns: [icao_number, start]

@@ -8,5 +8,5 @@ pub async fn get_csv<D: DeserializeOwned>(
 ) -> Result<Vec<D>, std::io::Error> {
     let content = client.maybe_get(key).await?.expect("File to be present");
 
-    Ok(super::csv::deserialize::<D>(&content).collect::<Vec<_>>())
+    super::csv::deserialize::<D>(&content).collect()
 }

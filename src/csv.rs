@@ -11,8 +11,7 @@ pub(crate) fn load<H: Hash + Eq, D: for<'de> Deserialize<'de>, PK: Fn(D) -> (H, 
 ) -> Result<HashMap<H, D>, Box<dyn Error>> {
     let data = std::fs::read(path)?;
 
-    let data = deserialize(&data).map(map).collect();
-    Ok(data)
+    Ok(deserialize(&data).map(|x| x.unwrap()).map(map).collect())
 }
 
 pub fn serialize(items: impl Iterator<Item = impl serde::Serialize>) -> Vec<u8> {
@@ -25,12 +24,12 @@ pub fn serialize(items: impl Iterator<Item = impl serde::Serialize>) -> Vec<u8> 
 
 pub fn deserialize<'a, D: serde::de::DeserializeOwned + 'a>(
     data: &'a [u8],
-) -> impl Iterator<Item = D> + 'a {
+) -> impl Iterator<Item = Result<D, std::io::Error>> + 'a {
     let rdr = csv::ReaderBuilder::new()
         .delimiter(b',')
         .from_reader(std::io::Cursor::new(data));
     rdr.into_deserialize().into_iter().map(|r| {
-        let record: D = r.unwrap();
-        record
+        let record: D = r?;
+        Ok(record)
     })
 }

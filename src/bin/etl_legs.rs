@@ -144,12 +144,13 @@ async fn write(
     Ok(())
 }
 
-async fn read<D: DeserializeOwned>(
+async fn read_u8(
     icao: &Arc<str>,
     month: time::Date,
     client: &dyn BlobStorageProvider,
-) -> Result<Vec<D>, std::io::Error> {
-    flights::io::get_csv(&pk_to_blob_name(icao, month), client).await
+) -> Result<Option<Vec<u8>>, std::io::Error> {
+    log::info!("Read icao={icao} month={month}");
+    client.maybe_get(&pk_to_blob_name(icao, month)).await
 }
 
 fn pk_to_blob_name(icao: &str, month: time::Date) -> String {
@@ -212,17 +213,10 @@ async fn aggregate(
     required: HashMap<(Arc<str>, time::Date), Aircraft>,
     client: &dyn BlobStorageProvider,
 ) -> Result<(), Box<dyn Error>> {
-    let all_completed = list(client).await?;
-
-    let completed = all_completed
-        .into_iter()
-        .filter(|key| required.contains_key(key))
-        .collect::<HashSet<_>>();
-
-    // group completed by year
-    let completed_by_year =
-        completed
-            .into_iter()
+    // group by year
+    let required_by_year =
+        required
+            .into_keys()
             .fold(HashMap::<i32, HashSet<_>>::new(), |mut acc, v| {
                 acc.entry(v.1.year())
                     .and_modify(|entries| {
@@ -231,31 +225,26 @@ async fn aggregate(
                     .or_insert(HashSet::from([v]));
                 acc
             });
-    let required_by_year =
-        required
-            .into_iter()
-            .fold(HashMap::<i32, usize>::new(), |mut acc, (v, _)| {
-                acc.entry(v.1.year())
-                    .and_modify(|entries| {
-                        *entries += 1;
-                    })
-                    .or_insert(0);
-                acc
-            });
 
     // run tasks by year
     let mut metadata = HashMap::<i32, Metadata>::new();
-    for (year, completed) in completed_by_year {
-        let tasks = completed.iter().map(|(icao_number, date)| async move {
-            read::<LegOut>(icao_number, *date, client).await
-        });
+    for (year, completed) in required_by_year {
+        let tasks = completed
+            .iter()
+            .map(|(icao_number, date)| async move { read_u8(icao_number, *date, client).await });
 
         log::info!("Gettings all legs for year={year}");
         let legs = futures::stream::iter(tasks)
-            .buffered(100)
+            .buffered(1000)
             .try_collect::<Vec<_>>()
             .await?
             .into_iter()
+            .flatten() // drop those that do not exist
+            .map(|content| {
+                flights::csv::deserialize::<LegOut>(&content)
+                    .collect::<Result<Vec<_>, _>>()
+                    .unwrap()
+            })
             .flatten();
 
         log::info!("Writing all legs for year={year}");
@@ -265,7 +254,7 @@ async fn aggregate(
         metadata.insert(
             year,
             Metadata {
-                icao_months_to_process: *required_by_year.get(&year).unwrap(),
+                icao_months_to_process: completed.len(),
                 icao_months_processed: completed.len(),
                 url: format!("https://private-jets.fra1.digitaloceanspaces.com/{key}"),
             },
@@ -318,13 +307,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let (private_jets, models) = private_jets(client, maybe_country).await?;
     let models = &models;
 
-    let months = (2019..2024)
+    let years = 2019..2025;
+    let now = time::OffsetDateTime::now_utc().date();
+    let now =
+        time::Date::from_calendar_date(now.year(), now.month(), 1).expect("day 1 never errors");
+    let months = years
         .cartesian_product(1..=12u8)
         .map(|(year, month)| {
             time::Date::from_calendar_date(year, time::Month::try_from(month).unwrap(), 1)
                 .expect("day 1 never errors")
         })
-        .collect::<Vec<_>>();
+        .filter(|month| month < &now);
 
     let required = private_jets
         .into_iter()
@@ -339,24 +332,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     log::info!("required : {}", required.len());
 
-    //log::info!("computing completed tasks...");
-    //let completed = HashSet::new(); //list(client).await?.into_iter().collect::<HashSet<_>>();
-    //log::info!("completed: {}", completed.len());
-
-    //log::info!("computing ready tasks...");
-    /*let ready = flights::icao_to_trace::list_months_positions(client)
-    .await?
-    .into_iter()
-    .filter(|key| required.contains_key(key))
-    .collect::<HashSet<_>>();*/
-    //let ready = required.iter()
-    //log::info!("ready    : {}", ready.len());
-
-    //let mut todo = ready.difference(&completed).collect::<Vec<_>>();
-    //todo.sort_unstable_by_key(|(icao, date)| (date, icao));
-    //log::info!("todo     : {}", todo.len());
-
-    log::info!("executing todos...");
+    log::info!("executing required...");
     let tasks = required
         .clone()
         .into_iter()
@@ -377,7 +353,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         })
         .collect::<Vec<_>>()
         .await;
-    log::info!("todos completed");
+    log::info!("execution completed");
 
     log::info!("aggregating...");
     aggregate(required, client).await

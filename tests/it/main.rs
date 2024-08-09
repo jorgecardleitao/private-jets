@@ -136,7 +136,7 @@ async fn gets_db_month() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn number_of_jets() -> Result<(), Box<dyn Error>> {
+async fn private_jets_in_month() -> Result<(), Box<dyn Error>> {
     let client = flights::fs_s3::anonymous_client().await;
 
     let aircraft = flights::private_jets_in_month(2022..2024, None, &client).await?;
