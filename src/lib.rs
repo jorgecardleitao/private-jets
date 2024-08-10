@@ -13,7 +13,7 @@ mod private_jets_in_time;
 pub mod serde;
 mod trace_month;
 
-pub use private_jets_in_time::private_jets_in_month;
+pub use private_jets_in_time::{private_jets_in_month, RequiredTasks};
 
 /// A position of an aircraft
 #[derive(Debug, Clone, PartialEq, ::serde::Serialize, ::serde::Deserialize)]

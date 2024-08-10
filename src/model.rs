@@ -1,9 +1,9 @@
-use std::{collections::HashMap, error::Error};
+use std::{collections::HashMap, error::Error, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
 /// A map of the aircraft model (e.g. `BEECH 400 Beechjet`) to an [`AircraftModel`].
-pub type AircraftModels = HashMap<String, AircraftModel>;
+pub type AircraftModels = HashMap<String, Arc<AircraftModel>>;
 
 /// In-memory representation of an aircraft model
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, PartialEq, Eq)]
@@ -49,7 +49,7 @@ pub fn load_private_jet_models() -> Result<AircraftModels, Box<dyn Error>> {
         .into_iter()
         .map(|(model, (mut all, count))| {
             all.gph /= count;
-            (model, all)
+            (model, Arc::new(all))
         })
         .collect();
 

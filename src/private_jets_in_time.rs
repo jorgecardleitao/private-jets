@@ -4,7 +4,9 @@ use itertools::Itertools;
 use time::macros::date;
 use time::Date;
 
-use crate::{aircraft::Aircraft, fs::BlobStorageProvider};
+use crate::{aircraft::Aircraft, fs::BlobStorageProvider, model::AircraftModel};
+
+pub type RequiredTasks = HashMap<(Arc<str>, time::Date), (Arc<Aircraft>, Arc<AircraftModel>)>;
 
 /// Returns the map `(icao_number, month) -> `[`Aircraft`] for the given set of years and (optionally) countries.
 /// The key is the specific `(icao_number, month)`, the value is the [`Aircraft`] associated with that icao_number at that month.
@@ -26,7 +28,7 @@ pub async fn private_jets_in_month(
     years: impl Iterator<Item = i32>,
     maybe_country: Option<&str>,
     client: &dyn BlobStorageProvider,
-) -> Result<HashMap<(Arc<str>, time::Date), Arc<Aircraft>>, Box<dyn Error>> {
+) -> Result<RequiredTasks, Box<dyn Error>> {
     let models = crate::model::load_private_jet_models()?;
     let aircrafts = crate::aircraft::read_all(client).await?;
 
@@ -37,14 +39,18 @@ pub async fn private_jets_in_month(
             (
                 date,
                 a.into_iter()
-                    // filter for private jet models and optionally country
-                    .filter(|(_, a)| models.contains_key(&a.model))
+                    // filter by optional country
                     .filter(|(_, a)| {
                         maybe_country
                             .map(|country| a.country.as_deref() == Some(country))
                             .unwrap_or(true)
                     })
-                    .map(|(_, a)| (a.icao_number.clone(), Arc::new(a)))
+                    // filter for private jet models and optionally country
+                    .filter_map(|(icao_number, a)| {
+                        models
+                            .get(&a.model)
+                            .map(|m| (icao_number, (Arc::new(a), m.clone())))
+                    })
                     .collect::<HashMap<_, _>>(),
             )
         })

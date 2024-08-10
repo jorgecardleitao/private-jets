@@ -6,16 +6,10 @@ use std::{
 
 use clap::Parser;
 use futures::{StreamExt, TryStreamExt};
-use itertools::Itertools;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::Serialize;
 use simple_logger::SimpleLogger;
 
-use flights::{
-    aircraft::{Aircraft, Aircrafts},
-    fs::BlobStorageProvider,
-    model::{load_private_jet_models, AircraftModel, AircraftModels},
-    Position,
-};
+use flights::{aircraft::Aircraft, fs::BlobStorageProvider, model::AircraftModel, Position};
 
 static DATABASE_ROOT: &'static str = "leg/v2/";
 static DATABASE: &'static str = "leg/v2/data/";
@@ -158,25 +152,6 @@ fn pk_to_blob_name(icao: &str, month: time::Date) -> String {
     format!("{DATABASE}month={month}/icao_number={icao}/data.csv")
 }
 
-fn blob_name_to_pk(blob: &str) -> (Arc<str>, time::Date) {
-    let keys = flights::serde::hive_to_map(&blob[DATABASE.len()..blob.len() - "data.csv".len()]);
-    let icao = *keys.get("icao_number").unwrap();
-    let date = *keys.get("month").unwrap();
-    (icao.into(), flights::serde::parse_month(date))
-}
-
-/// Returns the set of (icao number, month) that exist in the container prefixed by `prefix`
-async fn list(
-    client: &dyn BlobStorageProvider,
-) -> Result<HashSet<(Arc<str>, time::Date)>, std::io::Error> {
-    Ok(client
-        .list(DATABASE)
-        .await?
-        .into_iter()
-        .map(|blob| blob_name_to_pk(&blob))
-        .collect())
-}
-
 const ABOUT: &'static str = "Builds the database of all legs";
 
 #[derive(Parser, Debug)]
@@ -210,21 +185,18 @@ async fn etl_task(
 }
 
 async fn aggregate(
-    required: HashMap<(Arc<str>, time::Date), Aircraft>,
+    required: impl Iterator<Item = (Arc<str>, time::Date)>,
     client: &dyn BlobStorageProvider,
 ) -> Result<(), Box<dyn Error>> {
     // group by year
-    let required_by_year =
-        required
-            .into_keys()
-            .fold(HashMap::<i32, HashSet<_>>::new(), |mut acc, v| {
-                acc.entry(v.1.year())
-                    .and_modify(|entries| {
-                        entries.insert(v.clone());
-                    })
-                    .or_insert(HashSet::from([v]));
-                acc
-            });
+    let required_by_year = required.fold(HashMap::<i32, HashSet<_>>::new(), |mut acc, v| {
+        acc.entry(v.1.year())
+            .and_modify(|entries| {
+                entries.insert(v.clone());
+            })
+            .or_insert(HashSet::from([v]));
+        acc
+    });
 
     // run tasks by year
     let mut metadata = HashMap::<i32, Metadata>::new();
@@ -267,29 +239,6 @@ async fn aggregate(
     Ok(())
 }
 
-async fn private_jets(
-    client: &dyn BlobStorageProvider,
-    country: Option<&str>,
-) -> Result<(Aircrafts, AircraftModels), Box<dyn std::error::Error>> {
-    // load datasets to memory
-    let aircrafts = flights::aircraft::read(time::macros::date!(2023 - 11 - 06), client).await?;
-    let models = load_private_jet_models()?;
-
-    Ok((
-        aircrafts
-            .into_iter()
-            // its primary use is to be a private jet
-            .filter(|(_, a)| models.contains_key(&a.model))
-            .filter(|(_, a)| {
-                country
-                    .map(|country| a.country.as_deref() == Some(country))
-                    .unwrap_or(true)
-            })
-            .collect(),
-        models,
-    ))
-}
-
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
     SimpleLogger::new()
@@ -298,50 +247,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .unwrap();
 
     let cli = Cli::parse();
-    let maybe_country = cli.country.as_deref();
 
     let client = flights::fs_s3::client(cli.access_key, cli.secret_access_key).await;
     let client = &client;
 
     log::info!("computing required tasks...");
-    let (private_jets, models) = private_jets(client, maybe_country).await?;
-    let models = &models;
-
-    let years = 2019..2025;
-    let now = time::OffsetDateTime::now_utc().date();
-    let now =
-        time::Date::from_calendar_date(now.year(), now.month(), 1).expect("day 1 never errors");
-    let months = years
-        .cartesian_product(1..=12u8)
-        .map(|(year, month)| {
-            time::Date::from_calendar_date(year, time::Month::try_from(month).unwrap(), 1)
-                .expect("day 1 never errors")
-        })
-        .filter(|month| month < &now);
-
-    let required = private_jets
-        .into_iter()
-        .map(|(icao, aircraft)| {
-            months
-                .clone()
-                .into_iter()
-                .map(move |date| ((icao.clone(), date), aircraft.clone()))
-        })
-        .flatten()
-        .collect::<HashMap<_, _>>();
-
+    let required =
+        flights::private_jets_in_month((2019..2025).rev(), cli.country.as_deref(), client).await?;
     log::info!("required : {}", required.len());
 
     log::info!("executing required...");
     let tasks = required
         .clone()
         .into_iter()
-        .map(|(icao_month, aircraft)| async move {
-            let model = models
-                .get(&aircraft.model)
-                .expect("limited to required above");
-            let (_, month) = icao_month;
-            etl_task(&aircraft, model, month, client).await
+        .map(|((_, month), (aircraft, model))| async move {
+            etl_task(&aircraft, &model, month, client).await
         });
 
     let _ = futures::stream::iter(tasks)
@@ -356,5 +276,5 @@ async fn main() -> Result<(), Box<dyn Error>> {
     log::info!("execution completed");
 
     log::info!("aggregating...");
-    aggregate(required, client).await
+    aggregate(required.into_keys(), client).await
 }
