@@ -10,6 +10,7 @@ reducing its impact to [https://adsbexchange.com/](https://adsbexchange.com/).
 It resulted in a scientific publication in [Communications Earth & Environment paper](https://www.nature.com/articles/s43247-024-01775-z),
 and a bunch of press about it:
 
+* [Financial Times](https://www.ft.com/content/13a89ac6-6fa8-4e17-9ef2-698d20b657a7)
 * [Associated Press](https://apnews.com/article/climate-change-private-jets-wealthy-carbon-pollution-0a2d1d2cd81906381953346bfdb879e8)
 * [The Guardian](https://www.theguardian.com/world/2024/nov/07/used-like-taxis-soaring-private-jet-flights-drive-up-climate-heating-emissions)
 * [BBC](https://www.bbc.com/news/articles/cx2lvq4el5vo)
@@ -24,6 +25,10 @@ and a bunch of press about it:
 * [Salzburger NachrichtenSalzburger](https://www.sn.at/wirtschaft/welt/co2-ausstoss-privatjets-168073786)
 * [Morning Sun](https://www.morningsun.net/stories/carbon-pollution-from-high-flying-rich-in-private-jets-soars,161703)
 * [Kurier](https://kurier.at/wirtschaft/privatjet-flugzeug-fliegen-co2-ausstoss-klimawandel/402972225)
+* [The Straits Times](https://www.straitstimes.com/world/europe/private-jet-carbon-emissions-soar-46-study-shows)
+* [IFL Science](https://www.iflscience.com/private-jet-carbon-emissions-surge-by-46-percent-in-just-four-years-76695)
+* [Daily Mail](https://www.dailymail.co.uk/sciencetech/article-14054663/Carbon-emissions-private-jets-increased.html)
+* [The Mountaineer](https://www.themountaineer.com/news/national/private-jet-carbon-emissions-soar-46-study/article_07d110ba-5e51-5e9c-81da-3d24d6e57e3a.html)
 
 ## How to use the data
 
