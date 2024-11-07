@@ -7,6 +7,24 @@ This repository contains a CLI application to analyze flights of private jets.
 It is supported by an S3 Blob storage container for caching data, thereby
 reducing its impact to [https://adsbexchange.com/](https://adsbexchange.com/).
 
+It resulted in a scientific publication in [Communications Earth & Environment paper](https://www.nature.com/articles/s43247-024-01775-z),
+and a bunch of press about it:
+
+* [Associated Press](https://apnews.com/article/climate-change-private-jets-wealthy-carbon-pollution-0a2d1d2cd81906381953346bfdb879e8)
+* [The Guardian](https://www.theguardian.com/world/2024/nov/07/used-like-taxis-soaring-private-jet-flights-drive-up-climate-heating-emissions)
+* [BBC](https://www.bbc.com/news/articles/cx2lvq4el5vo)
+* [The times](https://www.thetimes.com/uk/environment/article/celebrity-private-jets-co2-emissions-5gmvgncrl)
+* [National Geographic](https://www.nationalgeographic.com/environment/article/private-jet-flights-climate-change)
+* [News Scientist](https://www.newscientist.com/article/2455196-carbon-emissions-from-private-jets-have-exploded-in-recent-years/)
+* [AOL](https://www.aol.com/ultra-rich-using-jets-taxis-163749747.html?guccounter=1)
+* [Lufkin Daily News](https://lufkindailynews.com/anpa/us/carbon-pollution-from-high-flying-rich-in-private-jets-soars/article_ac190bb5-4f01-5d04-8f87-25bd49778d9a.html)
+* [AFR](https://www.afr.com/companies/transport/private-jet-use-jumps-and-so-do-emissions-even-to-a-climate-summit-20241106-p5ko9s)
+* [Los Angeles Times](https://www.latimes.com/environment/story/2024-11-07/co2-emissions-from-private-jets-are-skyrocketing)
+* [Castanet](https://www.castanet.net/news/World/516129/Carbon-pollution-from-high-flying-rich-in-private-jets-soars)
+* [Salzburger NachrichtenSalzburger](https://www.sn.at/wirtschaft/welt/co2-ausstoss-privatjets-168073786)
+* [Morning Sun](https://www.morningsun.net/stories/carbon-pollution-from-high-flying-rich-in-private-jets-soars,161703)
+* [Kurier](https://kurier.at/wirtschaft/privatjet-flugzeug-fliegen-co2-ausstoss-klimawandel/402972225)
+
 ## How to use the data
 
 The data is available in an https/s3 endpoint. See [analysis.sql](./analysis.sql) for an example of how to use it (in [duckdb SQL](https://duckdb.org/docs/sql/introduction.html)).
