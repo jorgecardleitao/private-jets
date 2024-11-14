@@ -24,6 +24,14 @@ and a bunch of press about it:
 * [Los Angeles Times](https://www.latimes.com/environment/story/2024-11-07/co2-emissions-from-private-jets-are-skyrocketing)
 * [Castanet](https://www.castanet.net/news/World/516129/Carbon-pollution-from-high-flying-rich-in-private-jets-soars)
 * [Salzburger NachrichtenSalzburger](https://www.sn.at/wirtschaft/welt/co2-ausstoss-privatjets-168073786)
+* [Exame](https://exame.com/mundo/por-que-o-uso-de-jatos-privados-aumenta-a-cada-ano-nos-eua/)
+* [Jornal de noticias](https://www.jn.pt/2662184499/emissoes-anuais-de-dioxido-de-carbono-da-aviacao-privada-aumentaram-46-entre-2019-e-2023)
+* [Publico](https://www.publico.pt/2024/11/07/azul/noticia/emissoes-co2-aviacao-privada-crescem-necessario-limitar-elite-rica-investigador-2110848)
+* [Tempo](https://www.tempo.pt/noticias/ciencia/cientistas-avaliaram-a-contribuicao-da-aviacao-particular-no-aumento-de-dioxido-de-carbono-na-atmosfera.html)
+* [pplware](https://pplware.sapo.pt/motores/emissoes-dos-jatos-privados-aumentaram-quase-50-nesta-decada/)
+* [Folha de São Paulo](https://www1.folha.uol.com.br/mercado/2024/11/emissoes-de-carbono-por-jatinhos-crescem-quase-50-em-4-anos-incluindo-viagens-para-eventos-sobre-clima.shtml)
+* [Globo](https://gq.globo.com/um-so-planeta/noticia/2024/11/poluicao-causada-jatinhos-particulares-cresceu-quase-50percent-em-4-anos.ghtml)
+* [AVV](https://avv.pt/os-jatos-particulares-emitem-tanto-co2-em-uma-hora-quanto-uma-pessoa-em-toda-a-sua-vida/)
 * [Morning Sun](https://www.morningsun.net/stories/carbon-pollution-from-high-flying-rich-in-private-jets-soars,161703)
 * [Kurier](https://kurier.at/wirtschaft/privatjet-flugzeug-fliegen-co2-ausstoss-klimawandel/402972225)
 * [The Straits Times](https://www.straitstimes.com/world/europe/private-jet-carbon-emissions-soar-46-study-shows)
@@ -36,7 +44,7 @@ and a bunch of press about it:
 The data is available in an https/s3 endpoint. See [analysis.sql](./analysis.sql) for an example of how to use it (in [duckdb SQL](https://duckdb.org/docs/sql/introduction.html)).
 
 ```bash
-pip install dudckdb
+pip install duckdb
 
 python3 run_sql.py analysis.sql
 ```
