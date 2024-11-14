@@ -107,3 +107,7 @@ cargo run --features="build-binary" --release --bin etl_legs -- --access-key=DO0
 # they are available at
 # https://private-jets.fra1.digitaloceanspaces.com/leg/v1/data/icao_number={icao}/month={year}-{month}/data.csv
 ```
+
+## Licence
+
+MIT, see LICENSE.md
