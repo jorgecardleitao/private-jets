@@ -15,6 +15,7 @@ and a bunch of press about it:
 * [The Guardian](https://www.theguardian.com/world/2024/nov/07/used-like-taxis-soaring-private-jet-flights-drive-up-climate-heating-emissions)
 * [BBC](https://www.bbc.com/news/articles/cx2lvq4el5vo)
 * [The Times](https://www.thetimes.com/uk/environment/article/celebrity-private-jets-co2-emissions-5gmvgncrl)
+* [Der Spiegel](https://www.spiegel.de/wissenschaft/natur/luftverkehr-und-umweltschutz-co2-ausstoss-durch-privatjets-steigt-deutlich-a-586077c4-cec1-4437-ac03-bb4c09d437bc)
 * [National Geographic](https://www.nationalgeographic.com/environment/article/private-jet-flights-climate-change)
 * [New Scientist](https://www.newscientist.com/article/2455196-carbon-emissions-from-private-jets-have-exploded-in-recent-years/)
 * [Nature News](https://www.nature.com/articles/d41586-024-03687-6)
