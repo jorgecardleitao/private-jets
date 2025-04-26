@@ -32,7 +32,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let client = flights::fs_s3::client(cli.access_key, cli.secret_access_key).await;
 
     let required =
-        flights::private_jets_in_month((2019..2025).rev(), cli.country.as_deref(), &client).await?;
+        flights::private_jets_in_month((2019..2026).rev(), cli.country.as_deref(), &client).await?;
 
     let required = required.keys().cloned().collect::<HashSet<_>>();
 

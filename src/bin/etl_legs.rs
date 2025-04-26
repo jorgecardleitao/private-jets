@@ -253,7 +253,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     log::info!("computing required tasks...");
     let required =
-        flights::private_jets_in_month((2019..2025).rev(), cli.country.as_deref(), client).await?;
+        flights::private_jets_in_month((2019..2026).rev(), cli.country.as_deref(), client).await?;
     log::info!("required : {}", required.len());
 
     log::info!("executing required...");
