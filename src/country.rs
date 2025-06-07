@@ -18,6 +18,12 @@ impl IcaoRange {
     }
 }
 
+// note: the country.json was extracted from
+// https://globe.adsbexchange.com/adsbx_comb_index_tarmisc_min_fc01616f370a6163a397b31cbee9dcd9.js on 2024-02-10
+// which seems (and is likely to be) a correct implementation of https://www.icao.int/Meetings/AMC/MA/NACC_DCA03_2008/naccdca3wp05.pdf
+// see tests below
+static COUNTRIES: &'static [u8] = include_bytes!("./country.json");
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct CountryIcaoRanges(HashMap<Arc<str>, IcaoRange>);
 
@@ -26,13 +32,8 @@ impl CountryIcaoRanges {
     /// https://www.icao.int/Meetings/AMC/MA/NACC_DCA03_2008/naccdca3wp05.pdf
     /// Countries names are in ISO 3166.
     pub fn new() -> Self {
-        // note: the country.json was extracted from
-        // https://globe.adsbexchange.com/adsbx_comb_index_tarmisc_min_fc01616f370a6163a397b31cbee9dcd9.js on 2024-02-10
-        // which seems (and is likely to be) a correct implementation of https://www.icao.int/Meetings/AMC/MA/NACC_DCA03_2008/naccdca3wp05.pdf
-        // see tests below
-        let data = std::fs::read("src/country.json").expect("src/country.json to exist");
         let value: Vec<CountryRange> =
-            serde_json::from_slice(&data).expect("src/country.json to be deserializable");
+            serde_json::from_slice(COUNTRIES).expect("src/country.json to be deserializable");
 
         Self(
             value

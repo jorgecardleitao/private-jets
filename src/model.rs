@@ -18,6 +18,8 @@ pub struct AircraftModel {
     pub date: String,
 }
 
+static MODELS: &'static [u8] = include_bytes!("./models.csv");
+
 /// Returns the set of all [`AircraftModel`] in `src/models.csv`,
 /// corresponding to aircraft types whose primary use is to be a private jet
 /// according to the [methodology `M-models-for-private-use`](../methodology.md).
@@ -25,7 +27,10 @@ pub struct AircraftModel {
 /// # Error
 /// Errors if the file cannot be read
 pub fn load_private_jet_models() -> Result<AircraftModels, Box<dyn Error>> {
-    let data = super::csv::load("src/models.csv", |a: AircraftModel| (a.clone(), a))?;
+    let data = super::csv::deserialize(MODELS)
+        .map(|x| x.unwrap())
+        .map(|a: AircraftModel| (a.clone(), a))
+        .collect::<Vec<_>>();
 
     let data = data
         .into_iter()
