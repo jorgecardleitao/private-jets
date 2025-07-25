@@ -76,7 +76,7 @@ and has anonymous and public read permissions. See [`methodology.md`](./methodol
 
 ### How to use
 
-1. Install Rust
+1. Install Rust, `sudo apt install pkg-config libssl-dev build-essential`
 2. run `cargo run --features="build-binary" --release --bin etl_aircrafts`
 3. open `database/aircraft/db/date=<today date>/data.csv`
 
