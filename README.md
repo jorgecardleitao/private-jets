@@ -91,22 +91,9 @@ In general:
 As of today, the flag `--access-key` is only available to the owner,
 as writing to the blob storage must be done through a controlled code base that preserves data integrity.
 
-### Examples:
+### Examples
 
-```bash
-# Create new snapshot of database of all aircrafts
-cargo run --features="build-binary" --release --bin etl_aircrafts -- --access-key=DO00AUDGL32QLFKV8CEP --secret-access-key=$(cat secrets.txt)
-
-# Build database of positions `[2019, 2024]`
-cargo run --features="build-binary" --release --bin etl_positions -- --access-key=DO00AUDGL32QLFKV8CEP --secret-access-key=$(cat secrets.txt)
-# they are available at
-# https://private-jets.fra1.digitaloceanspaces.com/position/icao_number={icao}/month={year}-{month}/data.json
-
-# Build database of legs `[2019, 2024]` (over existing positions computed by `etl_positions`)
-cargo run --features="build-binary" --release --bin etl_legs -- --access-key=DO00AUDGL32QLFKV8CEP --secret-access-key=$(cat secrets.txt)
-# they are available at
-# https://private-jets.fra1.digitaloceanspaces.com/leg/v1/data/icao_number={icao}/month={year}-{month}/data.csv
-```
+* [run.sh](run.sh)
 
 ## Licence
 

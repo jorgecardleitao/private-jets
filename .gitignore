@@ -3,3 +3,4 @@
 database/
 venv/
 results/
+secrets.txt
