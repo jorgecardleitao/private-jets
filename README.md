@@ -70,7 +70,7 @@ of future calls.
 
 All cached data is available on S3 blob storage at endpoint
 
-> `https://private-jets.fra1.digitaloceanspaces.com`
+> `https://private-jets.fsn1.your-objectstorage.com`
 
 and has anonymous and public read permissions. See [`methodology.md`](./methodology.md) for details.
 

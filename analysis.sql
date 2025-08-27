@@ -1,4 +1,4 @@
-SET s3_endpoint='fra1.digitaloceanspaces.com';
+SET s3_endpoint='fsn1.your-objectstorage.com';
 
 SELECT
     "year",
