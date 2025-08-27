@@ -228,7 +228,7 @@ async fn aggregate(
             Metadata {
                 icao_months_to_process: completed.len(),
                 icao_months_processed: completed.len(),
-                url: format!("https://private-jets.fra1.digitaloceanspaces.com/{key}"),
+                url: format!("https://private-jets.fsn1.your-objectstorage.com/{key}"),
             },
         );
     }

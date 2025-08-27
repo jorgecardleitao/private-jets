@@ -113,8 +113,8 @@ pub async fn client(access_key: String, secret_access_key: String) -> ContainerC
 
     let config = aws_config::ConfigLoader::default()
         .behavior_version(aws_config::BehaviorVersion::latest())
-        .region("fra1")
-        .endpoint_url("https://fra1.digitaloceanspaces.com")
+        .region("fsn1")
+        .endpoint_url("https://fsn1.your-objectstorage.com")
         .credentials_provider(provider)
         .load()
         .await;
@@ -131,8 +131,8 @@ pub async fn client(access_key: String, secret_access_key: String) -> ContainerC
 pub async fn anonymous_client() -> ContainerClient {
     let config = aws_config::ConfigLoader::default()
         .behavior_version(aws_config::BehaviorVersion::latest())
-        .region("fra1")
-        .endpoint_url("https://fra1.digitaloceanspaces.com")
+        .region("fsn1")
+        .endpoint_url("https://fsn1.your-objectstorage.com")
         .no_credentials()
         .load()
         .await;

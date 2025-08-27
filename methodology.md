@@ -33,7 +33,7 @@ At any given point in time:
 * Information can only be obtained from trustworthy publicly available sources that can be easily verified.
 * Statements must be referenced against either existing sources or this methodology.
 * All data provided by this solution is:
-  * be publicly available via https and s3 protocols (S3 endpoint `fra1.digitaloceanspaces.com`, bucket `private-jets`)
+  * be publicly available via https and s3 protocols (S3 endpoint `fsn1.your-objectstorage.com`, bucket `private-jets`)
   * be serialized in computer and human-readable formats (`csv` or `json`)
 
 ![Design](./design.drawio.png)
@@ -52,7 +52,7 @@ The source code is available at [src/country.rs](./src/country.rs).
 
 This solution maintains the historical record of the database of all aircrafts from adb-s exchange, updated with a frequency of about 1 every month.
 
-The dataset is available at `https://private-jets.fra1.digitaloceanspaces.com/aircraft/db/date={date}/data.csv` where date is `yyyy-mm-dd` of the
+The dataset is available at `https://private-jets.fsn1.your-objectstorage.com/aircraft/db/date={date}/data.csv` where date is `yyyy-mm-dd` of the
 date of the extraction. It contains the following columns and types:
 
 ```yaml
@@ -94,7 +94,7 @@ This dataset is maintained manually and consisted in the following process:
 
 For example, `Dassault Falcon 2000` is advertised and sold as a private jet [here](https://www.guardianjet.com/jet-aircraft-online-tools/aircraft-brochure.cfm?m=Dassault-Falcon-2000-92).
 
-This dataset is available at `https://private-jets.fra1.digitaloceanspaces.com/model/db/data.csv`. It contains the following columns and types:
+This dataset is available at `https://private-jets.fsn1.your-objectstorage.com/model/db/data.csv`. It contains the following columns and types:
 
 ```yaml
 columns:
@@ -125,9 +125,9 @@ This solution maintains a dataset of all historical ADS-B signals from adsbexcha
 The set of ICAO numbers of private jets at a given date is computed by combining `M-aircrafts-in-time` and `M-models-for-private-use`.
 
 From this methodology results two datasets:
-* dataset parameterized by (ICAO number, day), available at `https://private-jets.fra1.digitaloceanspaces.com/globe_history/{date}/trace_full_{icao}.json` where
+* dataset parameterized by (ICAO number, day), available at `https://private-jets.fsn1.your-objectstorage.com/globe_history/{date}/trace_full_{icao}.json` where
   `{date}` (`yyyy-mm-dd`) is the corresponding day and `{icao}` the ICAO number.
-* dataset parameterized by (ICAO number, month), available at `https://private-jets.fra1.digitaloceanspaces.com/position/icao_number={icao}/month={month}/data.json` where
+* dataset parameterized by (ICAO number, month), available at `https://private-jets.fsn1.your-objectstorage.com/position/icao_number={icao}/month={month}/data.json` where
   `{month}` (`yyyy-mm`) is the month and `{icao}` the ICAO number.
 
 Note that these datasets comprise of >1.5 TB of data.
@@ -193,8 +193,8 @@ Source code is available at [src/legs.rs](./src/legs.rs).
 
 Given a leg, this solution aggregates specific metrics about it that can be used to large-scale analysis without using the individual events.
 
-This dataset is available at `https://private-jets.fra1.digitaloceanspaces.com/leg/v2/data/month={month}/icao_number={icao}/data.csv` on a per month and ICAO number,
-and `https://private-jets.fra1.digitaloceanspaces.com/leg/v2/all/year={year}/data.csv` per year for all ICAO numbers.
+This dataset is available at `https://private-jets.fsn1.your-objectstorage.com/leg/v2/data/month={month}/icao_number={icao}/data.csv` on a per month and ICAO number,
+and `https://private-jets.fsn1.your-objectstorage.com/leg/v2/all/year={year}/data.csv` per year for all ICAO numbers.
 It contains the following columns and types:
 
 ```yaml
