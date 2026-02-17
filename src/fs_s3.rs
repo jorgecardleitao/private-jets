@@ -147,26 +147,22 @@ pub async fn anonymous_client() -> ContainerClient {
 
 #[async_trait::async_trait]
 impl BlobStorageProvider for ContainerClient {
-    #[must_use]
     async fn maybe_get(&self, blob_name: &str) -> Result<Option<Vec<u8>>, std::io::Error> {
         get(&self, blob_name).await.map_err(std::io::Error::other)
     }
 
-    #[must_use]
     async fn put(&self, blob_name: &str, contents: Vec<u8>) -> Result<(), std::io::Error> {
         put(&self, blob_name, contents)
             .await
             .map_err(std::io::Error::other)
     }
 
-    #[must_use]
     async fn delete(&self, blob_name: &str) -> Result<(), std::io::Error> {
         delete(&self, blob_name)
             .await
             .map_err(std::io::Error::other)
     }
 
-    #[must_use]
     async fn list(&self, prefix: &str) -> Result<Vec<String>, std::io::Error> {
         Ok(self
             .client
