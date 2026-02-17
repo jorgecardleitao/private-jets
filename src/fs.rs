@@ -38,7 +38,6 @@ pub struct LocalDisk;
 
 #[async_trait]
 impl BlobStorageProvider for LocalDisk {
-    #[must_use]
     async fn maybe_get(&self, blob_name: &str) -> Result<Option<Vec<u8>>, std::io::Error> {
         let path = PathBuf::from(ROOT).join(Path::new(blob_name));
         if path.try_exists()? {
@@ -48,7 +47,6 @@ impl BlobStorageProvider for LocalDisk {
         }
     }
 
-    #[must_use]
     async fn put(&self, blob_name: &str, contents: Vec<u8>) -> Result<(), std::io::Error> {
         let path = PathBuf::from(ROOT).join(Path::new(blob_name));
         let mut dir = path.clone();
@@ -58,7 +56,6 @@ impl BlobStorageProvider for LocalDisk {
         Ok(())
     }
 
-    #[must_use]
     async fn list(&self, prefix: &str) -> Result<Vec<String>, std::io::Error> {
         let path = PathBuf::from(ROOT).join(Path::new(prefix));
         let mut paths = vec![];
@@ -69,7 +66,6 @@ impl BlobStorageProvider for LocalDisk {
         Ok(paths)
     }
 
-    #[must_use]
     async fn delete(&self, _prefix: &str) -> Result<(), std::io::Error> {
         todo!()
     }
