@@ -1,5 +1,6 @@
 use std::io::Error;
 
+use aws_config::retry::{RetryConfig, RetryMode};
 use aws_credential_types::provider::ProvideCredentials;
 use aws_sdk_s3::{
     config::Credentials, error::SdkError, operation::get_object::GetObjectError,
@@ -111,11 +112,16 @@ pub async fn client(access_key: String, secret_access_key: String) -> ContainerC
         secret_access_key,
     };
 
+    let retry_config = RetryConfig::standard()
+        .with_max_attempts(5)
+        .with_retry_mode(RetryMode::Adaptive);
+
     let config = aws_config::ConfigLoader::default()
         .behavior_version(aws_config::BehaviorVersion::latest())
         .region("fra1")
         .endpoint_url("https://fra1.digitaloceanspaces.com")
         .credentials_provider(provider)
+        .retry_config(retry_config)
         .load()
         .await;
     let client = aws_sdk_s3::Client::new(&config);
@@ -129,11 +135,16 @@ pub async fn client(access_key: String, secret_access_key: String) -> ContainerC
 
 /// Initialize an anonymous [`ContainerClient`]
 pub async fn anonymous_client() -> ContainerClient {
+    let retry_config = RetryConfig::standard()
+        .with_max_attempts(5)
+        .with_retry_mode(RetryMode::Adaptive);
+
     let config = aws_config::ConfigLoader::default()
         .behavior_version(aws_config::BehaviorVersion::latest())
         .region("fra1")
         .endpoint_url("https://fra1.digitaloceanspaces.com")
         .no_credentials()
+        .retry_config(retry_config)
         .load()
         .await;
     let client = aws_sdk_s3::Client::new(&config);

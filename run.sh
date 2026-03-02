@@ -1,5 +1,9 @@
-AWS_ACCESS_KEY_ID=DO00AUDGL32QLFKV8CEP
-AWS_SECRET_ACCESS_KEY=$(cat secrets.txt)
+#!/bin/bash
+set -e
+set -o pipefail
+
+export AWS_ACCESS_KEY_ID=DO00AUDGL32QLFKV8CEP
+export AWS_SECRET_ACCESS_KEY=$(cat secrets.txt)
 
 # Create new snapshot of database of all aircrafts
 /root/.cargo/bin/cargo run --features="build-binary" --release --bin etl_aircrafts -- --access-key=${AWS_ACCESS_KEY_ID} --secret-access-key=${AWS_SECRET_ACCESS_KEY}
