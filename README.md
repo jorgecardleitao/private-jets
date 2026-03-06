@@ -80,15 +80,20 @@ See [`methodology.md`](./methodology.md) for details.
 2. run `cargo run --features="build-binary" --release --bin etl_aircrafts`
 3. open `database/aircraft/db/date=<today date>/data.csv`
 
-Step 2. has an optional arguments, `--access-key`, `--secret-access-key`, specifying
-credentials to write to the remote storate, as opposed to disk.
+Step 2. writes to local disk by default. To write to remote storage instead,
+set the following environment variables before running:
+
+```bash
+export AWS_ACCESS_KEY_ID=<access key>
+export AWS_SECRET_ACCESS_KEY=<secret key>
+```
 
 In general:
 
-* Use the default parameters when creating ad-hoc stories
-* Use `--access-key` when improving the database with new data.
+* Use the default (no env vars) when creating ad-hoc analysis
+* Set `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` when improving the database with new data.
 
-As of today, the flag `--access-key` is only available to the owner,
+As of today, write access to remote storage is only available to the owner,
 as writing to the blob storage must be done through a controlled code base that preserves data integrity.
 
 ### Examples

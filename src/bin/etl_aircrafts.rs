@@ -14,17 +14,17 @@ enum Backend {
 
 const ABOUT: &'static str = r#"Creates a new snapshot of the database of all worldwide aircrafts according to `M-aircrafts-in-time`.
 This ETL is append only - every time it runs, it creates a new snapshot.
-If `access_key` and `secret_access_key` are not provided, data is written to the local disk.
+If AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY are not set, data is written to the local disk.
 "#;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about = ABOUT)]
 struct Cli {
-    /// The token to the remote storage
-    #[arg(long)]
+    /// S3 access key (env: AWS_ACCESS_KEY_ID)
+    #[arg(long, env = "AWS_ACCESS_KEY_ID")]
     access_key: Option<String>,
-    /// The token to the remote storage
-    #[arg(long)]
+    /// S3 secret access key (env: AWS_SECRET_ACCESS_KEY)
+    #[arg(long, env = "AWS_SECRET_ACCESS_KEY")]
     secret_access_key: Option<String>,
 }
 
