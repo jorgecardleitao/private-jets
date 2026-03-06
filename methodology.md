@@ -124,13 +124,13 @@ This solution maintains a dataset of all historical ADS-B signals from adsbexcha
 
 The set of ICAO numbers of private jets at a given date is computed by combining `M-aircrafts-in-time` and `M-models-for-private-use`.
 
-From this methodology results two datasets:
-* dataset parameterized by (ICAO number, day), available at `https://private-jets.fra1.digitaloceanspaces.com/globe_history/{date}/trace_full_{icao}.json` where
-  `{date}` (`yyyy-mm-dd`) is the corresponding day and `{icao}` the ICAO number.
-* dataset parameterized by (ICAO number, month), available at `https://private-jets.fra1.digitaloceanspaces.com/position/icao_number={icao}/month={month}/data.json` where
-  `{month}` (`yyyy-mm`) is the month and `{icao}` the ICAO number.
+For each (ICAO number, month) pair, all daily traces for that month are fetched
+from adsbexchange at `https://globe.adsbexchange.com/globe_history/{date}/traces/{last_2}/trace_full_{icao}.json`
+and aggregated into a single monthly dataset. Daily traces are not stored remotely.
 
-Note that these datasets comprise of >1.5 TB of data.
+The resulting dataset is parameterized by (ICAO number, month) and available at
+`https://private-jets.fra1.digitaloceanspaces.com/position/icao_number={icao}/month={month}/data.json`
+where `{month}` (`yyyy-mm`) is the month and `{icao}` the ICAO number.
 
 The source code is available at
 

@@ -38,12 +38,6 @@ fn adsbx_sid() -> String {
     format!("{time}_{random_chars}")
 }
 
-pub(crate) static DATABASE: &'static str = "globe_history";
-
-fn cache_file_path(icao: &str, date: &time::Date) -> String {
-    format!("{DATABASE}/{date}/trace_full_{icao}.json")
-}
-
 async fn globe_history(icao: &str, date: &time::Date) -> Result<Vec<u8>, std::io::Error> {
     log::info!("globe_history({icao},{date})");
     let referer =
@@ -107,22 +101,6 @@ async fn globe_history(icao: &str, date: &time::Date) -> Result<Vec<u8>, std::io
     }
 }
 
-/// Returns a map between tail number (e.g. "OYTWM": "45D2ED")
-/// Caches the first time it is executed
-/// Caching is skipped if `date` is either today (UTC) or in the future
-/// as the global history is only available at the end of the day
-pub async fn globe_history_cached(
-    icao: &str,
-    date: &time::Date,
-    client: &dyn fs::BlobStorageProvider,
-) -> Result<Vec<u8>, std::io::Error> {
-    let blob_name = cache_file_path(icao, date);
-    let action = fs::CacheAction::from_date(&date);
-    let fetch = globe_history(&icao, date);
-
-    Ok(fs::cached_call(&blob_name, fetch, client, action).await?)
-}
-
 fn compute_trace(data: &[u8]) -> Result<(f64, Vec<serde_json::Value>), std::io::Error> {
     if data.is_empty() {
         return Ok((0.0, vec![]));
@@ -160,9 +138,9 @@ fn compute_trace(data: &[u8]) -> Result<(f64, Vec<serde_json::Value>), std::io::
 async fn trace_cached(
     icao: &str,
     date: &time::Date,
-    client: &dyn fs::BlobStorageProvider,
+    _client: &dyn fs::BlobStorageProvider,
 ) -> Result<(f64, Vec<serde_json::Value>), std::io::Error> {
-    compute_trace(&globe_history_cached(icao, date, client).await?)
+    compute_trace(&globe_history(icao, date).await?)
 }
 
 fn compute_positions(start_trace: (f64, Vec<serde_json::Value>)) -> impl Iterator<Item = Position> {
