@@ -7,7 +7,7 @@ This repository contains a CLI application to analyze flights of private jets.
 It is supported by an S3 Blob storage container for caching data, thereby
 reducing its impact to [https://adsbexchange.com/](https://adsbexchange.com/).
 
-It resulted in a scientific publication in [Communications Earth & Environment paper](https://www.nature.com/articles/s43247-024-01775-z),
+It resulted in a scientific publication in [Nature Communications Earth & Environment paper](https://www.nature.com/articles/s43247-024-01775-z),
 and a bunch of press about it:
 
 * [Financial Times](https://www.ft.com/content/13a89ac6-6fa8-4e17-9ef2-698d20b657a7)
@@ -50,8 +50,7 @@ pip install duckdb
 python3 run_sql.py analysis.sql
 ```
 
-See [`methodology.md`](./methodology.md) for details of the full methodology and where data is available for consumption at different levels
-of aggregations.
+See [`methodology.md`](./methodology.md) for details of the full methodology and where data is available for consumption at different levels of aggregations.
 
 ## Contributing
 
@@ -72,7 +71,8 @@ All cached data is available on S3 blob storage at endpoint
 
 > `https://private-jets.fra1.digitaloceanspaces.com`
 
-and has anonymous and public read permissions. See [`methodology.md`](./methodology.md) for details.
+and has anonymous and public read permissions.
+See [`methodology.md`](./methodology.md) for details.
 
 ### How to use
 
