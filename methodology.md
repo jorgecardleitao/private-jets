@@ -1,5 +1,10 @@
 # Methodology
 
+> **Archived — 2026-11-08.** This repository is archived. The datasets described below were originally served from
+> `https://private-jets.fra1.digitaloceanspaces.com` (now decommissioned); the aggregated dataset is preserved at
+> DOI [10.5281/zenodo.24051265](https://zenodo.org/records/24051265). adsbexchange.com now requires a verified session
+> for historical data, so the raw `position/` level can no longer be re-fetched.
+
 This document describes the general methodology used by this solution.
 
 ## Notation

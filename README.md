@@ -40,9 +40,16 @@ and a bunch of press about it:
 * [Daily Mail](https://www.dailymail.co.uk/sciencetech/article-14054663/Carbon-emissions-private-jets-increased.html)
 * [The Mountaineer](https://www.themountaineer.com/news/national/private-jet-carbon-emissions-soar-46-study/article_07d110ba-5e51-5e9c-81da-3d24d6e57e3a.html)
 
+> **Archived — 2026-11-08.** This project is no longer maintained and this repository is archived (read-only).
+> adsbexchange.com now requires a verified session (Cloudflare Turnstile / reCAPTCHA) for all historical
+> `globe_history` data — enforced since late October 2026 (last successful ETL run: 2026-11-02/03, with
+> positions through 2026-08 and legs through 2026-09) — so the ETL can no longer fetch new data.
+> The core dataset is preserved on Zenodo: **DOI [10.5281/zenodo.24051265](https://zenodo.org/records/24051265)** (CC-BY-4.0).
+> The original S3 endpoint `https://private-jets.fra1.digitaloceanspaces.com` is being decommissioned; use the Zenodo archive.
+
 ## How to use the data
 
-The data is available in an https/s3 endpoint. See [analysis.sql](./analysis.sql) for an example of how to use it (in [duckdb SQL](https://duckdb.org/docs/sql/introduction.html)).
+The data is available on Zenodo at [https://zenodo.org/records/24051265](https://zenodo.org/records/24051265) — a single zip whose paths mirror the original S3 layout (`leg/v2/all/year=...`, `aircraft/db/date=...`, `model/db/...`), so the SQL below works unchanged after extracting. See [analysis.sql](./analysis.sql) for an example of how to use it (in [duckdb SQL](https://duckdb.org/docs/sql/introduction.html)).
 
 ```bash
 pip install duckdb
