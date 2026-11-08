@@ -9,11 +9,11 @@ const ABOUT: &'static str = r#"Builds the database of all private jet positions 
 #[derive(Parser, Debug)]
 #[command(author, version, about = ABOUT)]
 struct Cli {
-    /// The token to the remote storage
-    #[arg(long)]
+    /// S3 access key (env: AWS_ACCESS_KEY_ID)
+    #[arg(long, env = "AWS_ACCESS_KEY_ID")]
     access_key: String,
-    /// The token to the remote storage
-    #[arg(long)]
+    /// S3 secret access key (env: AWS_SECRET_ACCESS_KEY)
+    #[arg(long, env = "AWS_SECRET_ACCESS_KEY")]
     secret_access_key: String,
     /// Optional country to fetch from (in ISO 3166); defaults to whole world
     #[arg(long)]

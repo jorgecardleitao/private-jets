@@ -7,7 +7,7 @@ This repository contains a CLI application to analyze flights of private jets.
 It is supported by an S3 Blob storage container for caching data, thereby
 reducing its impact to [https://adsbexchange.com/](https://adsbexchange.com/).
 
-It resulted in a scientific publication in [Communications Earth & Environment paper](https://www.nature.com/articles/s43247-024-01775-z),
+It resulted in a scientific publication in [Nature Communications Earth & Environment paper](https://www.nature.com/articles/s43247-024-01775-z),
 and a bunch of press about it:
 
 * [Financial Times](https://www.ft.com/content/13a89ac6-6fa8-4e17-9ef2-698d20b657a7)
@@ -40,9 +40,16 @@ and a bunch of press about it:
 * [Daily Mail](https://www.dailymail.co.uk/sciencetech/article-14054663/Carbon-emissions-private-jets-increased.html)
 * [The Mountaineer](https://www.themountaineer.com/news/national/private-jet-carbon-emissions-soar-46-study/article_07d110ba-5e51-5e9c-81da-3d24d6e57e3a.html)
 
+> **Archived — 2026-11-08.** This project is no longer maintained and this repository is archived (read-only).
+> adsbexchange.com now requires a verified session (Cloudflare Turnstile / reCAPTCHA) for all historical
+> `globe_history` data — enforced since late October 2026 (last successful ETL run: 2026-11-02/03, with
+> positions through 2026-08 and legs through 2026-09) — so the ETL can no longer fetch new data.
+> The core dataset is preserved on Zenodo: **DOI [10.5281/zenodo.24051265](https://zenodo.org/records/24051265)** (CC-BY-4.0).
+> The original S3 endpoint `https://private-jets.fra1.digitaloceanspaces.com` is being decommissioned; use the Zenodo archive.
+
 ## How to use the data
 
-The data is available in an https/s3 endpoint. See [analysis.sql](./analysis.sql) for an example of how to use it (in [duckdb SQL](https://duckdb.org/docs/sql/introduction.html)).
+The data is available on Zenodo at [https://zenodo.org/records/24051265](https://zenodo.org/records/24051265) — a single zip whose paths mirror the original S3 layout (`leg/v2/all/year=...`, `aircraft/db/date=...`, `model/db/...`), so the SQL below works unchanged after extracting. See [analysis.sql](./analysis.sql) for an example of how to use it (in [duckdb SQL](https://duckdb.org/docs/sql/introduction.html)).
 
 ```bash
 pip install duckdb
@@ -50,8 +57,7 @@ pip install duckdb
 python3 run_sql.py analysis.sql
 ```
 
-See [`methodology.md`](./methodology.md) for details of the full methodology and where data is available for consumption at different levels
-of aggregations.
+See [`methodology.md`](./methodology.md) for details of the full methodology and where data is available for consumption at different levels of aggregations.
 
 ## Contributing
 
@@ -72,7 +78,8 @@ All cached data is available on S3 blob storage at endpoint
 
 > `https://private-jets.fra1.digitaloceanspaces.com`
 
-and has anonymous and public read permissions. See [`methodology.md`](./methodology.md) for details.
+and has anonymous and public read permissions.
+See [`methodology.md`](./methodology.md) for details.
 
 ### How to use
 
@@ -80,15 +87,20 @@ and has anonymous and public read permissions. See [`methodology.md`](./methodol
 2. run `cargo run --features="build-binary" --release --bin etl_aircrafts`
 3. open `database/aircraft/db/date=<today date>/data.csv`
 
-Step 2. has an optional arguments, `--access-key`, `--secret-access-key`, specifying
-credentials to write to the remote storate, as opposed to disk.
+Step 2. writes to local disk by default. To write to remote storage instead,
+set the following environment variables before running:
+
+```bash
+export AWS_ACCESS_KEY_ID=<access key>
+export AWS_SECRET_ACCESS_KEY=<secret key>
+```
 
 In general:
 
-* Use the default parameters when creating ad-hoc stories
-* Use `--access-key` when improving the database with new data.
+* Use the default (no env vars) when creating ad-hoc analysis
+* Set `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` when improving the database with new data.
 
-As of today, the flag `--access-key` is only available to the owner,
+As of today, write access to remote storage is only available to the owner,
 as writing to the blob storage must be done through a controlled code base that preserves data integrity.
 
 ### Examples
